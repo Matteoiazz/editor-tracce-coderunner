@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-
-[dev]
-pytest
-httpx
-ruff
