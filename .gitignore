@@ -1,0 +1,25 @@
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Node / Electron
+node_modules/
+dist/
+out/
+
+# Varie
+.env
+.DS_Store
