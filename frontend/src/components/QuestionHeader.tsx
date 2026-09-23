@@ -1,49 +1,35 @@
-import type { ExamKind, NameParts } from "../naming";
-
 interface Props {
-  parts: NameParts;
-  grade: number;
   name: string;
-  onPartsChange: (parts: NameParts) => void;
+  number: number | null;
+  grade: number;
+  duplicate: boolean;
+  onNumberChange: (number: number | null) => void;
   onGradeChange: (grade: number) => void;
+  onRemove: () => void;
 }
 
-/** Intestazione dell'esercizio: numero, data, tipo, punti e nome risultante. */
-export function QuestionHeader({ parts, grade, name, onPartsChange, onGradeChange }: Props) {
+/** Intestazione dell'esercizio: nome, numero, punti e rimozione. */
+export function QuestionHeader(props: Props) {
+  const { name, number, grade, duplicate, onNumberChange, onGradeChange, onRemove } = props;
   return (
     <div className="question-header">
+      <div className="title-row">
+        <h2>{name}</h2>
+        <button type="button" className="danger" onClick={onRemove}>
+          Rimuovi
+        </button>
+      </div>
       <div className="fields">
         <label>
           N°
           <input
             type="number"
             min={1}
-            value={parts.number ?? ""}
-            onChange={(e) =>
-              onPartsChange({ ...parts, number: e.target.value ? Number(e.target.value) : null })
-            }
+            value={number ?? ""}
+            onChange={(e) => onNumberChange(e.target.value ? Number(e.target.value) : null)}
           />
         </label>
-        <label>
-          Data
-          <input
-            type="date"
-            value={parts.date}
-            onChange={(e) => onPartsChange({ ...parts, date: e.target.value })}
-          />
-        </label>
-        <fieldset>
-          {(["Esame", "Pretest"] as ExamKind[]).map((kind) => (
-            <label key={kind}>
-              <input
-                type="radio"
-                checked={parts.kind === kind}
-                onChange={() => onPartsChange({ ...parts, kind })}
-              />
-              {kind}
-            </label>
-          ))}
-        </fieldset>
+        {duplicate && <span className="error">Numero già usato da un altro esercizio</span>}
         <label>
           Punti
           <input
@@ -54,9 +40,6 @@ export function QuestionHeader({ parts, grade, name, onPartsChange, onGradeChang
             onChange={(e) => onGradeChange(Number(e.target.value))}
           />
         </label>
-      </div>
-      <div className="name">
-        Nome: <code>{name}</code>
       </div>
     </div>
   );

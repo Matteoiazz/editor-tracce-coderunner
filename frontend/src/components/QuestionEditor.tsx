@@ -1,36 +1,27 @@
 import { useState } from "react";
 import { generateStudentCode } from "../api";
-import { buildName, type NameParts } from "../naming";
+import { type EditableQuestion, questionName } from "../exam";
+import type { ExamInfo } from "../naming";
 import type { Question } from "../types";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { QuestionHeader } from "./QuestionHeader";
 
-export interface EditableQuestion {
-  id: string; // solo per React, non esportato
-  question: Question;
-  parts: NameParts;
-}
-
 interface Props {
   item: EditableQuestion;
+  exam: ExamInfo;
+  duplicate: boolean;
   onChange: (item: EditableQuestion) => void;
+  onRemove: () => void;
 }
 
 /** Un blocco esercizio, come nel foglietto del docente. */
-export function QuestionEditor({ item, onChange }: Props) {
-  const { question, parts } = item;
+export function QuestionEditor({ item, exam, duplicate, onChange, onRemove }: Props) {
+  const { question } = item;
   const [error, setError] = useState<string | null>(null);
 
   function update(changes: Partial<Question>) {
     onChange({ ...item, question: { ...question, ...changes } });
-  }
-
-  function updateParts(newParts: NameParts) {
-    // Quando tutti i campi sono compilati il nome segue la convenzione;
-    // altrimenti resta quello originale (es. un nome importato non riconosciuto).
-    const name = buildName(newParts) ?? question.name;
-    onChange({ ...item, parts: newParts, question: { ...question, name } });
   }
 
   async function handleGenerateStudentCode() {
@@ -51,11 +42,13 @@ export function QuestionEditor({ item, onChange }: Props) {
   return (
     <section className="question">
       <QuestionHeader
-        parts={parts}
+        name={questionName(item, exam)}
+        number={item.number}
         grade={question.default_grade}
-        name={question.name}
-        onPartsChange={updateParts}
+        duplicate={duplicate}
+        onNumberChange={(number) => onChange({ ...item, number })}
         onGradeChange={(default_grade) => update({ default_grade })}
+        onRemove={onRemove}
       />
 
       <h3>Testo della traccia</h3>

@@ -4,18 +4,23 @@
 
 export type ExamKind = "Esame" | "Pretest";
 
-export interface NameParts {
-  number: number | null;
+/** Dati comuni a tutti gli esercizi dell'esame. */
+export interface ExamInfo {
   date: string; // "AAAA-MM-GG", oppure "" se non indicata
   kind: ExamKind | null;
 }
 
-export function buildName(parts: NameParts): string | null {
-  if (parts.number === null || !parts.date || parts.kind === null) return null;
-  return `Esercizio${parts.number}-${parts.date}-${parts.kind}`;
+/** Parti riconosciute in un nome esistente. */
+export interface NameParts extends ExamInfo {
+  number: number | null;
 }
 
-/** Ricava i campi da un nome esistente: ogni parte è riconosciuta indipendentemente,
+export function buildName(number: number | null, exam: ExamInfo): string | null {
+  if (number === null || !exam.date || exam.kind === null) return null;
+  return `Esercizio${number}-${exam.date}-${exam.kind}`;
+}
+
+/** Ricava le parti da un nome esistente: ogni parte è riconosciuta indipendentemente,
  *  quelle che mancano restano vuote. Es. "Esame-2026-07-03 - Traccia 1 - Esercizio 3". */
 export function parseName(name: string): NameParts {
   const number = name.match(/esercizio\s*(?:pretest\s*)?(\d+)/i);
