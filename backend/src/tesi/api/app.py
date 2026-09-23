@@ -7,6 +7,8 @@ e viceversa, senza contenere logica di dominio.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from tesi.api.questions import router as questions_router
+
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Tesi backend", version="0.1.0")
@@ -26,4 +28,5 @@ def create_app() -> FastAPI:
         """Usato da Electron per capire quando il backend è pronto."""
         return {"status": "ok"}
 
+    app.include_router(questions_router)
     return app

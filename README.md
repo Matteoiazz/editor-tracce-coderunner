@@ -50,4 +50,13 @@ cd backend
 .venv/Scripts/python.exe -m tesi --port 8000
 ```
 
-Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API.
+Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API:
+
+| Endpoint | Cosa fa |
+|---|---|
+| `POST /api/questions/import` | carica un XML esportato da Moodle e restituisce gli esercizi in JSON |
+| `POST /api/questions/verify` | esegue la soluzione del docente su ogni test e dice quali passano |
+| `POST /api/questions/fill-expected` | calcola gli output attesi dei test dalla soluzione del docente |
+| `POST /api/questions/export` | produce l'XML da importare nella banca delle domande di Moodle |
+
+Gli XML reali del docente usati nei test sono in `backend/tests/fixtures/moodle/`.

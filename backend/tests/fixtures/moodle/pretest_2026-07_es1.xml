@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  
+<!-- question: 137318  -->
+  <question type="coderunner">
+    <name>
+      <text>2026-07 - Esercizio pretest 1</text>
+    </name>
+    <questiontext format="html">
+      <text><![CDATA[<p dir="ltr"></p><p dir="ltr">Implementare la funzione <strong>somma(lst)</strong> che riceve in input una lista di numeri interi e restituisce la somma dei numeri dominanti.</p><p dir="ltr"><span style="font-size: 0.9375rem;">Un numero <strong>n</strong> è dominante se compare nella lista un numero di volte strettamente maggiore di <strong>n/2</strong>. Se non esistono numeri dominanti, restituire 0.</span></p><p dir="ltr"><strong>Nota:</strong> ogni numero dominante va sommato una sola volta.</p><p dir="ltr"><span style="font-size: 0.9375rem;"><strong>Esempio:</strong></span><br></p><p dir="ltr"><span style="font-size: 0.9375rem;">Se <strong>lst</strong> fosse [2,2,2,5,5,6], la funzione restituirebbe 2, perché:</span><br></p><p dir="ltr"></p><ul><li><span style="font-size: 0.9375rem;">2 compare 3 volte, quindi 3 &gt; 2/2 (dominante)</span><br></li><li><span style="font-size: 0.9375rem;">5 compare 2 volte, quindi 2 &lt; 2.5 (non dominante)</span><br></li><li><span style="font-size: 0.9375rem;">6 compare 1 volta, quindi 1 &lt; 3 (non dominante)</span><br></li></ul><p></p><p></p>]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text></text>
+    </generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.0000000</penalty>
+    <hidden>0</hidden>
+    <idnumber></idnumber>
+    <coderunnertype>python3_w_input</coderunnertype>
+    <prototypetype>0</prototypetype>
+    <allornothing>1</allornothing>
+    <penaltyregime>0</penaltyregime>
+    <precheck>0</precheck>
+    <hidecheck>0</hidecheck>
+    <showsource>0</showsource>
+    <answerboxlines>20</answerboxlines>
+    <answerboxcolumns>100</answerboxcolumns>
+    <answerpreload><![CDATA[def somma(lst):
+    # Inserisci qui la tua implementazione
+    return None
+
+if __name__ == "__main__":
+    import sys
+    import random
+    seed = int(input())
+    random.seed(seed)
+    n = int(input())
+    lst = []
+    for i in range(n):
+        myrand = random.randint(1, 10)
+        if myrand % 2 != 0:
+            myrand += 1
+        lst.append(myrand)
+    print(f"Input: {lst} - Risultato: {somma(lst.copy())}")]]></answerpreload>
+    <globalextra></globalextra>
+    <useace></useace>
+    <resultcolumns></resultcolumns>
+    <template></template>
+    <iscombinatortemplate></iscombinatortemplate>
+    <allowmultiplestdins></allowmultiplestdins>
+    <answer><![CDATA[def dominante(n, lst):
+    return lst.count(n) > n/2
+
+def somma(lst):
+    speciali = []
+    for i in lst:
+        if i not in speciali and dominante(i, lst):
+            speciali.append(i)
+    return sum(speciali)
+
+if __name__ == "__main__":
+    import sys
+    import random
+    seed = int(input())
+    random.seed(seed)
+    n = int(input())
+    lst = []
+    for i in range(n):
+        myrand = random.randint(1, 10)
+        if myrand % 2 != 0:
+            myrand += 1
+        lst.append(myrand)
+    print(f"Input: {lst} - Risultato: {somma(lst.copy())}")]]></answer>
+    <validateonsave>1</validateonsave>
+    <testsplitterre></testsplitterre>
+    <language></language>
+    <acelang></acelang>
+    <sandbox></sandbox>
+    <grader></grader>
+    <cputimelimitsecs></cputimelimitsecs>
+    <memlimitmb></memlimitmb>
+    <sandboxparams></sandboxparams>
+    <templateparams></templateparams>
+    <hoisttemplateparams>1</hoisttemplateparams>
+    <extractcodefromjson>1</extractcodefromjson>
+    <templateparamslang>python3</templateparamslang>
+    <templateparamsevalpertry>0</templateparamsevalpertry>
+    <templateparamsevald>{}</templateparamsevald>
+    <twigall>0</twigall>
+    <uiplugin></uiplugin>
+    <uiparameters><![CDATA[{
+    "live_autocompletion": true
+}]]></uiparameters>
+    <attachments>0</attachments>
+    <attachmentsrequired>0</attachmentsrequired>
+    <maxfilesize>10240</maxfilesize>
+    <filenamesregex></filenamesregex>
+    <filenamesexplain></filenamesexplain>
+    <displayfeedback>1</displayfeedback>
+    <giveupallowed>0</giveupallowed>
+    <prototypeextra></prototypeextra>
+    <testcases>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>0
+1</text>
+      </stdin>
+      <expected>
+                <text>0
+1
+Input: [8] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="1" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>1
+10</text>
+      </stdin>
+      <expected>
+                <text>1
+10
+Input: [4, 10, 2, 6, 2, 8, 8, 8, 8, 4] - Risultato: 2
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>2
+0</text>
+      </stdin>
+      <expected>
+                <text>2
+0
+Input: [] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>3
+4</text>
+      </stdin>
+      <expected>
+                <text>3
+4
+Input: [4, 10, 10, 4] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>4
+5</text>
+      </stdin>
+      <expected>
+                <text>4
+5
+Input: [4, 6, 2, 8, 8] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>5
+50</text>
+      </stdin>
+      <expected>
+                <text>5
+50
+Input: [10, 6, 6, 10, 2, 8, 4, 2, 4, 2, 6, 8, 4, 8, 10, 2, 10, 4, 2, 4, 8, 6, 4, 8, 4, 2, 4, 10, 10, 8, 4, 4, 2, 2, 4, 4, 4, 4, 6, 6, 4, 10, 4, 4, 4, 8, 6, 2, 6, 8] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="1" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>6
+3</text>
+      </stdin>
+      <expected>
+                <text>6
+3
+Input: [10, 2, 8] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="1" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>7
+18</text>
+      </stdin>
+      <expected>
+                <text>7
+18
+Input: [6, 4, 8, 2, 2, 10, 2, 6, 10, 2, 10, 4, 2, 2, 8, 8, 2, 4] - Risultato: 6
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>8
+94</text>
+      </stdin>
+      <expected>
+                <text>8
+94
+Input: [4, 6, 8, 4, 4, 2, 2, 4, 4, 10, 4, 8, 2, 8, 8, 8, 8, 8, 10, 4, 8, 2, 8, 4, 2, 6, 10, 8, 8, 8, 2, 6, 2, 2, 8, 10, 8, 2, 2, 6, 4, 2, 8, 10, 4, 10, 4, 10, 2, 10, 2, 8, 4, 4, 10, 8, 10, 8, 6, 10, 6, 8, 4, 4, 10, 2, 10, 6, 6, 8, 10, 10, 4, 6, 4, 6, 10, 6, 10, 2, 10, 10, 4, 6, 4, 2, 6, 6, 4, 6, 2, 8, 6, 8] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="1" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>15
+28</text>
+      </stdin>
+      <expected>
+                <text>15
+28
+Input: [4, 2, 10, 2, 4, 4, 2, 2, 4, 6, 4, 2, 6, 8, 6, 6, 8, 6, 6, 4, 4, 6, 6, 4, 6, 10, 8, 4] - Risultato: 12
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>16
+150</text>
+      </stdin>
+      <expected>
+                <text>16
+150
+Input: [6, 8, 8, 6, 8, 4, 8, 2, 8, 6, 4, 4, 2, 6, 6, 6, 4, 10, 6, 2, 4, 10, 6, 2, 4, 10, 2, 8, 8, 10, 6, 4, 6, 6, 6, 8, 2, 6, 8, 8, 10, 4, 10, 6, 10, 2, 6, 2, 2, 10, 6, 4, 8, 4, 6, 6, 6, 8, 8, 2, 4, 8, 2, 8, 8, 2, 8, 2, 8, 10, 2, 8, 2, 4, 4, 8, 6, 2, 10, 2, 8, 10, 6, 8, 10, 2, 4, 6, 2, 2, 10, 2, 4, 2, 8, 2, 2, 2, 8, 4, 6, 4, 4, 10, 2, 4, 10, 4, 2, 2, 4, 6, 8, 8, 2, 8, 8, 8, 8, 6, 2, 2, 2, 4, 8, 6, 10, 8, 2, 4, 2, 8, 2, 6, 2, 8, 8, 4, 8, 4, 4, 4, 8, 8, 10, 4, 8, 4, 6, 8] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>18
+120</text>
+      </stdin>
+      <expected>
+                <text>18
+120
+Input: [4, 2, 8, 6, 4, 4, 8, 8, 4, 8, 6, 8, 6, 4, 6, 2, 6, 10, 4, 4, 4, 4, 4, 6, 10, 10, 4, 8, 4, 6, 6, 2, 6, 8, 4, 8, 10, 6, 10, 10, 10, 6, 6, 10, 6, 10, 2, 6, 8, 10, 10, 4, 8, 4, 4, 4, 8, 4, 8, 10, 8, 10, 2, 4, 10, 6, 10, 6, 10, 8, 2, 8, 4, 8, 4, 8, 2, 4, 2, 10, 6, 4, 8, 10, 10, 10, 2, 4, 2, 8, 8, 8, 4, 8, 8, 4, 6, 8, 6, 4, 6, 6, 10, 6, 4, 8, 10, 2, 10, 8, 4, 4, 10, 8, 2, 10, 10, 10, 8, 10] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="1" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>21
+112</text>
+      </stdin>
+      <expected>
+                <text>21
+112
+Input: [4, 8, 8, 6, 8, 4, 8, 10, 4, 10, 10, 4, 2, 2, 6, 10, 8, 2, 4, 4, 4, 2, 8, 8, 10, 8, 2, 6, 10, 8, 2, 6, 2, 4, 2, 2, 2, 8, 4, 10, 6, 8, 8, 4, 4, 2, 8, 4, 2, 4, 4, 10, 2, 2, 10, 8, 10, 8, 4, 6, 4, 10, 8, 6, 6, 8, 10, 8, 6, 8, 8, 6, 2, 2, 4, 8, 2, 8, 2, 10, 10, 10, 4, 10, 10, 6, 10, 10, 2, 4, 4, 6, 6, 6, 10, 6, 4, 2, 4, 2, 4, 8, 6, 4, 2, 10, 4, 8, 4, 10, 2, 6] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="1" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>28
+110</text>
+      </stdin>
+      <expected>
+                <text>28
+110
+Input: [2, 4, 10, 10, 4, 4, 4, 8, 8, 4, 4, 4, 8, 4, 4, 10, 4, 4, 2, 8, 4, 2, 2, 8, 6, 4, 4, 10, 10, 6, 10, 4, 8, 4, 4, 2, 6, 6, 2, 10, 10, 6, 2, 10, 8, 4, 4, 6, 2, 2, 8, 8, 6, 4, 8, 6, 8, 10, 4, 4, 4, 6, 10, 4, 10, 8, 2, 4, 4, 2, 6, 6, 8, 2, 8, 4, 8, 10, 4, 10, 8, 10, 8, 4, 8, 4, 8, 6, 8, 4, 4, 2, 2, 8, 8, 10, 6, 8, 4, 10, 10, 2, 8, 6, 6, 2, 4, 8, 4, 10] - Risultato: 30
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>30
+4</text>
+      </stdin>
+      <expected>
+                <text>30
+4
+Input: [10, 6, 10, 2] - Risultato: 0
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+      <testcase testtype="0" useasexample="0" hiderestiffail="0" mark="1.0000000" >
+      <testcode>
+                <text></text>
+      </testcode>
+      <stdin>
+                <text>35
+8</text>
+      </stdin>
+      <expected>
+                <text>35
+8
+Input: [10, 6, 4, 6, 4, 6, 8, 6] - Risultato: 6
+</text>
+      </expected>
+      <extra>
+                <text></text>
+      </extra>
+      <display>
+                <text>SHOW</text>
+      </display>
+    </testcase>
+    </testcases>
+    <tags>
+      <tag><text>Pretest</text>
+</tag>
+    </tags>
+  </question>
+  
+</quiz>
