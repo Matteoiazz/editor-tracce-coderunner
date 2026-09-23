@@ -3,6 +3,7 @@ import { generateStudentCode } from "../api";
 import { buildName, type NameParts } from "../naming";
 import type { Question } from "../types";
 import { CodeEditor } from "./CodeEditor";
+import { HtmlEditor } from "./HtmlEditor";
 import { QuestionHeader } from "./QuestionHeader";
 
 export interface EditableQuestion {
@@ -56,6 +57,9 @@ export function QuestionEditor({ item, onChange }: Props) {
         onPartsChange={updateParts}
         onGradeChange={(default_grade) => update({ default_grade })}
       />
+
+      <h3>Testo della traccia</h3>
+      <HtmlEditor value={question.text_html} onChange={(text_html) => update({ text_html })} />
 
       <h3>Soluzione (nascosta agli studenti)</h3>
       <CodeEditor value={question.solution} onChange={(solution) => update({ solution })} />

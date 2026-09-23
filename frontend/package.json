@@ -21,6 +21,9 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "monaco-editor": "^0.56.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
