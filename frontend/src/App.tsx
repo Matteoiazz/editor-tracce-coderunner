@@ -1,9 +1,18 @@
 import { useState } from "react";
 import { importXml } from "./api";
+import { type EditableQuestion, QuestionEditor } from "./components/QuestionEditor";
+import { buildName, parseName } from "./naming";
 import type { Question } from "./types";
 
+function toEditable(question: Question): EditableQuestion {
+  const parts = parseName(question.name);
+  // Se il nome importato contiene tutti i dati, lo si porta subito alla convenzione.
+  const name = buildName(parts) ?? question.name;
+  return { id: crypto.randomUUID(), parts, question: { ...question, name } };
+}
+
 export function App() {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [items, setItems] = useState<EditableQuestion[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function handleImport() {
@@ -13,10 +22,14 @@ export function App() {
       if (!file) return; // l'utente ha annullato
       const imported = await importXml(file.content);
       // Gli esercizi importati si aggiungono a quelli già presenti
-      setQuestions((current) => [...current, ...imported]);
+      setItems((current) => [...current, ...imported.map(toEditable)]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  function updateItem(updated: EditableQuestion) {
+    setItems((current) => current.map((it) => (it.id === updated.id ? updated : it)));
   }
 
   return (
@@ -30,17 +43,10 @@ export function App() {
       <main className="content">
         {error && <p className="error">Importazione non riuscita: {error}</p>}
 
-        {questions.length === 0 ? (
+        {items.length === 0 ? (
           <p className="empty">Nessun esercizio. Importa un file XML esportato da Moodle.</p>
         ) : (
-          <ul className="question-list">
-            {questions.map((q, i) => (
-              <li key={i}>
-                <strong>{q.name}</strong>
-                <span className="muted"> · {q.testcases.length} test</span>
-              </li>
-            ))}
-          </ul>
+          items.map((item) => <QuestionEditor key={item.id} item={item} onChange={updateItem} />)
         )}
       </main>
     </div>

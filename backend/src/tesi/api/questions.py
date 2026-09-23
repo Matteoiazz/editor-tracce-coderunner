@@ -1,9 +1,12 @@
 """Endpoint sugli esercizi: import/export XML Moodle e verifica della soluzione."""
 
+from dataclasses import dataclass
+
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 
 from tesi.adapters.local_runner import LocalPythonRunner
 from tesi.adapters.moodle_xml import MoodleXmlError, parse_quiz, to_quiz_xml
+from tesi.application.student_code import StudentCodeError, generate_student_code
 from tesi.application.verification import (
     SolutionFailed,
     TestOutcome,
@@ -50,4 +53,23 @@ def fill_expected(question: Question) -> Question:
     try:
         return fill_expected_outputs(question, runner)
     except SolutionFailed as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@dataclass
+class StudentCodeRequest:
+    solution: str
+
+
+@dataclass
+class StudentCodeResponse:
+    student_code: str
+
+
+@router.post("/student-code")
+def student_code(request: StudentCodeRequest) -> StudentCodeResponse:
+    """Genera il codice per gli studenti: stesso main, funzione richiesta svuotata."""
+    try:
+        return StudentCodeResponse(generate_student_code(request.solution))
+    except StudentCodeError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -70,6 +70,11 @@ DEFAULT_SETTINGS: dict[str, str] = {
 
 # ---------------------------------------------------------------- lettura
 
+_EXPORT_HINT = (
+    "Controlla di averlo esportato dalla banca delle domande in formato XML Moodle."
+)
+
+
 def parse_quiz(data: str | bytes) -> list[Question]:
     """Legge un file XML Moodle e restituisce le domande CodeRunner che contiene.
 
@@ -78,9 +83,12 @@ def parse_quiz(data: str | bytes) -> list[Question]:
     try:
         root = ET.fromstring(data)
     except ET.ParseError as exc:
-        raise MoodleXmlError(f"XML non valido: {exc}") from exc
+        line, _column = exc.position
+        raise MoodleXmlError(
+            f"Il file non è un XML valido (errore alla riga {line}). {_EXPORT_HINT}"
+        ) from exc
     if root.tag != "quiz":
-        raise MoodleXmlError(f"Elemento radice atteso <quiz>, trovato <{root.tag}>")
+        raise MoodleXmlError(f"Il file non è un export di domande Moodle. {_EXPORT_HINT}")
     return [
         _parse_question(el) for el in root.findall("question")
         if el.get("type") == "coderunner"

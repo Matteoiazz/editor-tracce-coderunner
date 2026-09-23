@@ -46,7 +46,65 @@ button:hover {
   color: #656d76;
 }
 
-.question-list {
-  padding-left: 20px;
-  line-height: 1.8;
+
+.question {
+  max-width: 1100px;
+  margin: 0 auto 24px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #d8dde3;
+  border-radius: 8px;
+}
+
+.question h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+}
+
+.question-header .fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.question-header label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.question-header fieldset {
+  display: inline-flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.question-header input[type="number"] {
+  width: 70px;
+}
+
+.question-header input {
+  font: inherit;
+  padding: 4px 6px;
+}
+
+.question-header .name {
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+.section-title {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.code-editor {
+  border: 1px solid #d8dde3;
+  border-radius: 6px;
+  overflow: hidden;
 }

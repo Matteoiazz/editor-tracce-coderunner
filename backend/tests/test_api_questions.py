@@ -27,7 +27,7 @@ def test_import_di_un_file_non_valido_da_errore_leggibile(client: TestClient) ->
     response = client.post("/api/questions/import", files={"file": ("x.xml", b"non xml")})
 
     assert response.status_code == 422
-    assert "XML non valido" in response.json()["detail"]
+    assert "non è un XML valido (errore alla riga 1)" in response.json()["detail"]
 
 
 def test_import_verifica_ed_export_in_sequenza(client: TestClient) -> None:
@@ -40,3 +40,19 @@ def test_import_verifica_ed_export_in_sequenza(client: TestClient) -> None:
     assert all(o["passed"] for o in outcomes)
     assert exported.headers["content-type"].startswith("application/xml")
     assert "<name>" in exported.text
+
+
+def test_genera_il_codice_per_gli_studenti(client: TestClient) -> None:
+    solution = "def f(x):\n    return x\n\nif __name__ == '__main__':\n    print(f(1))\n"
+
+    response = client.post("/api/questions/student-code", json={"solution": solution})
+
+    assert response.status_code == 200
+    assert "return None" in response.json()["student_code"]
+
+
+def test_codice_studenti_con_errore_di_sintassi(client: TestClient) -> None:
+    response = client.post("/api/questions/student-code", json={"solution": "def f(:"})
+
+    assert response.status_code == 422
+    assert "errore di sintassi" in response.json()["detail"]

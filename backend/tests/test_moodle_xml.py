@@ -71,7 +71,11 @@ def test_ignora_le_voci_che_non_sono_coderunner() -> None:
     assert parse_quiz(xml) == []
 
 
-@pytest.mark.parametrize("xml", ["<quiz><question>", "<altro/>"])
-def test_rifiuta_un_file_non_valido(xml: str) -> None:
-    with pytest.raises(MoodleXmlError):
-        parse_quiz(xml)
+def test_errore_leggibile_se_il_file_non_e_xml() -> None:
+    with pytest.raises(MoodleXmlError, match=r"non è un XML valido \(errore alla riga 2\)"):
+        parse_quiz("<quiz>\n<question></quiz>")
+
+
+def test_errore_leggibile_se_non_e_un_export_moodle() -> None:
+    with pytest.raises(MoodleXmlError, match="non è un export di domande Moodle"):
+        parse_quiz("<altro/>")
