@@ -1,8 +1,9 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { spawn } = require("node:child_process");
+const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
 
@@ -90,6 +91,20 @@ function createWindow() {
 
 // Il renderer chiede al main process su quale porta gira il backend.
 ipcMain.handle("backend:get-url", () => `http://127.0.0.1:${backendPort}`);
+
+// Finestra di Windows "Apri file": il renderer non può leggere file da solo (non ha Node.js),
+// quindi lo fa il main process e gli restituisce il contenuto.
+ipcMain.handle("dialog:open-xml", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: "Importa XML Moodle",
+    filters: [{ name: "XML Moodle", extensions: ["xml"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  return { path: filePath, content: await fs.readFile(filePath, "utf-8") };
+});
 
 app.whenReady().then(async () => {
   try {

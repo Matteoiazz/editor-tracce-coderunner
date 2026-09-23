@@ -1,0 +1,52 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: #1f2328;
+  background: #f6f7f9;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #d8dde3;
+}
+
+button {
+  font: inherit;
+  padding: 6px 12px;
+  border: 1px solid #c4cad1;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #eef1f4;
+}
+
+.content {
+  padding: 16px;
+}
+
+.error {
+  color: #b42318;
+}
+
+.empty,
+.muted {
+  color: #656d76;
+}
+
+.question-list {
+  padding-left: 20px;
+  line-height: 1.8;
+}
