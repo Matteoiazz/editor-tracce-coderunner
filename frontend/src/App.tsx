@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { importXml } from "./api";
+import { exportXml, importXml, verifyQuestion } from "./api";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { ExamHeader } from "./components/ExamHeader";
 import { QuestionEditor } from "./components/QuestionEditor";
@@ -12,6 +12,7 @@ import {
   nextNumber,
   questionName,
 } from "./exam";
+import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
 import type { ExamInfo } from "./naming";
 import type { TestRow } from "./testcases";
 
@@ -21,6 +22,8 @@ export function App() {
   const [items, setItems] = useState<EditableQuestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [exportIssues, setExportIssues] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   const canCreate = isExamComplete(exam);
   const duplicates = duplicateNumbers(items);
@@ -32,6 +35,7 @@ export function App() {
   async function handleImport() {
     setError(null);
     setNotice(null);
+    setExportIssues([]);
     try {
       const file = await window.desktop.openXmlFile();
       if (!file) return; // l'utente ha annullato
@@ -41,7 +45,42 @@ export function App() {
       setItems((current) => [...current, ...result.items]);
       setNotice(result.notice);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(`Importazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  async function handleExport() {
+    setError(null);
+    setNotice(null);
+    setExportIssues([]);
+    const problems = exportProblems(items, exam, common);
+    if (problems.length > 0) {
+      setExportIssues(problems);
+      return;
+    }
+    setExporting(true);
+    try {
+      const questions = sortedByNumber(items).map((item) => prepareQuestion(item, exam, common));
+      // Su Moodle una soluzione che non supera i propri test renderebbe l'esercizio inutilizzabile
+      const failures: string[] = [];
+      for (const question of questions) {
+        const failed = (await verifyQuestion(question)).filter((o) => !o.passed).length;
+        if (failed > 0) {
+          failures.push(
+            `${question.name}: ${failed} test non superati dalla soluzione (premi «Verifica» per i dettagli)`,
+          );
+        }
+      }
+      if (failures.length > 0) {
+        setExportIssues(failures);
+        return;
+      }
+      const path = await window.desktop.saveXmlFile(exportFileName(exam), await exportXml(questions));
+      if (path) setNotice(`Esportati ${questions.length} esercizi in ${path}`);
+    } catch (e) {
+      setError(`Esportazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -83,6 +122,9 @@ export function App() {
         <button type="button" onClick={handleImport}>
           Importa XML
         </button>
+        <button type="button" onClick={handleExport} disabled={exporting}>
+          {exporting ? "Esportazione…" : "Esporta XML"}
+        </button>
         {!canCreate && (
           <span className="muted">Indica data e tipo dell'esame per creare un esercizio</span>
         )}
@@ -92,8 +134,18 @@ export function App() {
         <ExamHeader exam={exam} onChange={setExam} />
         <CommonTestsPanel rows={common} onChange={handleCommonChange} />
 
-        {error && <p className="error">Importazione non riuscita: {error}</p>}
+        {error && <p className="error">{error}</p>}
         {notice && <p className="notice">{notice}</p>}
+        {exportIssues.length > 0 && (
+          <div className="export-issues">
+            <strong>Impossibile esportare:</strong>
+            <ul>
+              {exportIssues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <p className="empty">

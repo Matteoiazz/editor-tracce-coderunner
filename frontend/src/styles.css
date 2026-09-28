@@ -424,3 +424,23 @@ button.icon:hover {
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 12px;
 }
+
+.content > .error {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+}
+
+.export-issues {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  padding: 8px 12px;
+  background: #fff1f0;
+  border: 1px solid #f3b8b1;
+  border-radius: 6px;
+  color: #8a1f14;
+}
+
+.export-issues ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}

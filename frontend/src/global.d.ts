@@ -9,5 +9,7 @@ interface Window {
     getBackendUrl(): Promise<string>;
     /** Apre la finestra "Apri file"; null se l'utente annulla. */
     openXmlFile(): Promise<OpenedFile | null>;
+    /** Apre la finestra "Salva con nome" e scrive il file; restituisce il percorso, o null se l'utente annulla. */
+    saveXmlFile(defaultName: string, content: string): Promise<string | null>;
   };
 }

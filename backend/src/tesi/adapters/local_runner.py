@@ -4,6 +4,7 @@ Adatto allo sviluppo e ai test: il codice gira con i permessi dell'utente, quind
 non va usato per codice non fidato (es. codice degli studenti) né su un server.
 """
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,10 @@ def input(prompt=""):
     print(s)
     return s
 """
+_PRELUDE_LINES = _W_INPUT_PRELUDE.count("\n")
+
+# Nome con cui il file della soluzione compare nei messaggi d'errore
+SOLUTION_FILE_NAME = "soluzione"
 
 
 class LocalPythonRunner:
@@ -45,10 +50,50 @@ class LocalPythonRunner:
                 )
             except subprocess.TimeoutExpired as exc:
                 return RunResult(
-                    stdout=_as_text(exc.stdout), stderr=_as_text(exc.stderr),
-                    exit_code=None, timed_out=True,
+                    stdout=_as_text(exc.stdout),
+                    stderr=clean_traceback(_as_text(exc.stderr), str(program)),
+                    exit_code=None,
+                    timed_out=True,
                 )
-        return RunResult(completed.stdout, completed.stderr, completed.returncode)
+        return RunResult(
+            completed.stdout,
+            clean_traceback(completed.stderr, str(program)),
+            completed.returncode,
+        )
+
+
+def clean_traceback(stderr: str, program_path: str) -> str:
+    """Rende leggibile il messaggio d'errore di Python per il docente:
+    - il percorso del file temporaneo diventa "soluzione";
+    - i numeri di riga sono quelli della soluzione (senza le righe del preambolo);
+    - le voci che riguardano il preambolo vengono rimosse.
+    """
+    frame = re.compile(r'^(\s*)File "' + re.escape(program_path) + r'", line (\d+)(.*)$')
+    lines = stderr.splitlines()
+    cleaned: list[str] = []
+    i = 0
+    while i < len(lines):
+        match = frame.match(lines[i])
+        if not match:
+            cleaned.append(lines[i])
+            i += 1
+            continue
+        indent, number, rest = match.group(1), int(match.group(2)), match.group(3)
+        i += 1
+        # Righe che appartengono alla stessa voce: più rientrate e non una nuova voce "File"
+        body = []
+        while (
+            i < len(lines)
+            and lines[i].startswith(indent + " ")
+            and not lines[i].lstrip().startswith("File ")
+        ):
+            body.append(lines[i])
+            i += 1
+        if number <= _PRELUDE_LINES:
+            continue
+        cleaned.append(f'{indent}File "{SOLUTION_FILE_NAME}", line {number - _PRELUDE_LINES}{rest}')
+        cleaned.extend(body)
+    return "\n".join(cleaned) + ("\n" if stderr.endswith("\n") else "")
 
 
 def _as_text(data: str | bytes | None) -> str:

@@ -106,6 +106,19 @@ ipcMain.handle("dialog:open-xml", async (event) => {
   return { path: filePath, content: await fs.readFile(filePath, "utf-8") };
 });
 
+// Finestra di Windows "Salva con nome": restituisce il percorso scelto, oppure null se annullata.
+ipcMain.handle("dialog:save-xml", async (event, { defaultName, content }) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showSaveDialog(win, {
+    title: "Esporta XML Moodle",
+    defaultPath: defaultName,
+    filters: [{ name: "XML Moodle", extensions: ["xml"] }],
+  });
+  if (result.canceled || !result.filePath) return null;
+  await fs.writeFile(result.filePath, content, "utf-8");
+  return result.filePath;
+});
+
 app.whenReady().then(async () => {
   try {
     backendPort = await getFreePort();
