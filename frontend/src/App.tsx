@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { importXml } from "./api";
+import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { ExamHeader } from "./components/ExamHeader";
 import { QuestionEditor } from "./components/QuestionEditor";
 import {
@@ -12,9 +13,11 @@ import {
   questionName,
 } from "./exam";
 import type { ExamInfo } from "./naming";
+import type { TestRow } from "./testcases";
 
 export function App() {
   const [exam, setExam] = useState<ExamInfo>({ date: "", kind: null });
+  const [common, setCommon] = useState<TestRow[]>([]);
   const [items, setItems] = useState<EditableQuestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -32,12 +35,32 @@ export function App() {
     try {
       const file = await window.desktop.openXmlFile();
       if (!file) return; // l'utente ha annullato
-      const result = adoptImported(await importXml(file.content), items, exam);
+      const result = adoptImported(await importXml(file.content), items, exam, common);
       setExam(result.exam);
+      setCommon(result.common);
       setItems((current) => [...current, ...result.items]);
       setNotice(result.notice);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function handleCommonChange(rows: TestRow[]) {
+    // Se cambia l'input di un test comune, il suo output va ricalcolato in ogni esercizio
+    const previous = new Map(common.map((row) => [row.id, row.stdin]));
+    const changed = new Set(
+      rows.filter((row) => previous.has(row.id) && previous.get(row.id) !== row.stdin).map((r) => r.id),
+    );
+    setCommon(rows);
+    if (changed.size > 0) {
+      setItems((current) =>
+        current.map((it) => ({
+          ...it,
+          commonExpected: Object.fromEntries(
+            Object.entries(it.commonExpected).filter(([id]) => !changed.has(id)),
+          ),
+        })),
+      );
     }
   }
 
@@ -47,8 +70,8 @@ export function App() {
     setItems((current) => current.filter((it) => it.id !== item.id));
   }
 
-  function updateItem(updated: EditableQuestion) {
-    setItems((current) => current.map((it) => (it.id === updated.id ? updated : it)));
+  function updateItem(id: string, change: (item: EditableQuestion) => EditableQuestion) {
+    setItems((current) => current.map((it) => (it.id === id ? change(it) : it)));
   }
 
   return (
@@ -67,6 +90,7 @@ export function App() {
 
       <main className="content">
         <ExamHeader exam={exam} onChange={setExam} />
+        <CommonTestsPanel rows={common} onChange={handleCommonChange} />
 
         {error && <p className="error">Importazione non riuscita: {error}</p>}
         {notice && <p className="notice">{notice}</p>}
@@ -82,8 +106,9 @@ export function App() {
               key={item.id}
               item={item}
               exam={exam}
+              common={common}
               duplicate={item.number !== null && duplicates.has(item.number)}
-              onChange={updateItem}
+              onUpdate={(change) => updateItem(item.id, change)}
               onRemove={() => handleRemove(item)}
             />
           ))

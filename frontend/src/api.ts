@@ -1,6 +1,6 @@
 // Chiamate al backend Python. L'indirizzo lo fornisce Electron, perché la porta cambia a ogni avvio.
 
-import type { Question } from "./types";
+import type { Question, TestOutcome } from "./types";
 
 let backendUrl: Promise<string> | null = null;
 
@@ -32,4 +32,22 @@ export async function generateStudentCode(solution: string): Promise<string> {
     body: JSON.stringify({ solution }),
   });
   return result.student_code;
+}
+
+function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Esegue la soluzione su ogni test e restituisce gli esiti, nello stesso ordine. */
+export function verifyQuestion(question: Question): Promise<TestOutcome[]> {
+  return postJson("/api/questions/verify", question);
+}
+
+/** Restituisce l'esercizio con gli output attesi calcolati dalla soluzione. */
+export function fillExpected(question: Question): Promise<Question> {
+  return postJson("/api/questions/fill-expected", question);
 }

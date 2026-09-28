@@ -2,26 +2,30 @@ import { useState } from "react";
 import { generateStudentCode } from "../api";
 import { type EditableQuestion, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
+import type { TestRow } from "../testcases";
 import type { Question } from "../types";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { QuestionHeader } from "./QuestionHeader";
+import { TestsSection } from "./TestsSection";
 
 interface Props {
   item: EditableQuestion;
   exam: ExamInfo;
+  common: TestRow[];
   duplicate: boolean;
-  onChange: (item: EditableQuestion) => void;
+  /** Applica una modifica alla versione più recente dell'esercizio. */
+  onUpdate: (change: (item: EditableQuestion) => EditableQuestion) => void;
   onRemove: () => void;
 }
 
 /** Un blocco esercizio, come nel foglietto del docente. */
-export function QuestionEditor({ item, exam, duplicate, onChange, onRemove }: Props) {
+export function QuestionEditor({ item, exam, common, duplicate, onUpdate, onRemove }: Props) {
   const { question } = item;
   const [error, setError] = useState<string | null>(null);
 
   function update(changes: Partial<Question>) {
-    onChange({ ...item, question: { ...question, ...changes } });
+    onUpdate((current) => ({ ...current, question: { ...current.question, ...changes } }));
   }
 
   async function handleGenerateStudentCode() {
@@ -46,7 +50,7 @@ export function QuestionEditor({ item, exam, duplicate, onChange, onRemove }: Pr
         number={item.number}
         grade={question.default_grade}
         duplicate={duplicate}
-        onNumberChange={(number) => onChange({ ...item, number })}
+        onNumberChange={(number) => onUpdate((current) => ({ ...current, number }))}
         onGradeChange={(default_grade) => update({ default_grade })}
         onRemove={onRemove}
       />
@@ -69,7 +73,7 @@ export function QuestionEditor({ item, exam, duplicate, onChange, onRemove }: Pr
         onChange={(student_code) => update({ student_code })}
       />
 
-      <p className="muted">{question.testcases.length} test</p>
+      <TestsSection item={item} common={common} onUpdate={onUpdate} />
     </section>
   );
 }

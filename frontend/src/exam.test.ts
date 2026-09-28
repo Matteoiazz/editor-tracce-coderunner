@@ -9,6 +9,8 @@ import {
   SOLUTION_SKELETON,
 } from "./exam";
 import type { ExamInfo } from "./naming";
+import { standardCommonTests } from "./testcases";
+import { parseInputs, REAL_INPUTS } from "./testdata";
 import type { Question } from "./types";
 
 const esame: ExamInfo = { date: "2026-07-03", kind: "Esame" };
@@ -74,6 +76,7 @@ describe("adoptImported", () => {
       [importedQuestion("Esame-2026-07-03 - Traccia 1 - Esercizio 3")],
       [],
       vuoto,
+      [],
     );
 
     expect(result.exam).toEqual(esame);
@@ -86,6 +89,7 @@ describe("adoptImported", () => {
       [importedQuestion("2026-07 - Esercizio pretest 1")],
       withNumbers(1),
       { date: "2026-09-30", kind: "Esame" },
+      [],
     );
 
     expect(result.exam).toEqual({ date: "2026-09-30", kind: "Esame" });
@@ -101,6 +105,7 @@ describe("adoptImported", () => {
       [importedQuestion("Esame-2026-07-03 - Traccia 1 - Esercizio 1")],
       [],
       { date: "2026-09-30", kind: "Pretest" },
+      [],
     );
 
     expect(result.notice).toContain("(Esame del 2026-07-03)");
@@ -111,6 +116,7 @@ describe("adoptImported", () => {
       [importedQuestion("Esame-2026-07-03 - Traccia 1 - Esercizio 4")],
       withNumbers(1),
       esame,
+      [],
     );
 
     expect(result.notice).toBeNull();
@@ -122,8 +128,57 @@ describe("adoptImported", () => {
       [importedQuestion("Domanda A"), importedQuestion("Domanda B")],
       withNumbers(1, 2),
       esame,
+      [],
     );
 
     expect(result.items.map((it) => it.number)).toEqual([3, 4]);
+  });
+});
+
+describe("adoptImported con i test", () => {
+  const importedWithTests = (name: string, notation: string) => ({
+    ...importedQuestion(name),
+    testcases: parseInputs(notation, name),
+  });
+
+  it("riconosce i test comuni tra esame e pretest e separa quelli specifici", () => {
+    const es1 = importedWithTests("Esame-2026-07-03 - Traccia 1 - Esercizio 1", REAL_INPUTS.esame_es1);
+    const pre = importedWithTests("2026-07 - Esercizio pretest 1", REAL_INPUTS.pretest_es1);
+
+    const result = adoptImported([es1, pre], [], vuoto, []);
+
+    expect(result.common).toHaveLength(9);
+    expect(result.common.every((row) => row.expected === "")).toBe(true);
+    const [first, second] = result.items;
+    expect(first.useCommon && second.useCommon).toBe(true);
+    expect(first.specific).toHaveLength(7);
+    expect(first.specific[0].stdin).toBe("76\n28");
+    // Ogni esercizio conserva i propri output dei test comuni
+    expect(first.commonExpected[result.common[0].id]).toBe(es1.testcases[0].expected);
+    expect(second.commonExpected[result.common[0].id]).toBe(pre.testcases[0].expected);
+    expect(first.question.testcases).toEqual([]);
+  });
+
+  it("senza blocco comune gli esercizi tengono tutti i loro test come specifici", () => {
+    const es3 = importedWithTests("Esame-2026-07-03 - Traccia 1 - Esercizio 3", REAL_INPUTS.esame_es3);
+    const es4 = importedWithTests("Esame-2026-07-03 - Traccia 1 - Esercizio 4", REAL_INPUTS.esame_es4);
+
+    const result = adoptImported([es3, es4], [], vuoto, []);
+
+    expect(result.common).toEqual([]);
+    expect(result.items.map((it) => it.useCommon)).toEqual([false, false]);
+    expect(result.items.map((it) => it.specific.length)).toEqual([14, 15]);
+  });
+
+  it("con test comuni già presenti li usa solo chi inizia con quei test", () => {
+    const common = standardCommonTests();
+    const pre = importedWithTests("2026-07 - Esercizio pretest 1", REAL_INPUTS.pretest_es1);
+    const es3 = importedWithTests("Esame-2026-07-03 - Traccia 1 - Esercizio 3", REAL_INPUTS.esame_es3);
+
+    const result = adoptImported([pre, es3], [], esame, common);
+
+    expect(result.common).toBe(common);
+    expect(result.items.map((it) => it.useCommon)).toEqual([true, false]);
+    expect(result.items[0].specific).toHaveLength(7);
   });
 });

@@ -1,12 +1,17 @@
 // Regole dell'esame: creazione degli esercizi, numerazione, adattamento degli importati.
 
 import { buildName, type ExamInfo, type ExamKind, parseName } from "./naming";
+import { detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
 import type { Question } from "./types";
 
 export interface EditableQuestion {
   id: string; // identificativo interno dell'interfaccia, non esportato
-  question: Question;
+  question: Question; // i test sono in `specific` e nei test comuni, non in question.testcases
   number: number | null;
+  useCommon: boolean;
+  /** Output attesi dei test comuni per questo esercizio, per identificativo del test. */
+  commonExpected: Record<string, string>;
+  specific: TestRow[];
 }
 
 /** Codice di partenza della soluzione di un esercizio nuovo. */
@@ -59,6 +64,9 @@ export function createQuestion(number: number, exam: ExamInfo): EditableQuestion
   return {
     id: crypto.randomUUID(),
     number,
+    useCommon: true,
+    commonExpected: {},
+    specific: [],
     question: {
       name: buildName(number, exam) ?? `Esercizio${number}`,
       text_html: "",
@@ -76,6 +84,7 @@ export function createQuestion(number: number, exam: ExamInfo): EditableQuestion
 
 export interface ImportResult {
   exam: ExamInfo;
+  common: TestRow[];
   items: EditableQuestion[];
   /** Avviso per il docente, se gli esercizi sono stati adattati all'esame corrente. */
   notice: string | null;
@@ -83,11 +92,14 @@ export interface ImportResult {
 
 /** Adatta gli esercizi importati all'esame corrente.
  *  - i campi vuoti dell'esame vengono compilati con i dati ricavati dai nomi importati;
- *  - se un numero è mancante o già usato, l'esercizio prende il primo numero libero. */
+ *  - se un numero è mancante o già usato, l'esercizio prende il primo numero libero;
+ *  - se non ci sono test comuni, si cerca un blocco iniziale condiviso dagli importati;
+ *    gli esercizi che iniziano con i test comuni li usano, gli altri no. */
 export function adoptImported(
   imported: Question[],
   current: EditableQuestion[],
   exam: ExamInfo,
+  common: TestRow[],
 ): ImportResult {
   const parsed = imported.map((question) => ({ question, parts: parseName(question.name) }));
 
@@ -115,15 +127,35 @@ export function adoptImported(
       "ora seguono l'esame corrente."
     : null;
 
+  let newCommon = common;
+  if (common.length === 0) {
+    const detected = detectCommonBlock(imported.map((q) => q.testcases));
+    if (detected) {
+      newCommon = detected.block.map((test) => ({ ...toRow(test), expected: "" }));
+    }
+  }
+
   const taken = new Set(current.map((it) => it.number).filter((n): n is number => n !== null));
-  const items = parsed.map(({ question, parts }) => {
+  const items = parsed.map(({ question, parts }): EditableQuestion => {
     let number = parts.number;
     if (number === null || taken.has(number)) {
       number = Math.max(0, ...taken) + 1;
     }
     taken.add(number);
-    return { id: crypto.randomUUID(), question, number };
+
+    const useCommon = startsWithBlock(question.testcases, newCommon);
+    const commonCount = useCommon ? newCommon.length : 0;
+    return {
+      id: crypto.randomUUID(),
+      number,
+      useCommon,
+      commonExpected: Object.fromEntries(
+        newCommon.slice(0, commonCount).map((row, i) => [row.id, question.testcases[i].expected]),
+      ),
+      specific: question.testcases.slice(commonCount).map(toRow),
+      question: { ...question, testcases: [] },
+    };
   });
 
-  return { exam: newExam, items, notice };
+  return { exam: newExam, common: newCommon, items, notice };
 }

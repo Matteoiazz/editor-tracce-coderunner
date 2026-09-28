@@ -25,3 +25,12 @@ export interface Question {
   tags: string[];
   settings: Record<string, string>;
 }
+
+/** Esito di un test dopo l'esecuzione della soluzione (tesi.application.verification). */
+export interface TestOutcome {
+  index: number;
+  passed: boolean;
+  expected: string;
+  got: string;
+  error: string;
+}
