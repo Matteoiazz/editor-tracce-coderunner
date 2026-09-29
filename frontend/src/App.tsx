@@ -16,6 +16,7 @@ import {
 } from "./exam";
 import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
 import type { ExamInfo } from "./naming";
+import { isEmptySession, parseSession, serializeSession } from "./session";
 import { composeTests, type TestRow } from "./testcases";
 
 export function App() {
@@ -40,17 +41,84 @@ export function App() {
     }
   }, [error, notice, exportIssues]);
 
-  // Chiudere o ricaricare la finestra cancellerebbe il lavoro: se ci sono esercizi si chiede
-  // conferma (in Electron la finestra di conferma la mostra il processo principale).
+  // ------------------------------------------------ salvataggio automatico
+  const [loaded, setLoaded] = useState(false);
+  const latestSession = useRef<string | null>(null);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+
+  // All'avvio si ripristina il lavoro della sessione precedente
   useEffect(() => {
-    if (items.length === 0) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
+    let cancelled = false;
+    (async () => {
+      try {
+        const text = await window.desktop.loadSession();
+        if (cancelled || text === null) return;
+        const session = parseSession(text);
+        if (session === null) {
+          const backup = await window.desktop.backupCorruptSession();
+          setError(
+            `Il salvataggio precedente non è leggibile e non è stato ripristinato. ` +
+              `Una copia è stata conservata in ${backup}.`,
+          );
+          return;
+        }
+        setExam(session.exam);
+        setCommon(session.common);
+        setItems(session.items);
+        if (session.items.length > 0) {
+          setNotice(`Ripristinato il lavoro della sessione precedente (${session.items.length} esercizi).`);
+        }
+      } catch (e) {
+        setError(`Ripristino del lavoro non riuscito: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [items.length]);
+  }, []);
+
+  // Ogni modifica viene salvata poco dopo; i salvataggi sono eseguiti in ordine,
+  // così uno più vecchio non può sovrascrivere uno più recente.
+  useEffect(() => {
+    if (!loaded) return;
+    const content = serializeSession({ exam, common, items });
+    latestSession.current = content;
+    const timer = setTimeout(() => {
+      saveQueue.current = saveQueue.current
+        .then(() => window.desktop.saveSession(content))
+        .catch((e) =>
+          setError(`Salvataggio automatico non riuscito: ${e instanceof Error ? e.message : String(e)}`),
+        );
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [loaded, exam, common, items]);
+
+  // Alla chiusura o alla ricarica si salva subito, senza attendere
+  useEffect(() => {
+    const saveNow = () => {
+      if (latestSession.current !== null) window.desktop.saveSessionNow(latestSession.current);
+    };
+    window.addEventListener("beforeunload", saveNow);
+    return () => window.removeEventListener("beforeunload", saveNow);
+  }, []);
+
+  function handleNewExam() {
+    if (
+      !window.confirm(
+        "Svuotare l'esame corrente? Esercizi e test verranno eliminati: esporta prima l'XML se vuoi conservarli.",
+      )
+    ) {
+      return;
+    }
+    setExam({ date: "", kind: null });
+    setCommon([]);
+    setItems([]);
+    setError(null);
+    setNotice(null);
+    setExportIssues([]);
+  }
 
   function handleNew() {
     setItems((current) => [...current, createQuestion(nextNumber(current), exam)]);
@@ -155,6 +223,10 @@ export function App() {
     setItems((current) => current.map((it) => (it.id === id ? change(it) : it)));
   }
 
+  if (!loaded) {
+    return <p className="muted loading">Caricamento del lavoro salvato…</p>;
+  }
+
   return (
     <div className="app">
       <header className="toolbar">
@@ -166,6 +238,15 @@ export function App() {
         </button>
         <button type="button" onClick={handleExport} disabled={exporting}>
           {exporting ? "Esportazione…" : "Esporta XML"}
+        </button>
+        <button
+          type="button"
+          className="toolbar-end"
+          onClick={handleNewExam}
+          disabled={isEmptySession({ exam, common, items })}
+          title="Svuota l'esame corrente per iniziarne uno nuovo"
+        >
+          Nuovo esame
         </button>
         {!canCreate && (
           <span className="muted">Indica data e tipo dell'esame per creare un esercizio</span>
