@@ -4,9 +4,12 @@ import { type EditableQuestion, unsupportedReason } from "../exam";
 import {
   byId,
   composeTests,
+  inputLineCount,
+  missingInputMessage,
   newRow,
   nextSeedInput,
   outcomesById,
+  requiredInputLines,
   type TestRow,
   toTestCase,
 } from "../testcases";
@@ -31,6 +34,11 @@ export function TestsSection({ item, common, onUpdate }: Props) {
   const composed = composeTests(common, item.useCommon, item.commonExpected, item.specific);
   const commonRows = composed.slice(0, item.useCommon ? common.length : 0);
   const unsupported = unsupportedReason(item.question, composed);
+  const requiredLines = requiredInputLines(item.question.solution);
+  const incomplete = missingInputMessage(
+    composed.flatMap((row, i) => (inputLineCount(row.stdin) < requiredLines ? [i + 1] : [])),
+    requiredLines,
+  );
 
   // Versione di soluzione e test: un risultato arrivato dopo una modifica va scartato
   const version = useRef(0);
@@ -49,6 +57,10 @@ export function TestsSection({ item, common, onUpdate }: Props) {
     setError(null);
     if (composed.length === 0) {
       setError("Aggiungi almeno un test, comune o specifico.");
+      return;
+    }
+    if (incomplete) {
+      setError(incomplete);
       return;
     }
     setBusy("calcola");
@@ -89,6 +101,10 @@ export function TestsSection({ item, common, onUpdate }: Props) {
     }
     if (composed.some((row) => !row.expected)) {
       setError("Alcuni test non hanno l'output atteso: premi prima «Calcola output».");
+      return;
+    }
+    if (incomplete) {
+      setError(incomplete);
       return;
     }
     setBusy("verifica");
@@ -164,7 +180,13 @@ export function TestsSection({ item, common, onUpdate }: Props) {
                 </span>
               )}
             </summary>
-            <TestCaseTable rows={commonRows} startNumber={1} showExpected outcomes={outcomes} />
+            <TestCaseTable
+              rows={commonRows}
+              startNumber={1}
+              showExpected
+              outcomes={outcomes}
+              requiredLines={requiredLines}
+            />
           </details>
         ))}
 
@@ -174,6 +196,7 @@ export function TestsSection({ item, common, onUpdate }: Props) {
           startNumber={commonRows.length + 1}
           showExpected
           outcomes={outcomes}
+          requiredLines={requiredLines}
           onChange={(specific) => onUpdate((current) => ({ ...current, specific }))}
         />
       )}

@@ -1,8 +1,21 @@
 // Preparazione degli esercizi per l'esportazione in XML Moodle e controlli preliminari.
 
-import { duplicateNumbers, type EditableQuestion, isValidGrade, questionName } from "./exam";
+import {
+  duplicateNumbers,
+  type EditableQuestion,
+  isValidGrade,
+  questionName,
+  unsupportedReason,
+} from "./exam";
 import type { ExamInfo } from "./naming";
-import { composeTests, type TestRow, toTestCase } from "./testcases";
+import {
+  composeTests,
+  inputLineCount,
+  missingInputMessage,
+  requiredInputLines,
+  type TestRow,
+  toTestCase,
+} from "./testcases";
 import type { Question } from "./types";
 
 /** Nome proposto per il file, es. "Esame-2026-10-15.xml". */
@@ -81,6 +94,12 @@ export function exportProblems(
     if (tests.length === 0) issues.push("nessun test");
     else if (missing > 0) {
       issues.push(`${missing} test senza output atteso (premi «Calcola output»)`);
+    }
+    if (!unsupportedReason(question, tests)) {
+      const required = requiredInputLines(question.solution);
+      const short = tests.flatMap((test, i) => (inputLineCount(test.stdin) < required ? [i + 1] : []));
+      const message = missingInputMessage(short, required);
+      if (message) issues.push(message);
     }
     const name = questionName(item, exam);
     problems.push(...issues.map((issue) => `${name}: ${issue}`));

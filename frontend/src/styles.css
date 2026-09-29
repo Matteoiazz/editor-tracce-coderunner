@@ -13,6 +13,8 @@ body {
 .toolbar {
   position: sticky;
   top: 0;
+  /* sopra gli elementi posizionati degli editor di codice (Monaco), che altrimenti la coprono */
+  z-index: 100;
   display: flex;
   gap: 8px;
   padding: 10px 16px;
@@ -308,6 +310,18 @@ button.danger:hover {
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 13px;
   resize: vertical;
+}
+
+.test-table textarea.stdin.incomplete {
+  border-color: #d4351c;
+  background: #fff5f4;
+}
+
+.input-warning {
+  max-width: 180px;
+  margin-top: 2px;
+  color: #b42318;
+  font-size: 12px;
 }
 
 .test-table select {

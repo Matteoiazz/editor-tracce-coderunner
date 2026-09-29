@@ -56,12 +56,41 @@ export function standardCommonTests(): TestRow[] {
   }));
 }
 
-/** Input iniziale di un nuovo test: il seed successivo al più alto già usato. */
+/** Dimensione proposta per un nuovo test, da modificare secondo l'esercizio. */
+export const DEFAULT_TEST_SIZE = 10;
+
+/** Input iniziale di un nuovo test, già completo: il seed successivo al più alto già
+ *  usato e una dimensione predefinita, uno per riga. */
 export function nextSeedInput(rows: TestCase[]): string {
   const seeds = rows
     .map((row) => Number.parseInt(row.stdin.split("\n")[0], 10))
     .filter((seed) => Number.isFinite(seed));
-  return `${seeds.length ? Math.max(...seeds) + 1 : 0}\n`;
+  return `${seeds.length ? Math.max(...seeds) + 1 : 0}\n${DEFAULT_TEST_SIZE}`;
+}
+
+/** Quante volte la soluzione chiama input(), escludendo i commenti: è il numero minimo di
+ *  righe che l'input di un test deve avere (con input() dentro un ciclo può servirne di più). */
+export function requiredInputLines(solution: string): number {
+  const code = solution
+    .split("\n")
+    .map((line) => line.replace(/#.*$/, ""))
+    .join("\n");
+  return (code.match(/\binput\s*\(/g) ?? []).length;
+}
+
+/** Numero di righe dell'input di un test (l'ultimo a capo non conta come riga in più). */
+export function inputLineCount(stdin: string): number {
+  return stdin === "" ? 0 : stdin.replace(/\n$/, "").split("\n").length;
+}
+
+/** Messaggio per i test con meno righe di input di quelle che la soluzione legge, oppure null. */
+export function missingInputMessage(numbers: number[], required: number): string | null {
+  if (numbers.length === 0) return null;
+  const which = numbers.length === 1 ? `Test ${numbers[0]}` : `Test ${numbers.join(", ")}`;
+  return (
+    `${which}: mancano valori di input. La soluzione ne legge ${required} con input(), ` +
+    "uno per riga (es. seed e dimensione su due righe)."
+  );
 }
 
 /** Stesso input e stesse opzioni. L'output atteso non si confronta: dipende dalla soluzione. */

@@ -127,3 +127,19 @@ describe("exportProblems sui punti", () => {
     ).toEqual(["Esercizio1-2026-10-15-Esame: i punti devono essere maggiori di 0"]);
   });
 });
+
+describe("exportProblems sulle righe di input", () => {
+  it("segnala i test con meno righe di quelle lette dalla soluzione", () => {
+    const item = readyQuestion(1);
+    const incompleto = {
+      ...item,
+      useCommon: false,
+      specific: [{ ...newRow("0"), expected: "x\n" }, { ...newRow("3"), expected: "y\n" }],
+    };
+
+    expect(exportProblems([incompleto], esame, common)).toEqual([
+      "Esercizio1-2026-10-15-Esame: Test 1, 2: mancano valori di input. La soluzione ne legge 2 " +
+        "con input(), uno per riga (es. seed e dimensione su due righe).",
+    ]);
+  });
+});

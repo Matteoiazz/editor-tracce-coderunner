@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HIDDEN, type TestRow, VISIBLE } from "../testcases";
+import { HIDDEN, inputLineCount, type TestRow, VISIBLE } from "../testcases";
 import type { TestOutcome } from "../types";
 
 interface Props {
@@ -10,12 +10,15 @@ interface Props {
   outcomes?: Record<string, TestOutcome> | null;
   /** Se assente la tabella è in sola lettura. */
   onChange?: (rows: TestRow[]) => void;
+  /** Righe di input lette dalla soluzione: i test con meno righe vengono evidenziati. */
+  requiredLines?: number;
 }
 
 const PREVIEW_LENGTH = 60;
 
 /** Tabella dei test case: input, opzioni di CodeRunner, output atteso ed esito. */
-export function TestCaseTable({ rows, startNumber, showExpected, outcomes, onChange }: Props) {
+export function TestCaseTable(props: Props) {
+  const { rows, startNumber, showExpected, outcomes, onChange, requiredLines = 0 } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const editable = onChange !== undefined;
   const columns = 5 + (showExpected ? 1 : 0) + (outcomes ? 1 : 0) + (editable ? 1 : 0);
@@ -38,7 +41,9 @@ export function TestCaseTable({ rows, startNumber, showExpected, outcomes, onCha
       <thead>
         <tr>
           <th>#</th>
-          <th>Input</th>
+          <th title="Ogni valore letto dalla soluzione con input() va su una riga diversa">
+            Input (un valore per riga)
+          </th>
           {showExpected && <th>Output atteso</th>}
           <th title="Mostrato allo studente come esempio sotto il testo">Esempio</th>
           <th title="Se lo studente fallisce questo test, i successivi non vengono mostrati">
@@ -52,18 +57,26 @@ export function TestCaseTable({ rows, startNumber, showExpected, outcomes, onCha
       <tbody>
         {rows.map((row, i) => {
           const outcome = outcomes?.[row.id];
+          const missing = requiredLines - inputLineCount(row.stdin);
           return [
             <tr key={row.id}>
               <td className="number">{startNumber + i}</td>
               <td>
                 <textarea
-                  className="stdin"
+                  className={missing > 0 ? "stdin incomplete" : "stdin"}
                   rows={Math.max(2, row.stdin.split("\n").length)}
                   value={row.stdin}
+                  placeholder={"seed\ndimensione"}
                   readOnly={!editable}
                   // Un input modificato rende non più valido l'output atteso
                   onChange={(e) => update(row.id, { stdin: e.target.value, expected: "" })}
                 />
+                {missing > 0 && (
+                  <div className="input-warning">
+                    {missing === 1 ? "Manca 1 valore" : `Mancano ${missing} valori`}: la soluzione
+                    ne legge {requiredLines}, uno per riga
+                  </div>
+                )}
               </td>
               {showExpected && (
                 <td className="expected">

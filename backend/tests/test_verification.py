@@ -6,6 +6,7 @@ import pytest
 from samples import all_real_questions
 from tesi.adapters.local_runner import LocalPythonRunner
 from tesi.application.verification import (
+    MISSING_INPUT_HINT,
     NOT_RUN,
     SolutionFailed,
     fill_expected_outputs,
@@ -92,3 +93,16 @@ def test_output_infinito_interrotto(pretest_question: Question) -> None:
 def test_il_confronto_ignora_spazi_finali_come_coderunner() -> None:
     assert outputs_match("1\n2\n", "1  \n2")
     assert not outputs_match("1\n2", "1\n3")
+
+
+def test_input_incompleto_spiega_la_causa(pretest_question: Question) -> None:
+    only_seed = replace(
+        pretest_question,
+        testcases=[replace(pretest_question.testcases[0], stdin="0")],
+    )
+
+    with pytest.raises(SolutionFailed) as exc:
+        fill_expected_outputs(only_seed, runner)
+
+    assert "EOFError" in exc.value.detail
+    assert MISSING_INPUT_HINT in exc.value.detail

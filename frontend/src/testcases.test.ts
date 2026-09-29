@@ -4,9 +4,12 @@ import {
   byId,
   composeTests,
   detectCommonBlock,
+  inputLineCount,
+  missingInputMessage,
   newRow,
   nextSeedInput,
   outcomesById,
+  requiredInputLines,
   sameTest,
   standardCommonTests,
   startsWithBlock,
@@ -53,14 +56,14 @@ describe("standardCommonTests", () => {
 });
 
 describe("nextSeedInput", () => {
-  it("propone il seed successivo al più alto", () => {
-    expect(nextSeedInput(standardCommonTests())).toBe("9\n");
-    expect(nextSeedInput(es1)).toBe("301\n");
+  it("propone il seed successivo al più alto e una dimensione predefinita", () => {
+    expect(nextSeedInput(standardCommonTests())).toBe("9\n10");
+    expect(nextSeedInput(es1)).toBe("301\n10");
   });
 
   it("parte da 0 se non ci sono test o gli input non sono numerici", () => {
-    expect(nextSeedInput([])).toBe("0\n");
-    expect(nextSeedInput([newRow("abc")])).toBe("0\n");
+    expect(nextSeedInput([])).toBe("0\n10");
+    expect(nextSeedInput([newRow("abc")])).toBe("0\n10");
   });
 });
 
@@ -98,5 +101,36 @@ describe("composeTests e corrispondenza dei risultati", () => {
     expect(byId(composed, composed.map((_, i) => i))[specific[1].id]).toBe(10);
     expect(outcomesById(composed, outcomes)[specific[1].id].passed).toBe(false);
     expect(outcomesById(composed, outcomes)[common[0].id].passed).toBe(true);
+  });
+});
+
+describe("righe di input richieste dalla soluzione", () => {
+  it("conta le chiamate a input() ignorando i commenti", () => {
+    const solution = [
+      "def calcola(lst):",
+      "    # qui non si usa input()",
+      "    return 0",
+      "if __name__ == '__main__':",
+      "    seed = int(input())",
+      "    n = int(input( ))",
+    ].join("\n");
+
+    expect(requiredInputLines(solution)).toBe(2);
+    expect(requiredInputLines("print(1)")).toBe(0);
+  });
+
+  it("conta le righe dell'input di un test", () => {
+    expect(inputLineCount("")).toBe(0);
+    expect(inputLineCount("0")).toBe(1);
+    expect(inputLineCount("0\n")).toBe(1);
+    expect(inputLineCount("0\n3")).toBe(2);
+  });
+
+  it("descrive i test con valori mancanti", () => {
+    expect(missingInputMessage([], 2)).toBeNull();
+    expect(missingInputMessage([1, 2], 2)).toBe(
+      "Test 1, 2: mancano valori di input. La soluzione ne legge 2 con input(), " +
+        "uno per riga (es. seed e dimensione su due righe).",
+    );
   });
 });

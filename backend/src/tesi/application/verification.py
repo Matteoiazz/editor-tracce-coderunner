@@ -93,5 +93,14 @@ def _error_of(result: RunResult) -> str:
     if result.output_limit_exceeded:
         return "output troppo lungo: esecuzione interrotta (possibile ciclo infinito con print)"
     if result.exit_code != 0:
-        return result.stderr.strip() or f"terminato con codice {result.exit_code}"
+        message = result.stderr.strip() or f"terminato con codice {result.exit_code}"
+        if "EOFError" in message:
+            message += f"\n\n{MISSING_INPUT_HINT}"
+        return message
     return ""
+
+
+MISSING_INPUT_HINT = (
+    "L'input di questo test ha meno righe di quelle che la soluzione legge con input(): "
+    "serve un valore per riga (es. seed e dimensione su due righe)."
+)
