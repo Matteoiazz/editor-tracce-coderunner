@@ -115,3 +115,30 @@ def test_export_toglie_i_caratteri_non_ammessi_da_xml() -> None:
     assert reimported.text_html == "<p>Testo con controlli</p>"
     assert reimported.solution == "def f():\n\treturn 1\n"  # tab e a capo restano
     assert reimported.testcases[0].expected == "ok\n"
+
+
+def test_testo_e_codice_esportati_in_cdata_come_negli_export_di_moodle() -> None:
+    [q] = load_questions(FIXTURES / "pretest_2026-07_es1.xml")
+
+    xml = to_quiz_xml([q])
+
+    assert '<questiontext format="html">' in xml
+    assert "<text><![CDATA[<p dir=\"ltr\">" in xml
+    assert "<answerpreload><![CDATA[def somma(lst):" in xml
+    assert "<answer><![CDATA[def dominante(n, lst):" in xml
+    assert "<uiparameters><![CDATA[{" in xml
+    assert "&lt;p" not in xml  # il testo HTML non è più scritto con l'escape
+    assert parse_quiz(xml) == [q]
+
+
+def test_cdata_con_la_sequenza_di_chiusura_nel_testo() -> None:
+    q = Question(
+        name="Esercizio1-2026-10-15-Esame",
+        text_html="<p>lista[a[0]]>1</p>",
+        solution="print(']]>')\n",
+    )
+
+    [reimported] = parse_quiz(to_quiz_xml([q]))
+
+    assert reimported.text_html == q.text_html
+    assert reimported.solution == q.solution

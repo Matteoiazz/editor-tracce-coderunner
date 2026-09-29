@@ -6,6 +6,7 @@ per un parser XML le due forme sono equivalenti.
 """
 
 import re
+import uuid
 import xml.etree.ElementTree as ET
 from collections import Counter
 from dataclasses import dataclass, field
@@ -156,26 +157,53 @@ def _text(el: ET.Element, path: str) -> str:
 
 def to_quiz_xml(questions: list[Question]) -> str:
     """Produce un file XML Moodle importabile dalla banca delle domande."""
+    cdata = _CdataSections()
     quiz = ET.Element("quiz")
     for question in questions:
-        quiz.append(_question_element(question))
+        quiz.append(_question_element(question, cdata))
     ET.indent(quiz)
     # short_empty_elements=False: campi vuoti come <text></text>, come nell'export di Moodle
     body = ET.tostring(quiz, encoding="unicode", short_empty_elements=False)
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + body + "\n"
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + cdata.expand(body) + "\n"
 
 
-def _question_element(q: Question) -> ET.Element:
+class _CdataSections:
+    """Sezioni CDATA, che ElementTree non sa scrivere: in un primo momento il testo viene
+    sostituito da un segnaposto, poi il segnaposto viene rimpiazzato nel file finale.
+    Moodle usa CDATA per testo e codice: il file risulta leggibile come i suoi export."""
+
+    def __init__(self) -> None:
+        self._marker = f"cdata{uuid.uuid4().hex}"
+        self._values: list[str] = []
+
+    def placeholder(self, text: str) -> str:
+        self._values.append(text)
+        return f"{self._marker}_{len(self._values) - 1}_"
+
+    def expand(self, xml: str) -> str:
+        def section(match: re.Match[str]) -> str:
+            value = self._values[int(match.group(1))]
+            # "]]>" chiuderebbe la sezione: va spezzato in due sezioni consecutive
+            return "<![CDATA[" + value.replace("]]>", "]]]]><![CDATA[>") + "]]>"
+
+        return re.sub(rf"{self._marker}_(\d+)_", section, xml)
+
+
+# Campi scritti in CDATA, come negli export di Moodle
+_CDATA_SETTINGS = {"uiparameters"}
+
+
+def _question_element(q: Question, cdata: _CdataSections) -> ET.Element:
     el = ET.Element("question", type="coderunner")
     _sub_text(el, "name", q.name)
-    _sub_text(el, "questiontext", q.text_html, format="html")
+    _sub_text(el, "questiontext", q.text_html, cdata=cdata, format="html")
     _sub_text(el, "generalfeedback", q.general_feedback_html, format="html")
     _sub(el, "defaultgrade", _number(q.default_grade))
     _sub(el, "coderunnertype", q.coderunner_type)
-    _sub(el, "answerpreload", q.student_code)
-    _sub(el, "answer", q.solution)
+    _sub(el, "answerpreload", q.student_code, cdata=cdata)
+    _sub(el, "answer", q.solution, cdata=cdata)
     for tag, value in {**DEFAULT_SETTINGS, **q.settings}.items():
-        _sub(el, tag, value)
+        _sub(el, tag, value, cdata=cdata if tag in _CDATA_SETTINGS else None)
 
     testcases = ET.SubElement(el, "testcases")
     for tc in q.testcases:
@@ -198,24 +226,37 @@ def _question_element(q: Question) -> ET.Element:
     return el
 
 
-def _sub(parent: ET.Element, tag: str, text: str, **attrs: str) -> ET.Element:
+def _sub(
+    parent: ET.Element,
+    tag: str,
+    text: str,
+    cdata: _CdataSections | None = None,
+    **attrs: str,
+) -> ET.Element:
     child = ET.SubElement(parent, tag, attrs)
-    child.text = _xml_safe(text)
+    safe = _xml_safe(text)
+    child.text = cdata.placeholder(safe) if cdata is not None and safe else safe
     return child
 
 
 # Caratteri che XML 1.0 non ammette (es. controlli invisibili incollati da un PDF):
 # lasciarli renderebbe il file non importabile in Moodle. Tab e a capo sono ammessi.
-_INVALID_XML_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+_INVALID_XML_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
 
 
 def _xml_safe(text: str) -> str:
     return _INVALID_XML_CHARS.sub("", text)
 
 
-def _sub_text(parent: ET.Element, tag: str, text: str, **attrs: str) -> None:
+def _sub_text(
+    parent: ET.Element,
+    tag: str,
+    text: str,
+    cdata: _CdataSections | None = None,
+    **attrs: str,
+) -> None:
     """Campo nella forma Moodle ``<tag><text>...</text></tag>``."""
-    _sub(ET.SubElement(parent, tag, attrs), "text", text)
+    _sub(ET.SubElement(parent, tag, attrs), "text", text, cdata=cdata)
 
 
 def _number(value: float) -> str:
