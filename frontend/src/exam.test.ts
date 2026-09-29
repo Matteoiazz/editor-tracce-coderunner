@@ -4,7 +4,9 @@ import {
   createQuestion,
   duplicateNumbers,
   type EditableQuestion,
+  isValidGrade,
   nextNumber,
+  parseExerciseNumber,
   questionName,
   SOLUTION_SKELETON,
 } from "./exam";
@@ -180,5 +182,24 @@ describe("adoptImported con i test", () => {
     expect(result.common).toBe(common);
     expect(result.items.map((it) => it.useCommon)).toEqual([true, false]);
     expect(result.items[0].specific).toHaveLength(7);
+  });
+});
+
+describe("parseExerciseNumber e isValidGrade", () => {
+  it("accetta solo interi da 1 in su, ignorando i caratteri non numerici", () => {
+    expect(parseExerciseNumber("3")).toBe(3);
+    expect(parseExerciseNumber("12")).toBe(12);
+    expect(parseExerciseNumber("-3")).toBe(3);
+    expect(parseExerciseNumber("")).toBeNull();
+    expect(parseExerciseNumber("0")).toBeNull();
+    expect(parseExerciseNumber("abc")).toBeNull();
+  });
+
+  it("i punti devono essere un numero maggiore di 0", () => {
+    expect(isValidGrade(5)).toBe(true);
+    expect(isValidGrade(0.5)).toBe(true);
+    expect(isValidGrade(0)).toBe(false);
+    expect(isValidGrade(-2)).toBe(false);
+    expect(isValidGrade(Number.NaN)).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ in uscita non conta. I testi vengono scritti con l'escape XML invece che in CDAT
 per un parser XML le due forme sono equivalenti.
 """
 
+import re
 import xml.etree.ElementTree as ET
 
 from tesi.domain import Question, TestCase
@@ -181,8 +182,17 @@ def _question_element(q: Question) -> ET.Element:
 
 def _sub(parent: ET.Element, tag: str, text: str, **attrs: str) -> ET.Element:
     child = ET.SubElement(parent, tag, attrs)
-    child.text = text
+    child.text = _xml_safe(text)
     return child
+
+
+# Caratteri che XML 1.0 non ammette (es. controlli invisibili incollati da un PDF):
+# lasciarli renderebbe il file non importabile in Moodle. Tab e a capo sono ammessi.
+_INVALID_XML_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+
+
+def _xml_safe(text: str) -> str:
+    return _INVALID_XML_CHARS.sub("", text)
 
 
 def _sub_text(parent: ET.Element, tag: str, text: str, **attrs: str) -> None:

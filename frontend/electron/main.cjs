@@ -1,7 +1,7 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
 
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
 const net = require("node:net");
@@ -82,10 +82,46 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  protectWork(win);
   if (isDev) {
     win.loadURL(DEV_SERVER_URL);
   } else {
     win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  }
+}
+
+/** Evita di perdere il lavoro per una chiusura, una ricarica o una navigazione involontaria. */
+function protectWork(win) {
+  // La pagina segnala lavoro non esportato bloccando la chiusura (evento beforeunload);
+  // Electron non mostra una conferma da solo, quindi la mostra il processo principale.
+  win.webContents.on("will-prevent-unload", (event) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: "warning",
+      buttons: ["Chiudi comunque", "Annulla"],
+      defaultId: 1,
+      cancelId: 1,
+      title: "Lavoro non salvato",
+      message: "Gli esercizi presenti andranno persi.",
+      detail: "Esporta l'XML prima di chiudere o ricaricare, se vuoi conservarli.",
+    });
+    if (choice === 0) event.preventDefault(); // procede con la chiusura
+  });
+
+  // Trascinare un file nella finestra la farebbe navigare verso quel file, perdendo la pagina.
+  // Si blocca ogni navigazione; i link web si aprono nel browser di sistema.
+  win.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault();
+    openInBrowser(url);
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openInBrowser(url);
+    return { action: "deny" };
+  });
+}
+
+function openInBrowser(url) {
+  if (/^https?:\/\//i.test(url) && !url.startsWith(DEV_SERVER_URL)) {
+    shell.openExternal(url);
   }
 }
 

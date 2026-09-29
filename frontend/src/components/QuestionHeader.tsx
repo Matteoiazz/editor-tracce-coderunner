@@ -1,3 +1,5 @@
+import { isValidGrade, parseExerciseNumber } from "../exam";
+
 interface Props {
   name: string;
   number: number | null;
@@ -23,23 +25,26 @@ export function QuestionHeader(props: Props) {
         <label>
           N°
           <input
-            type="number"
-            min={1}
+            type="text"
+            inputMode="numeric"
+            className="number-input"
             value={number ?? ""}
-            onChange={(e) => onNumberChange(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) => onNumberChange(parseExerciseNumber(e.target.value))}
           />
         </label>
+        {number === null && <span className="error">Indica il numero dell'esercizio</span>}
         {duplicate && <span className="error">Numero già usato da un altro esercizio</span>}
         <label>
           Punti
           <input
             type="number"
-            min={0}
+            min={0.5}
             step={0.5}
-            value={grade}
-            onChange={(e) => onGradeChange(Number(e.target.value))}
+            value={Number.isFinite(grade) ? grade : ""}
+            onChange={(e) => onGradeChange(e.target.value === "" ? 0 : Number(e.target.value))}
           />
         </label>
+        {!isValidGrade(grade) && <span className="error">I punti devono essere maggiori di 0</span>}
       </div>
     </div>
   );

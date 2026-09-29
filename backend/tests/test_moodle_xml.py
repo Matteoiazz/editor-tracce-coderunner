@@ -79,3 +79,18 @@ def test_errore_leggibile_se_il_file_non_e_xml() -> None:
 def test_errore_leggibile_se_non_e_un_export_moodle() -> None:
     with pytest.raises(MoodleXmlError, match="non è un export di domande Moodle"):
         parse_quiz("<altro/>")
+
+
+def test_export_toglie_i_caratteri_non_ammessi_da_xml() -> None:
+    q = Question(
+        name="Esercizio1-2026-10-15-Esame",
+        text_html="<p>Testo\x0b con\x01 controlli</p>",
+        solution="def f():\n\treturn 1\n",
+        testcases=[TestCase(stdin="1\n2", expected="ok\x0c\n")],
+    )
+
+    [reimported] = parse_quiz(to_quiz_xml([q]))
+
+    assert reimported.text_html == "<p>Testo con controlli</p>"
+    assert reimported.solution == "def f():\n\treturn 1\n"  # tab e a capo restano
+    assert reimported.testcases[0].expected == "ok\n"

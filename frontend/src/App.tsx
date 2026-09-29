@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { exportXml, importXml, verifyQuestion } from "./api";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { ExamHeader } from "./components/ExamHeader";
@@ -25,8 +25,30 @@ export function App() {
   const [exportIssues, setExportIssues] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
 
+  const messagesRef = useRef<HTMLDivElement>(null);
+
   const canCreate = isExamComplete(exam);
   const duplicates = duplicateNumbers(items);
+
+  // I messaggi compaiono in cima alla pagina: se il docente sta lavorando più in basso,
+  // la pagina scorre fino a loro, altrimenti non si accorgerebbe dell'esito.
+  useEffect(() => {
+    if (error || notice || exportIssues.length > 0) {
+      messagesRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [error, notice, exportIssues]);
+
+  // Chiudere o ricaricare la finestra cancellerebbe il lavoro: se ci sono esercizi si chiede
+  // conferma (in Electron la finestra di conferma la mostra il processo principale).
+  useEffect(() => {
+    if (items.length === 0) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [items.length]);
 
   function handleNew() {
     setItems((current) => [...current, createQuestion(nextNumber(current), exam)]);
@@ -134,18 +156,20 @@ export function App() {
         <ExamHeader exam={exam} onChange={setExam} />
         <CommonTestsPanel rows={common} onChange={handleCommonChange} />
 
-        {error && <p className="error">{error}</p>}
-        {notice && <p className="notice">{notice}</p>}
-        {exportIssues.length > 0 && (
-          <div className="export-issues">
-            <strong>Impossibile esportare:</strong>
-            <ul>
-              {exportIssues.map((issue) => (
-                <li key={issue}>{issue}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div ref={messagesRef} className="messages">
+          {error && <p className="error">{error}</p>}
+          {notice && <p className="notice">{notice}</p>}
+          {exportIssues.length > 0 && (
+            <div className="export-issues">
+              <strong>Impossibile esportare:</strong>
+              <ul>
+                {exportIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
 
         {items.length === 0 ? (
           <p className="empty">

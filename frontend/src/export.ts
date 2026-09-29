@@ -1,6 +1,6 @@
 // Preparazione degli esercizi per l'esportazione in XML Moodle e controlli preliminari.
 
-import { duplicateNumbers, type EditableQuestion, questionName } from "./exam";
+import { duplicateNumbers, type EditableQuestion, isValidGrade, questionName } from "./exam";
 import type { ExamInfo } from "./naming";
 import { composeTests, type TestRow, toTestCase } from "./testcases";
 import type { Question } from "./types";
@@ -66,6 +66,7 @@ export function exportProblems(
     const { question } = item;
     const issues: string[] = [];
     if (item.number === null) issues.push("manca il numero");
+    if (!isValidGrade(question.default_grade)) issues.push("i punti devono essere maggiori di 0");
     if (!hasText(question.text_html)) issues.push("il testo della traccia è vuoto");
     if (!question.solution.trim()) issues.push("la soluzione è vuota");
     if (!question.student_code.trim()) {

@@ -43,6 +43,17 @@ export function questionName(item: EditableQuestion, exam: ExamInfo): string {
   return buildName(item.number, exam) ?? item.question.name;
 }
 
+/** Numero dell'esercizio dal campo di testo: solo cifre, intero da 1 in su; altrimenti null. */
+export function parseExerciseNumber(text: string): number | null {
+  const digits = text.replace(/\D/g, "");
+  const number = digits ? Number.parseInt(digits, 10) : 0;
+  return number >= 1 ? number : null;
+}
+
+export function isValidGrade(grade: number): boolean {
+  return Number.isFinite(grade) && grade > 0;
+}
+
 export function nextNumber(items: EditableQuestion[]): number {
   const numbers = items.map((it) => it.number ?? 0);
   return Math.max(0, ...numbers) + 1;

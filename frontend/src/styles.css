@@ -74,7 +74,8 @@ button:hover {
   align-items: center;
 }
 
-.question-header input[type="number"] {
+.question-header input[type="number"],
+.question-header input.number-input {
   width: 70px;
 }
 
@@ -425,7 +426,12 @@ button.icon:hover {
   font-size: 12px;
 }
 
-.content > .error {
+.messages {
+  /* spazio per la barra fissa in alto quando la pagina scorre fino ai messaggi */
+  scroll-margin-top: 70px;
+}
+
+.messages > .error {
   max-width: 1100px;
   margin: 0 auto 16px;
 }

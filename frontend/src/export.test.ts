@@ -117,3 +117,13 @@ describe("exportProblems", () => {
     ]);
   });
 });
+
+describe("exportProblems sui punti", () => {
+  it("segnala punti non validi", () => {
+    const item = readyQuestion(1);
+
+    expect(
+      exportProblems([{ ...item, question: { ...item.question, default_grade: 0 } }], esame, common),
+    ).toEqual(["Esercizio1-2026-10-15-Esame: i punti devono essere maggiori di 0"]);
+  });
+});
