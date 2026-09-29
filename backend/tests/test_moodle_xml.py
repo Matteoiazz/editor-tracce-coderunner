@@ -3,7 +3,14 @@ from pathlib import Path
 import pytest
 
 from samples import FIXTURE_FILES, FIXTURES, load_questions
-from tesi.adapters.moodle_xml import DEFAULT_SETTINGS, MoodleXmlError, parse_quiz, to_quiz_xml
+from tesi.adapters.moodle_xml import (
+    DEFAULT_SETTINGS,
+    MoodleXmlError,
+    QuizImport,
+    parse_quiz,
+    read_quiz,
+    to_quiz_xml,
+)
 from tesi.domain import Question, TestCase
 
 
@@ -63,12 +70,26 @@ def test_un_esercizio_nuovo_riceve_le_impostazioni_del_docente() -> None:
     assert reimported.testcases == new.testcases
 
 
-def test_ignora_le_voci_che_non_sono_coderunner() -> None:
+def test_le_categorie_non_contano_come_domande_ignorate() -> None:
     xml = """<quiz>
       <question type="category"><category><text>$course$/Esami</text></category></question>
     </quiz>"""
 
-    assert parse_quiz(xml) == []
+    assert read_quiz(xml) == QuizImport(questions=[], ignored={})
+
+
+def test_conta_le_domande_di_altro_tipo_ignorate() -> None:
+    xml = (FIXTURES / "pretest_2026-07_es1.xml").read_text(encoding="utf-8").replace(
+        "</quiz>",
+        '<question type="multichoice"><name><text>A</text></name></question>'
+        '<question type="multichoice"><name><text>B</text></name></question>'
+        '<question type="truefalse"><name><text>C</text></name></question></quiz>',
+    )
+
+    result = read_quiz(xml)
+
+    assert [q.name for q in result.questions] == ["2026-07 - Esercizio pretest 1"]
+    assert result.ignored == {"multichoice": 2, "truefalse": 1}
 
 
 def test_errore_leggibile_se_il_file_non_e_xml() -> None:

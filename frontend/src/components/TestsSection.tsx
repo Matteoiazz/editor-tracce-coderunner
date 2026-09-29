@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fillExpected, verifyQuestion } from "../api";
-import type { EditableQuestion } from "../exam";
+import { type EditableQuestion, unsupportedReason } from "../exam";
 import {
   byId,
   composeTests,
@@ -30,6 +30,7 @@ export function TestsSection({ item, common, onUpdate }: Props) {
 
   const composed = composeTests(common, item.useCommon, item.commonExpected, item.specific);
   const commonRows = composed.slice(0, item.useCommon ? common.length : 0);
+  const unsupported = unsupportedReason(item.question, composed);
 
   // Versione di soluzione e test: un risultato arrivato dopo una modifica va scartato
   const version = useRef(0);
@@ -113,14 +114,28 @@ export function TestsSection({ item, common, onUpdate }: Props) {
       <div className="section-title">
         <h3>Test case</h3>
         <div className="actions">
-          <button type="button" onClick={handleFillExpected} disabled={busy !== null}>
+          <button
+            type="button"
+            onClick={handleFillExpected}
+            disabled={busy !== null || unsupported !== null}
+          >
             {busy === "calcola" ? "Esecuzione…" : "Calcola output"}
           </button>
-          <button type="button" onClick={handleVerify} disabled={busy !== null}>
+          <button
+            type="button"
+            onClick={handleVerify}
+            disabled={busy !== null || unsupported !== null}
+          >
             {busy === "verifica" ? "Esecuzione…" : "Verifica"}
           </button>
         </div>
       </div>
+      {unsupported && (
+        <p className="notice">
+          Esercizio non eseguibile dall'applicazione: {unsupported}. Calcola output e Verifica
+          sono disattivati; all'esportazione l'esercizio viene riportato così com'è.
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
 
       <label className="use-common">

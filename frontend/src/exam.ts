@@ -2,7 +2,7 @@
 
 import { buildName, type ExamInfo, type ExamKind, parseName } from "./naming";
 import { detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
-import type { Question } from "./types";
+import type { Question, TestCase } from "./types";
 
 export interface EditableQuestion {
   id: string; // identificativo interno dell'interfaccia, non esportato
@@ -169,4 +169,47 @@ export function adoptImported(
   });
 
   return { exam: newExam, common: newCommon, items, notice };
+}
+
+/** Tipo CodeRunner che l'esecutore dell'applicazione sa riprodurre. */
+export const SUPPORTED_CODERUNNER_TYPE = "python3_w_input";
+
+/** Motivo per cui l'applicazione non può eseguire i test dell'esercizio, oppure null.
+ *  In questi casi Calcola output e Verifica darebbero risultati non affidabili. */
+export function unsupportedReason(question: Question, tests: TestCase[]): string | null {
+  if (question.coderunner_type !== SUPPORTED_CODERUNNER_TYPE) {
+    return `tipo CodeRunner «${question.coderunner_type}» non supportato`;
+  }
+  if (tests.some((test) => test.testcode.trim())) {
+    return "test con codice di prova (testcode) non supportati";
+  }
+  return null;
+}
+
+// Nomi leggibili dei tipi di domanda Moodle
+const MOODLE_TYPE_NAMES: Record<string, string> = {
+  multichoice: "scelta multipla",
+  truefalse: "vero/falso",
+  shortanswer: "risposta breve",
+  numerical: "numerica",
+  essay: "risposta aperta",
+  matching: "corrispondenza",
+  multianswer: "cloze",
+  description: "descrizione",
+  calculated: "calcolata",
+  ddwtos: "trascina e rilascia",
+  gapselect: "selezione nel testo",
+};
+
+/** Messaggio sulle domande non CodeRunner presenti nel file e non importate. */
+export function ignoredMessage(ignored: Record<string, number>): string | null {
+  const entries = Object.entries(ignored).filter(([, count]) => count > 0);
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+  if (total === 0) return null;
+  const detail = entries
+    .map(([type, count]) => `${count} ${MOODLE_TYPE_NAMES[type] ?? type}`)
+    .join(", ");
+  const noun = total === 1 ? "domanda che non è" : "domande che non sono";
+  const verb = total === 1 ? "Ignorata" : "Ignorate";
+  return `${verb} ${total} ${noun} di tipo CodeRunner (${detail}).`;
 }

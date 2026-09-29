@@ -16,7 +16,9 @@ def test_import_restituisce_gli_esercizi_in_json(client: TestClient) -> None:
     response = client.post("/api/questions/import", files={"file": ("es.xml", xml)})
 
     assert response.status_code == 200
-    names = [q["name"] for q in response.json()]
+    body = response.json()
+    assert body["ignored"] == {}
+    names = [q["name"] for q in body["questions"]]
     assert names == [
         "Esame-2026-07-03 - Traccia 1 - Esercizio 3",
         "Esame-2026-07-03 - Traccia 1 - Esercizio 4",
@@ -32,7 +34,8 @@ def test_import_di_un_file_non_valido_da_errore_leggibile(client: TestClient) ->
 
 def test_import_verifica_ed_export_in_sequenza(client: TestClient) -> None:
     xml = (FIXTURES / "pretest_2026-07_es1.xml").read_bytes()
-    [question] = client.post("/api/questions/import", files={"file": ("p.xml", xml)}).json()
+    response = client.post("/api/questions/import", files={"file": ("p.xml", xml)})
+    [question] = response.json()["questions"]
 
     outcomes = client.post("/api/questions/verify", json=question).json()
     exported = client.post("/api/questions/export", json=[question])

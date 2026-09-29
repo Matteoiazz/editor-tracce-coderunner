@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 
 from tesi.adapters.local_runner import LocalPythonRunner
-from tesi.adapters.moodle_xml import MoodleXmlError, parse_quiz, to_quiz_xml
+from tesi.adapters.moodle_xml import MoodleXmlError, read_quiz, to_quiz_xml
 from tesi.application.student_code import StudentCodeError, generate_student_code
 from tesi.application.verification import (
     SolutionFailed,
@@ -22,11 +22,19 @@ router = APIRouter(prefix="/api/questions", tags=["esercizi"])
 runner = LocalPythonRunner()
 
 
+@dataclass
+class ImportResponse:
+    questions: list[Question]
+    # Domande di altro tipo non importate, per tipo Moodle (es. {"multichoice": 2})
+    ignored: dict[str, int]
+
+
 @router.post("/import")
-async def import_xml(file: UploadFile) -> list[Question]:
+async def import_xml(file: UploadFile) -> ImportResponse:
     """Legge un file XML esportato da Moodle."""
     try:
-        return parse_quiz(await file.read())
+        result = read_quiz(await file.read())
+        return ImportResponse(questions=result.questions, ignored=result.ignored)
     except MoodleXmlError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

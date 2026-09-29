@@ -3,15 +3,17 @@ import {
   adoptImported,
   createQuestion,
   duplicateNumbers,
+  ignoredMessage,
   type EditableQuestion,
   isValidGrade,
   nextNumber,
   parseExerciseNumber,
   questionName,
   SOLUTION_SKELETON,
+  unsupportedReason,
 } from "./exam";
 import type { ExamInfo } from "./naming";
-import { standardCommonTests } from "./testcases";
+import { newRow, standardCommonTests } from "./testcases";
 import { parseInputs, REAL_INPUTS } from "./testdata";
 import type { Question } from "./types";
 
@@ -201,5 +203,33 @@ describe("parseExerciseNumber e isValidGrade", () => {
     expect(isValidGrade(0)).toBe(false);
     expect(isValidGrade(-2)).toBe(false);
     expect(isValidGrade(Number.NaN)).toBe(false);
+  });
+});
+
+describe("unsupportedReason e ignoredMessage", () => {
+  const base = createQuestion(1, esame).question;
+  const stdinTest = { ...newRow("0\n1"), expected: "x" };
+
+  it("gli esercizi nel formato del docente sono eseguibili", () => {
+    expect(unsupportedReason(base, [stdinTest])).toBeNull();
+  });
+
+  it("segnala tipi CodeRunner diversi e test con testcode", () => {
+    expect(unsupportedReason({ ...base, coderunner_type: "python3" }, [stdinTest])).toBe(
+      "tipo CodeRunner «python3» non supportato",
+    );
+    expect(unsupportedReason(base, [{ ...stdinTest, testcode: "print(f(1))" }])).toBe(
+      "test con codice di prova (testcode) non supportati",
+    );
+  });
+
+  it("descrive le domande di altro tipo ignorate", () => {
+    expect(ignoredMessage({})).toBeNull();
+    expect(ignoredMessage({ multichoice: 1 })).toBe(
+      "Ignorata 1 domanda che non è di tipo CodeRunner (1 scelta multipla).",
+    );
+    expect(ignoredMessage({ multichoice: 2, truefalse: 1 })).toBe(
+      "Ignorate 3 domande che non sono di tipo CodeRunner (2 scelta multipla, 1 vero/falso).",
+    );
   });
 });

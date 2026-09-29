@@ -40,7 +40,13 @@ function jsonBody(body: unknown): RequestInit {
   };
 }
 
-export function importXml(xml: string): Promise<Question[]> {
+export interface ImportResult {
+  questions: Question[];
+  /** Domande di altro tipo non importate, per tipo Moodle (es. { multichoice: 2 }). */
+  ignored: Record<string, number>;
+}
+
+export function importXml(xml: string): Promise<ImportResult> {
   const form = new FormData();
   form.append("file", new Blob([xml], { type: "application/xml" }), "import.xml");
   return request("/api/questions/import", { method: "POST", body: form });

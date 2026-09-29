@@ -7,6 +7,8 @@ per un parser XML le due forme sono equivalenti.
 
 import re
 import xml.etree.ElementTree as ET
+from collections import Counter
+from dataclasses import dataclass, field
 
 from tesi.domain import Question, TestCase
 
@@ -76,11 +78,16 @@ _EXPORT_HINT = (
 )
 
 
-def parse_quiz(data: str | bytes) -> list[Question]:
-    """Legge un file XML Moodle e restituisce le domande CodeRunner che contiene.
+@dataclass(frozen=True)
+class QuizImport:
+    questions: list[Question]
+    # Domande di altro tipo presenti nel file e non importate, per tipo Moodle
+    # (es. {"multichoice": 2}). Le categorie non sono domande e non compaiono.
+    ignored: dict[str, int] = field(default_factory=dict)
 
-    Le voci di altro tipo (es. le categorie che Moodle aggiunge all'export) sono ignorate.
-    """
+
+def read_quiz(data: str | bytes) -> QuizImport:
+    """Legge un file XML Moodle: domande CodeRunner e conteggio di quelle ignorate."""
     try:
         root = ET.fromstring(data)
     except ET.ParseError as exc:
@@ -90,10 +97,21 @@ def parse_quiz(data: str | bytes) -> list[Question]:
         ) from exc
     if root.tag != "quiz":
         raise MoodleXmlError(f"Il file non è un export di domande Moodle. {_EXPORT_HINT}")
-    return [
-        _parse_question(el) for el in root.findall("question")
-        if el.get("type") == "coderunner"
-    ]
+    elements = root.findall("question")
+    ignored = Counter(
+        el.get("type") or "sconosciuto"
+        for el in elements
+        if el.get("type") not in ("coderunner", "category")
+    )
+    return QuizImport(
+        questions=[_parse_question(el) for el in elements if el.get("type") == "coderunner"],
+        ignored=dict(ignored),
+    )
+
+
+def parse_quiz(data: str | bytes) -> list[Question]:
+    """Legge un file XML Moodle e restituisce solo le domande CodeRunner."""
+    return read_quiz(data).questions
 
 
 def _parse_question(el: ET.Element) -> Question:

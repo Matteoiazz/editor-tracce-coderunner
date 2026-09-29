@@ -8,13 +8,15 @@ import {
   createQuestion,
   duplicateNumbers,
   type EditableQuestion,
+  ignoredMessage,
   isExamComplete,
   nextNumber,
   questionName,
+  unsupportedReason,
 } from "./exam";
 import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
 import type { ExamInfo } from "./naming";
-import type { TestRow } from "./testcases";
+import { composeTests, type TestRow } from "./testcases";
 
 export function App() {
   const [exam, setExam] = useState<ExamInfo>({ date: "", kind: null });
@@ -61,11 +63,27 @@ export function App() {
     try {
       const file = await window.desktop.openXmlFile();
       if (!file) return; // l'utente ha annullato
-      const result = adoptImported(await importXml(file.content), items, exam, common);
+      const { questions, ignored } = await importXml(file.content);
+      const result = adoptImported(questions, items, exam, common);
+      // Esercizi che l'applicazione non sa eseguire: vanno segnalati subito
+      const unsupported = result.items.flatMap((item) => {
+        const tests = composeTests(result.common, item.useCommon, item.commonExpected, item.specific);
+        const reason = unsupportedReason(item.question, tests);
+        return reason
+          ? [`${questionName(item, result.exam)}: ${reason}. Calcola output e Verifica non sono ` +
+             "disponibili; all'esportazione l'esercizio viene riportato così com'è."]
+          : [];
+      });
+      const messages = [
+        questions.length === 0 ? "Nel file non ci sono domande di tipo CodeRunner." : null,
+        result.notice,
+        ignoredMessage(ignored),
+        ...unsupported,
+      ].filter((m): m is string => m !== null);
       setExam(result.exam);
       setCommon(result.common);
       setItems((current) => [...current, ...result.items]);
-      setNotice(result.notice);
+      setNotice(messages.length > 0 ? messages.join("\n") : null);
     } catch (e) {
       setError(`Importazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -86,6 +104,8 @@ export function App() {
       // Su Moodle una soluzione che non supera i propri test renderebbe l'esercizio inutilizzabile
       const failures: string[] = [];
       for (const question of questions) {
+        // Gli esercizi che l'applicazione non sa eseguire vengono esportati così come sono
+        if (unsupportedReason(question, question.testcases)) continue;
         const failed = (await verifyQuestion(question)).filter((o) => !o.passed).length;
         if (failed > 0) {
           failures.push(

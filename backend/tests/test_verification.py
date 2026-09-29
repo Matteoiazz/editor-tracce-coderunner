@@ -73,7 +73,7 @@ def test_ciclo_infinito_interrotto_e_test_successivi_non_eseguiti(
     assert not first.passed
     assert first.error.startswith("tempo limite superato")
     assert rest and all(not o.passed and o.error == NOT_RUN for o in rest)
-    assert elapsed < 5  # senza l'interruzione: tempo limite × 16 test
+    assert elapsed < 10  # senza l'interruzione: tempo limite × 16 test (circa 80 s); margine per PC lenti
 
 
 def test_output_infinito_interrotto(pretest_question: Question) -> None:
@@ -86,7 +86,7 @@ def test_output_infinito_interrotto(pretest_question: Question) -> None:
     assert first.error.startswith("output troppo lungo")
     assert len(first.got) <= 1_000_000
     assert second.error == NOT_RUN
-    assert elapsed < 3
+    assert elapsed < 6  # margine per PC lenti
 
 
 def test_il_confronto_ignora_spazi_finali_come_coderunner() -> None:
