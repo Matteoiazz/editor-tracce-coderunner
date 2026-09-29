@@ -12,6 +12,9 @@ const DEV_SERVER_URL = "http://localhost:5173";
 
 let backendProcess = null;
 let backendPort = null;
+// Ultime righe scritte dal backend sugli errori: servono a spiegare un avvio fallito.
+let backendErrorTail = "";
+let backendExitCode = null;
 
 /** Chiede al sistema operativo una porta libera (porta 0 = "scegli tu"). */
 function getFreePort() {
@@ -38,9 +41,19 @@ function startBackend(port) {
     env: { ...process.env, PYTHONPATH: path.join(backendDir, "src"), PYTHONUNBUFFERED: "1" },
   });
   backendProcess.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
-  backendProcess.stderr.on("data", (d) => process.stderr.write(`[backend] ${d}`));
+  backendProcess.stderr.on("data", (d) => {
+    process.stderr.write(`[backend] ${d}`);
+    backendErrorTail = (backendErrorTail + d).slice(-1500);
+  });
+  // Es. Python non trovato: senza questo gestore Electron andrebbe in errore non gestito
+  backendProcess.on("error", (err) => {
+    backendErrorTail += `\n${err.message}`;
+    backendExitCode = -1;
+    backendProcess = null;
+  });
   backendProcess.on("exit", (code) => {
     console.log(`[backend] terminato (codice ${code})`);
+    backendExitCode = code;
     backendProcess = null;
   });
 }
@@ -60,6 +73,9 @@ function stopBackend() {
 async function waitForBackend(port, timeoutMs = 15000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (backendExitCode !== null) {
+      throw new Error(`Il backend si è chiuso durante l'avvio (codice ${backendExitCode}).`);
+    }
     try {
       const res = await fetch(`http://127.0.0.1:${port}/health`);
       if (res.ok) return;
@@ -163,6 +179,12 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error(err);
     stopBackend();
+    // Senza questa finestra l'applicazione si chiuderebbe senza spiegare nulla
+    dialog.showErrorBox(
+      "Impossibile avviare l'applicazione",
+      `Il componente Python (backend) non si è avviato.\n\n${err.message}` +
+        (backendErrorTail ? `\n\nDettagli:\n${backendErrorTail.trim()}` : ""),
+    );
     app.quit();
     return;
   }

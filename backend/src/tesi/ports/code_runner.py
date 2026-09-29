@@ -1,8 +1,7 @@
 """Porta per l'esecuzione del codice.
 
 È un'interfaccia perché le implementazioni reali sono più d'una: un processo locale
-(sviluppo e test), e in futuro un ambiente isolato lato server (container o il server
-Jobe usato da CodeRunner).
+(sviluppo e test), e in futuro un ambiente isolato (es. un container).
 """
 
 from dataclasses import dataclass
@@ -15,6 +14,8 @@ class RunResult:
     stderr: str
     exit_code: int | None
     timed_out: bool = False
+    # Il programma ha prodotto troppo output ed è stato interrotto
+    output_limit_exceeded: bool = False
 
 
 class CodeRunner(Protocol):

@@ -1,3 +1,4 @@
+import time
 from dataclasses import replace
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from samples import all_real_questions
 from tesi.adapters.local_runner import LocalPythonRunner
 from tesi.application.verification import (
+    NOT_RUN,
     SolutionFailed,
     fill_expected_outputs,
     outputs_match,
@@ -59,13 +61,32 @@ def test_segnala_la_soluzione_che_va_in_errore(pretest_question: Question) -> No
     assert "ValueError: bug" in exc.value.detail
 
 
-def test_interrompe_un_ciclo_infinito(pretest_question: Question) -> None:
+def test_ciclo_infinito_interrotto_e_test_successivi_non_eseguiti(
+    pretest_question: Question,
+) -> None:
     looping = replace(pretest_question, solution="while True:\n    pass\n")
 
-    [first, *_] = verify_solution(looping, LocalPythonRunner(timeout_s=1))
+    start = time.perf_counter()
+    [first, *rest] = verify_solution(looping, LocalPythonRunner(timeout_s=1))
+    elapsed = time.perf_counter() - start
 
     assert not first.passed
-    assert first.error == "tempo limite superato"
+    assert first.error.startswith("tempo limite superato")
+    assert rest and all(not o.passed and o.error == NOT_RUN for o in rest)
+    assert elapsed < 5  # senza l'interruzione: tempo limite × 16 test
+
+
+def test_output_infinito_interrotto(pretest_question: Question) -> None:
+    spamming = replace(pretest_question, solution="while True:\n    print('x' * 1000)\n")
+
+    start = time.perf_counter()
+    [first, second, *_] = verify_solution(spamming, runner)
+    elapsed = time.perf_counter() - start
+
+    assert first.error.startswith("output troppo lungo")
+    assert len(first.got) <= 1_000_000
+    assert second.error == NOT_RUN
+    assert elapsed < 3
 
 
 def test_il_confronto_ignora_spazi_finali_come_coderunner() -> None:

@@ -9,8 +9,17 @@ function getBackendUrl(): Promise<string> {
   return backendUrl;
 }
 
+export const BACKEND_UNREACHABLE =
+  "Il backend non risponde. Chiudi e riapri l'applicazione; se il problema continua, riavvia il computer.";
+
 async function send(path: string, init: RequestInit): Promise<Response> {
-  const response = await fetch(`${await getBackendUrl()}${path}`, init);
+  let response: Response;
+  try {
+    response = await fetch(`${await getBackendUrl()}${path}`, init);
+  } catch {
+    // fetch fallisce senza risposta solo se il backend non è raggiungibile
+    throw new Error(BACKEND_UNREACHABLE);
+  }
   if (!response.ok) {
     // FastAPI mette il messaggio d'errore nel campo "detail"
     const body = await response.json().catch(() => null);

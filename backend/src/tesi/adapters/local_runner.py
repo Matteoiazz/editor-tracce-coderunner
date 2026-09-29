@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from tesi.ports import RunResult
@@ -27,39 +28,87 @@ _PRELUDE_LINES = _W_INPUT_PRELUDE.count("\n")
 SOLUTION_FILE_NAME = "soluzione"
 
 
+# Limiti di esecuzione: le soluzioni reali terminano in pochi millisecondi, quindi
+# superarli indica quasi sempre un ciclo infinito.
+DEFAULT_TIMEOUT_S = 3.0
+MAX_OUTPUT_BYTES = 1_000_000
+_POLL_INTERVAL_S = 0.01
+WINDOWS_NEWLINE = "\r\n"
+
+
 class LocalPythonRunner:
-    def __init__(self, timeout_s: float = 5.0, python: str = sys.executable) -> None:
+    def __init__(
+        self,
+        timeout_s: float = DEFAULT_TIMEOUT_S,
+        python: str = sys.executable,
+        max_output_bytes: int = MAX_OUTPUT_BYTES,
+    ) -> None:
         self.timeout_s = timeout_s
         self.python = python
+        self.max_output_bytes = max_output_bytes
 
     def run(self, code: str, stdin: str) -> RunResult:
         with tempfile.TemporaryDirectory() as workdir:
-            program = Path(workdir) / "program.py"
+            folder = Path(workdir)
+            program = folder / "program.py"
             program.write_text(_W_INPUT_PRELUDE + code, encoding="utf-8")
-            try:
-                completed = subprocess.run(
+            (folder / "stdin.txt").write_text(stdin, encoding="utf-8")
+            stdout_path, stderr_path = folder / "stdout.txt", folder / "stderr.txt"
+
+            # L'output va su file e non in memoria: così se ne può controllare la
+            # dimensione durante l'esecuzione e fermare un programma che stampa all'infinito.
+            with (
+                open(folder / "stdin.txt", "rb") as stdin_file,
+                open(stdout_path, "wb") as stdout_file,
+                open(stderr_path, "wb") as stderr_file,
+            ):
+                process = subprocess.Popen(
                     # -I: ignora variabili d'ambiente e site utente; -X utf8: I/O in UTF-8
                     [self.python, "-I", "-X", "utf8", str(program)],
-                    input=stdin,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=self.timeout_s,
+                    stdin=stdin_file,
+                    stdout=stdout_file,
+                    stderr=stderr_file,
                     cwd=workdir,
-                    check=False,  # un codice d'uscita diverso da 0 è un risultato, non un errore
                 )
-            except subprocess.TimeoutExpired as exc:
-                return RunResult(
-                    stdout=_as_text(exc.stdout),
-                    stderr=clean_traceback(_as_text(exc.stderr), str(program)),
-                    exit_code=None,
-                    timed_out=True,
-                )
+                timed_out, too_much_output = self._wait(process, stdout_path, stderr_path)
+
+            stdout = _read_output(stdout_path, self.max_output_bytes)
+            stderr = clean_traceback(_read_output(stderr_path, self.max_output_bytes), str(program))
         return RunResult(
-            completed.stdout,
-            clean_traceback(completed.stderr, str(program)),
-            completed.returncode,
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=None if (timed_out or too_much_output) else process.returncode,
+            timed_out=timed_out,
+            output_limit_exceeded=too_much_output,
         )
+
+    def _wait(
+        self, process: subprocess.Popen, stdout_path: Path, stderr_path: Path
+    ) -> tuple[bool, bool]:
+        """Attende la fine del programma; lo interrompe se supera il tempo o l'output massimo."""
+        deadline = time.monotonic() + self.timeout_s
+        while process.poll() is None:
+            output_size = stdout_path.stat().st_size + stderr_path.stat().st_size
+            if output_size > self.max_output_bytes:
+                _stop(process)
+                return False, True
+            if time.monotonic() > deadline:
+                _stop(process)
+                return True, False
+            time.sleep(_POLL_INTERVAL_S)
+        return False, False
+
+
+def _stop(process: subprocess.Popen) -> None:
+    process.kill()
+    process.wait()
+
+
+def _read_output(path: Path, limit: int) -> str:
+    """Legge al massimo `limit` byte; gli a capo di Windows diventano a capo semplici."""
+    with open(path, "rb") as file:
+        data = file.read(limit)
+    return data.decode("utf-8", errors="replace").replace(WINDOWS_NEWLINE, "\n")
 
 
 def clean_traceback(stderr: str, program_path: str) -> str:
@@ -94,9 +143,3 @@ def clean_traceback(stderr: str, program_path: str) -> str:
         cleaned.append(f'{indent}File "{SOLUTION_FILE_NAME}", line {number - _PRELUDE_LINES}{rest}')
         cleaned.extend(body)
     return "\n".join(cleaned) + ("\n" if stderr.endswith("\n") else "")
-
-
-def _as_text(data: str | bytes | None) -> str:
-    if data is None:
-        return ""
-    return data if isinstance(data, str) else data.decode("utf-8", errors="replace")

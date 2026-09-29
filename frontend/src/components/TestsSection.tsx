@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fillExpected, verifyQuestion } from "../api";
 import type { EditableQuestion } from "../exam";
 import {
@@ -12,6 +12,9 @@ import {
 } from "../testcases";
 import type { TestOutcome } from "../types";
 import { TestCaseTable } from "./TestCaseTable";
+
+const CHANGED_DURING_RUN =
+  "La soluzione o i test sono cambiati durante l'esecuzione: risultato scartato, ripeti l'operazione.";
 
 interface Props {
   item: EditableQuestion;
@@ -28,8 +31,12 @@ export function TestsSection({ item, common, onUpdate }: Props) {
   const composed = composeTests(common, item.useCommon, item.commonExpected, item.specific);
   const commonRows = composed.slice(0, item.useCommon ? common.length : 0);
 
+  // Versione di soluzione e test: un risultato arrivato dopo una modifica va scartato
+  const version = useRef(0);
+
   // Un cambiamento della soluzione o dei test rende non più validi gli esiti mostrati
   useEffect(() => {
+    version.current += 1;
     setOutcomes(null);
   }, [item.question.solution, item.specific, item.useCommon, item.commonExpected, common]);
 
@@ -44,8 +51,13 @@ export function TestsSection({ item, common, onUpdate }: Props) {
       return;
     }
     setBusy("calcola");
+    const started = version.current;
     try {
       const result = await fillExpected(questionWithTests());
+      if (version.current !== started) {
+        setError(CHANGED_DURING_RUN);
+        return;
+      }
       const expected = byId(
         composed,
         result.testcases.map((t) => t.expected),
@@ -79,8 +91,14 @@ export function TestsSection({ item, common, onUpdate }: Props) {
       return;
     }
     setBusy("verifica");
+    const started = version.current;
     try {
-      setOutcomes(outcomesById(composed, await verifyQuestion(questionWithTests())));
+      const results = await verifyQuestion(questionWithTests());
+      if (version.current !== started) {
+        setError(CHANGED_DURING_RUN);
+        return;
+      }
+      setOutcomes(outcomesById(composed, results));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

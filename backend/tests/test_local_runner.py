@@ -42,3 +42,23 @@ def test_esecuzione_corretta_invariata() -> None:
     assert result.exit_code == 0
     assert result.stdout == "21\n42\n"
     assert result.stderr == ""
+
+
+def test_limite_di_output_ferma_il_programma() -> None:
+    result = LocalPythonRunner(max_output_bytes=10_000).run("while True:\n    print('x')\n", "")
+
+    assert result.output_limit_exceeded
+    assert result.exit_code is None
+    assert len(result.stdout) <= 10_000
+
+
+def test_timeout_predefinito_di_3_secondi() -> None:
+    assert LocalPythonRunner().timeout_s == 3.0
+
+
+def test_stdin_lungo_non_blocca_il_programma() -> None:
+    # Il programma legge solo la prima riga: l'input restante non deve bloccare nulla
+    result = runner.run("print(input())\n", "a\n" * 200_000)
+
+    assert result.exit_code == 0
+    assert result.stdout == "a\na\n"

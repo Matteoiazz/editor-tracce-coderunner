@@ -30,11 +30,24 @@ class SolutionFailed(Exception):
         self.detail = detail
 
 
+NOT_RUN = "non eseguito: un test precedente è stato interrotto"
+
+
 def verify_solution(question: Question, runner: CodeRunner) -> list[TestOutcome]:
-    """Esegue la soluzione su ogni test e dice quali passano."""
+    """Esegue la soluzione su ogni test e dice quali passano.
+
+    Se un test viene interrotto (tempo limite o output eccessivo) i successivi non si
+    eseguono: quasi certamente si interromperebbero allo stesso modo, e la verifica
+    durerebbe tempo limite × numero di test.
+    """
     outcomes = []
+    interrupted = False
     for i, tc in enumerate(question.testcases):
+        if interrupted:
+            outcomes.append(TestOutcome(i, False, tc.expected, "", NOT_RUN))
+            continue
         result = runner.run(question.solution, tc.stdin)
+        interrupted = result.timed_out or result.output_limit_exceeded
         error = _error_of(result)
         outcomes.append(TestOutcome(
             index=i,
@@ -76,7 +89,9 @@ def _normalize(text: str) -> str:
 
 def _error_of(result: RunResult) -> str:
     if result.timed_out:
-        return "tempo limite superato"
+        return "tempo limite superato (possibile ciclo infinito)"
+    if result.output_limit_exceeded:
+        return "output troppo lungo: esecuzione interrotta (possibile ciclo infinito con print)"
     if result.exit_code != 0:
         return result.stderr.strip() or f"terminato con codice {result.exit_code}"
     return ""
