@@ -49,9 +49,12 @@ export function QuestionEditor({ item, exam, common, duplicate, onUpdate, onRemo
         name={questionName(item, exam)}
         number={item.number}
         grade={question.default_grade}
+        tags={question.tags}
+        examKind={exam.kind}
         duplicate={duplicate}
         onNumberChange={(number) => onUpdate((current) => ({ ...current, number }))}
         onGradeChange={(default_grade) => update({ default_grade })}
+        onTagsChange={(tags) => update({ tags })}
         onRemove={onRemove}
       />
 

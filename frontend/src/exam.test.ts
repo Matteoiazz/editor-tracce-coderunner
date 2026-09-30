@@ -8,6 +8,7 @@ import {
   isValidGrade,
   nextNumber,
   parseExerciseNumber,
+  parseTags,
   questionName,
   SOLUTION_SKELETON,
   unsupportedReason,
@@ -231,5 +232,13 @@ describe("unsupportedReason e ignoredMessage", () => {
     expect(ignoredMessage({ multichoice: 2, truefalse: 1 })).toBe(
       "Ignorate 3 domande che non sono di tipo CodeRunner (2 scelta multipla, 1 vero/falso).",
     );
+  });
+});
+
+describe("parseTags", () => {
+  it("separa i tag con la virgola, togliendo spazi, vuoti e doppioni", () => {
+    expect(parseTags("Python - easy, liste")).toEqual(["Python - easy", "liste"]);
+    expect(parseTags(" a ,, b , a ,")).toEqual(["a", "b"]);
+    expect(parseTags("")).toEqual([]);
   });
 });

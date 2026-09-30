@@ -50,6 +50,15 @@ export function parseExerciseNumber(text: string): number | null {
   return number >= 1 ? number : null;
 }
 
+/** Tag dal campo di testo: separati da virgola, senza spazi ai lati, senza vuoti né doppioni. */
+export function parseTags(text: string): string[] {
+  const tags = text
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return [...new Set(tags)];
+}
+
 export function isValidGrade(grade: number): boolean {
   return Number.isFinite(grade) && grade > 0;
 }
