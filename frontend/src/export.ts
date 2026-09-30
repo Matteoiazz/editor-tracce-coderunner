@@ -47,11 +47,11 @@ export function prepareQuestion(
   };
 }
 
-function hasText(html: string): boolean {
+export function hasText(html: string): boolean {
   return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 }
 
-function normalizeCode(code: string): string {
+export function normalizeCode(code: string): string {
   return code
     .split("\n")
     .map((line) => line.trimEnd())

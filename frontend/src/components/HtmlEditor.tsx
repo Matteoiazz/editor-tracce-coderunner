@@ -1,6 +1,13 @@
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
+import {
+  IconBulletList,
+  IconInlineCode,
+  IconNumberedList,
+  IconRedo,
+  IconUndo,
+} from "./icons";
 
 interface Props {
   value: string;
@@ -52,16 +59,17 @@ export function HtmlEditor({ value, onChange }: Props) {
           onClick={() => chain().toggleBold().run()} className="bold" />
         <ToolbarButton label="C" title="Corsivo (Ctrl+I)" active={state.italic}
           onClick={() => chain().toggleItalic().run()} className="italic" />
-        <ToolbarButton label="<>" title="Testo in stile codice (Ctrl+E)" active={state.code}
+        <ToolbarButton label={<IconInlineCode />} title="Testo in stile codice (Ctrl+E)" active={state.code}
           onClick={() => chain().toggleCode().run()} />
-        <ToolbarButton label="• Elenco" title="Elenco puntato" active={state.bulletList}
+        <span className="separator" />
+        <ToolbarButton label={<IconBulletList />} title="Elenco puntato" active={state.bulletList}
           onClick={() => chain().toggleBulletList().run()} />
-        <ToolbarButton label="1. Elenco" title="Elenco numerato" active={state.orderedList}
+        <ToolbarButton label={<IconNumberedList />} title="Elenco numerato" active={state.orderedList}
           onClick={() => chain().toggleOrderedList().run()} />
         <span className="separator" />
-        <ToolbarButton label="↶" title="Annulla (Ctrl+Z)" disabled={!state.canUndo}
+        <ToolbarButton label={<IconUndo />} title="Annulla (Ctrl+Z)" disabled={!state.canUndo}
           onClick={() => chain().undo().run()} />
-        <ToolbarButton label="↷" title="Ripeti (Ctrl+Y)" disabled={!state.canRedo}
+        <ToolbarButton label={<IconRedo />} title="Ripeti (Ctrl+Y)" disabled={!state.canRedo}
           onClick={() => chain().redo().run()} />
       </div>
       <EditorContent editor={editor} className="html-content" />
@@ -70,7 +78,7 @@ export function HtmlEditor({ value, onChange }: Props) {
 }
 
 interface ToolbarButtonProps {
-  label: string;
+  label: ReactNode;
   title: string;
   onClick: () => void;
   active?: boolean;
@@ -83,6 +91,7 @@ function ToolbarButton({ label, title, onClick, active, disabled, className }: T
     <button
       type="button"
       title={title}
+      aria-label={title}
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}

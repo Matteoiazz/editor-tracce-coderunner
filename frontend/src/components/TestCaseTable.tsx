@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { HIDDEN, inputLineCount, type TestRow, VISIBLE } from "../testcases";
 import type { TestOutcome } from "../types";
+import { IconCheck, IconChevron, IconClose, IconCross } from "./icons";
 
 interface Props {
   rows: TestRow[];
@@ -37,6 +38,8 @@ export function TestCaseTable(props: Props) {
   }
 
   return (
+    // Nelle finestre strette la tabella scorre in orizzontale invece di uscire dal bordo
+    <div className="table-scroll">
     <table className="test-table">
       <thead>
         <tr>
@@ -123,9 +126,10 @@ export function TestCaseTable(props: Props) {
                     type="button"
                     className="icon"
                     title="Elimina test"
+                    aria-label={`Elimina il test ${startNumber + i}`}
                     onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
                   >
-                    ✕
+                    <IconClose />
                   </button>
                 </td>
               )}
@@ -154,6 +158,7 @@ export function TestCaseTable(props: Props) {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -165,8 +170,14 @@ function ExpectedCell(props: { text: string; expanded: boolean; onToggle: () => 
   return (
     <div className="expected-cell">
       {long && (
-        <button type="button" className="icon" onClick={onToggle} title="Mostra tutto">
-          {expanded ? "▾" : "▸"}
+        <button
+          type="button"
+          className={`icon toggle${expanded ? " open" : ""}`}
+          onClick={onToggle}
+          title={expanded ? "Riduci" : "Mostra tutto"}
+          aria-expanded={expanded}
+        >
+          <IconChevron size={14} />
         </button>
       )}
       {expanded ? (
@@ -179,6 +190,16 @@ function ExpectedCell(props: { text: string; expanded: boolean; onToggle: () => 
 }
 
 function OutcomeBadge({ outcome }: { outcome: TestOutcome }) {
-  if (outcome.passed) return <span className="badge pass">✓</span>;
-  return <span className="badge fail">{outcome.error ? "errore" : "✗"}</span>;
+  if (outcome.passed) {
+    return (
+      <span className="badge pass">
+        <IconCheck size={13} /> superato
+      </span>
+    );
+  }
+  return (
+    <span className="badge fail">
+      <IconCross size={13} /> {outcome.error ? "errore" : "fallito"}
+    </span>
+  );
 }

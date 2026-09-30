@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { isValidGrade, parseExerciseNumber, parseTags } from "../exam";
 import type { ExamKind } from "../naming";
+import { IconTrash } from "./icons";
 
 interface Props {
   name: string;
@@ -26,9 +27,9 @@ export function QuestionHeader(props: Props) {
   return (
     <div className="question-header">
       <div className="title-row">
-        <h2>{name}</h2>
-        <button type="button" className="danger" onClick={onRemove}>
-          Rimuovi
+        <h1 className="mono">{name}</h1>
+        <button type="button" className="ghost danger" onClick={onRemove}>
+          <IconTrash /> Rimuovi
         </button>
       </div>
       <div className="fields">

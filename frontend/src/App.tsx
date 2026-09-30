@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { exportXml, importXml, verifyQuestion } from "./api";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
-import { ExamHeader } from "./components/ExamHeader";
+import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
+import { type Blocker, type Selection, Sidebar } from "./components/Sidebar";
 import {
   adoptImported,
   createQuestion,
@@ -17,29 +18,37 @@ import {
 import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
 import type { ExamInfo } from "./naming";
 import { isEmptySession, parseSession, serializeSession } from "./session";
+import {
+  examSummary,
+  exerciseStatus,
+  makeRecord,
+  validOutcomes,
+  type VerifyRecord,
+} from "./status";
 import { composeTests, type TestRow } from "./testcases";
+import type { TestOutcome } from "./types";
 
 export function App() {
   const [exam, setExam] = useState<ExamInfo>({ date: "", kind: null });
   const [common, setCommon] = useState<TestRow[]>([]);
   const [items, setItems] = useState<EditableQuestion[]>([]);
+  const [selection, setSelection] = useState<Selection>(null);
+  // Esiti dell'ultima verifica per esercizio: non salvati, dopo una riapertura vanno rifatti
+  const [records, setRecords] = useState<Record<string, VerifyRecord>>({});
+  const [revealKeys, setRevealKeys] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [exportIssues, setExportIssues] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
 
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const selectedId = selection?.kind === "exercise" ? selection.id : null;
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selectedId;
 
   const canCreate = isExamComplete(exam);
   const duplicates = duplicateNumbers(items);
-
-  // I messaggi compaiono in cima alla pagina: se il docente sta lavorando più in basso,
-  // la pagina scorre fino a loro, altrimenti non si accorgerebbe dell'esito.
-  useEffect(() => {
-    if (error || notice || exportIssues.length > 0) {
-      messagesRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [error, notice, exportIssues]);
+  const statuses = new Map(items.map((it) => [it.id, exerciseStatus(it, common, records[it.id])]));
+  const summary = examSummary([...statuses.values()]);
 
   // ------------------------------------------------ salvataggio automatico
   const [loaded, setLoaded] = useState(false);
@@ -66,6 +75,7 @@ export function App() {
         setCommon(session.common);
         setItems(session.items);
         if (session.items.length > 0) {
+          setSelection({ kind: "exercise", id: session.items[0].id });
           setNotice(`Ripristinato il lavoro della sessione precedente (${session.items.length} esercizi).`);
         }
       } catch (e) {
@@ -104,6 +114,32 @@ export function App() {
     return () => window.removeEventListener("beforeunload", saveNow);
   }, []);
 
+  // ------------------------------------------------ selezione ed esiti
+
+  function select(next: Selection) {
+    setSelection(next);
+    mainRef.current?.scrollTo({ top: 0 });
+    // Aprire un esercizio conferma di averne visto gli esiti aggiornati
+    if (next?.kind === "exercise" && records[next.id]?.unseen) {
+      setRecords((current) => ({ ...current, [next.id]: { ...current[next.id], unseen: false } }));
+    }
+  }
+
+  function recordOutcomes(id: string, rows: TestRow[], solution: string, outcomes: TestOutcome[]) {
+    setRecords((current) => ({
+      ...current,
+      [id]: makeRecord(solution, rows, outcomes, id !== selectedRef.current),
+    }));
+    setRevealKeys((current) => ({ ...current, [id]: String(Date.now()) }));
+  }
+
+  // ------------------------------------------------ azioni
+
+  function clearMessages() {
+    setError(null);
+    setNotice(null);
+  }
+
   function handleNewExam() {
     if (
       !window.confirm(
@@ -115,19 +151,19 @@ export function App() {
     setExam({ date: "", kind: null });
     setCommon([]);
     setItems([]);
-    setError(null);
-    setNotice(null);
-    setExportIssues([]);
+    setRecords({});
+    setSelection(null);
+    clearMessages();
   }
 
   function handleNew() {
-    setItems((current) => [...current, createQuestion(nextNumber(current), exam)]);
+    const created = createQuestion(nextNumber(items), exam);
+    setItems((current) => [...current, created]);
+    select({ kind: "exercise", id: created.id });
   }
 
   async function handleImport() {
-    setError(null);
-    setNotice(null);
-    setExportIssues([]);
+    clearMessages();
     try {
       const file = await window.desktop.openXmlFile();
       if (!file) return; // l'utente ha annullato
@@ -151,40 +187,39 @@ export function App() {
       setExam(result.exam);
       setCommon(result.common);
       setItems((current) => [...current, ...result.items]);
-      setNotice(messages.length > 0 ? messages.join("\n") : null);
+      if (result.items.length > 0) select({ kind: "exercise", id: result.items[0].id });
+      const imported = result.items.length === 1 ? "1 esercizio" : `${result.items.length} esercizi`;
+      setNotice([`Importati ${imported}.`, ...messages].join("\n"));
     } catch (e) {
       setError(`Importazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
   async function handleExport() {
-    setError(null);
-    setNotice(null);
-    setExportIssues([]);
-    const problems = exportProblems(items, exam, common);
-    if (problems.length > 0) {
-      setExportIssues(problems);
-      return;
-    }
+    clearMessages();
+    if (exportProblems(items, exam, common).length > 0) return;
     setExporting(true);
     try {
-      const questions = sortedByNumber(items).map((item) => prepareQuestion(item, exam, common));
-      // Su Moodle una soluzione che non supera i propri test renderebbe l'esercizio inutilizzabile
-      const failures: string[] = [];
-      for (const question of questions) {
-        // Gli esercizi che l'applicazione non sa eseguire vengono esportati così come sono
+      // Su Moodle una soluzione che non supera i propri test renderebbe l'esercizio inutilizzabile:
+      // ogni esercizio viene verificato e gli esiti compaiono nella colonna.
+      let failures = 0;
+      for (const item of sortedByNumber(items)) {
+        const question = prepareQuestion(item, exam, common);
         if (unsupportedReason(question, question.testcases)) continue;
-        const failed = (await verifyQuestion(question)).filter((o) => !o.passed).length;
-        if (failed > 0) {
-          failures.push(
-            `${question.name}: ${failed} test non superati dalla soluzione (premi «Verifica» per i dettagli)`,
-          );
-        }
+        const rows = composeTests(common, item.useCommon, item.commonExpected, item.specific);
+        const outcomes = await verifyQuestion(question);
+        recordOutcomes(item.id, rows, item.question.solution, outcomes);
+        if (outcomes.some((o) => !o.passed)) failures++;
       }
-      if (failures.length > 0) {
-        setExportIssues(failures);
+      if (failures > 0) {
+        setError(
+          failures === 1
+            ? "Esportazione annullata: un esercizio non supera i propri test (vedi la colonna a sinistra)."
+            : `Esportazione annullata: ${failures} esercizi non superano i propri test (vedi la colonna a sinistra).`,
+        );
         return;
       }
+      const questions = sortedByNumber(items).map((item) => prepareQuestion(item, exam, common));
       const path = await window.desktop.saveXmlFile(exportFileName(exam), await exportXml(questions));
       if (path) setNotice(`Esportati ${questions.length} esercizi in ${path}`);
     } catch (e) {
@@ -216,79 +251,122 @@ export function App() {
   function handleRemove(item: EditableQuestion) {
     const name = questionName(item, exam);
     if (!window.confirm(`Eliminare ${name}? L'operazione non si può annullare.`)) return;
-    setItems((current) => current.filter((it) => it.id !== item.id));
+    const index = items.findIndex((it) => it.id === item.id);
+    const rest = items.filter((it) => it.id !== item.id);
+    setItems(rest);
+    const neighbour = rest[Math.min(index, rest.length - 1)];
+    setSelection(neighbour ? { kind: "exercise", id: neighbour.id } : null);
   }
 
   function updateItem(id: string, change: (item: EditableQuestion) => EditableQuestion) {
     setItems((current) => current.map((it) => (it.id === id ? change(it) : it)));
   }
 
-  if (!loaded) {
-    return <p className="muted loading">Caricamento del lavoro salvato…</p>;
+  // ------------------------------------------------ vista
+
+  // Cosa impedisce l'esportazione: problemi di struttura e test falliti nell'ultima verifica
+  const names = new Map(items.map((it) => [questionName(it, exam), it.id]));
+  const blockers: Blocker[] = exportProblems(items, exam, common).map((text) => {
+    const name = [...names.keys()].find((n) => text.startsWith(`${n}: `));
+    return { text, exerciseId: name ? names.get(name) : undefined };
+  });
+  for (const it of items) {
+    const failed = statuses.get(it.id)?.failed ?? 0;
+    if (failed > 0) {
+      blockers.push({
+        text: `${questionName(it, exam)}: ${failed === 1 ? "1 test fallito" : `${failed} test falliti`}`,
+        exerciseId: it.id,
+      });
+    }
   }
+
+  if (!loaded) {
+    return <p className="loading">Caricamento del lavoro salvato…</p>;
+  }
+
+  const selectedItem = items.find((it) => it.id === selectedId);
 
   return (
     <div className="app">
-      <header className="toolbar">
-        <button type="button" className="primary" onClick={handleNew} disabled={!canCreate}>
-          + Nuovo esercizio
-        </button>
-        <button type="button" onClick={handleImport}>
-          Importa XML
-        </button>
-        <button type="button" onClick={handleExport} disabled={exporting}>
-          {exporting ? "Esportazione…" : "Esporta XML"}
-        </button>
-        <button
-          type="button"
-          className="toolbar-end"
-          onClick={handleNewExam}
-          disabled={isEmptySession({ exam, common, items })}
-          title="Svuota l'esame corrente per iniziarne uno nuovo"
-        >
-          Nuovo esame
-        </button>
-        {!canCreate && (
-          <span className="muted">Indica data e tipo dell'esame per creare un esercizio</span>
+      <Sidebar
+        exam={exam}
+        onExamChange={setExam}
+        commonCount={common.length}
+        exercises={items.map((it) => ({
+          id: it.id,
+          name: questionName(it, exam),
+          kind: exam.kind,
+          grade: it.question.default_grade,
+          status: statuses.get(it.id)!,
+          duplicate: it.number !== null && duplicates.has(it.number),
+          unseen: records[it.id]?.unseen === true && it.id !== selectedId,
+          revealKey: revealKeys[it.id],
+        }))}
+        selection={selection}
+        onSelect={select}
+        canCreate={canCreate}
+        onNew={handleNew}
+        onImport={handleImport}
+        canClearExam={!isEmptySession({ exam, common, items })}
+        onNewExam={handleNewExam}
+        summary={summary}
+        blockers={items.length === 0 ? [] : blockers}
+        exporting={exporting}
+        onExport={handleExport}
+      />
+
+      <main className="main" ref={mainRef}>
+        {(error || notice) && (
+          <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
+            <p>{error ?? notice}</p>
+            <button type="button" className="icon" onClick={clearMessages} aria-label="Chiudi il messaggio">
+              <IconClose />
+            </button>
+          </div>
         )}
-      </header>
 
-      <main className="content">
-        <ExamHeader exam={exam} onChange={setExam} />
-        <CommonTestsPanel rows={common} onChange={handleCommonChange} />
-
-        <div ref={messagesRef} className="messages">
-          {error && <p className="error">{error}</p>}
-          {notice && <p className="notice">{notice}</p>}
-          {exportIssues.length > 0 && (
-            <div className="export-issues">
-              <strong>Impossibile esportare:</strong>
-              <ul>
-                {exportIssues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {items.length === 0 ? (
-          <p className="empty">
-            Nessun esercizio. Indica data e tipo dell'esame e premi «+ Nuovo esercizio», oppure
-            importa un file XML esportato da Moodle.
-          </p>
+        {selection?.kind === "common" ? (
+          <CommonTestsPanel rows={common} onChange={handleCommonChange} />
+        ) : selectedItem ? (
+          <QuestionEditor
+            key={selectedItem.id}
+            item={selectedItem}
+            exam={exam}
+            common={common}
+            status={statuses.get(selectedItem.id)!}
+            outcomes={validOutcomes(
+              records[selectedItem.id],
+              selectedItem.question.solution,
+              statuses.get(selectedItem.id)!.rows,
+            )}
+            duplicate={selectedItem.number !== null && duplicates.has(selectedItem.number)}
+            onUpdate={(change) => updateItem(selectedItem.id, change)}
+            onVerified={(rows, solution, outcomes) =>
+              recordOutcomes(selectedItem.id, rows, solution, outcomes)
+            }
+            onRemove={() => handleRemove(selectedItem)}
+          />
         ) : (
-          items.map((item) => (
-            <QuestionEditor
-              key={item.id}
-              item={item}
-              exam={exam}
-              common={common}
-              duplicate={item.number !== null && duplicates.has(item.number)}
-              onUpdate={(change) => updateItem(item.id, change)}
-              onRemove={() => handleRemove(item)}
-            />
-          ))
+          <section className="start">
+            <h1>Prepara un esame per Moodle</h1>
+            <ol className="start-steps">
+              <li className={isExamComplete(exam) ? "done" : ""}>
+                <strong>Indica data e tipo</strong> dell'esame nella colonna a sinistra.
+              </li>
+              <li className={common.length > 0 ? "done" : ""}>
+                <strong>Definisci i test comuni</strong>, per esempio i 9 test standard.
+              </li>
+              <li>
+                <strong>Crea gli esercizi</strong>: traccia, soluzione, codice per gli studenti, test.
+              </li>
+              <li>
+                <strong>Esporta l'XML</strong> quando il riepilogo in basso a sinistra è tutto verde.
+              </li>
+            </ol>
+            <p className="start-alt">
+              Hai già un esame su Moodle? Importa il suo XML per riusare gli esercizi.
+            </p>
+          </section>
         )}
       </main>
     </div>
