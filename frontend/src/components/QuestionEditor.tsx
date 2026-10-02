@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { generateStudentCode } from "../api";
 import { type EditableQuestion, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
@@ -40,6 +40,17 @@ export function QuestionEditor(props: Props) {
   const { question } = item;
   const [error, setError] = useState<string | null>(null);
 
+  // Altezza dell'intestazione fissa: le barre dell'editor del testo si fermano subito sotto.
+  const headRef = useRef<HTMLElement>(null);
+  const [headHeight, setHeadHeight] = useState(0);
+  useEffect(() => {
+    const head = headRef.current;
+    if (!head) return;
+    const observer = new ResizeObserver(() => setHeadHeight(head.offsetHeight));
+    observer.observe(head);
+    return () => observer.disconnect();
+  }, []);
+
   function update(changes: Partial<Question>) {
     onUpdate((current) => ({ ...current, question: { ...current.question, ...changes } }));
   }
@@ -75,8 +86,12 @@ export function QuestionEditor(props: Props) {
   );
 
   return (
-    <article className="exercise" aria-label={questionName(item, exam)}>
-      <header className="exercise-head">
+    <article
+      className="exercise"
+      aria-label={questionName(item, exam)}
+      style={{ "--head-height": `${headHeight}px` } as CSSProperties}
+    >
+      <header ref={headRef} className="exercise-head">
         <QuestionHeader
           name={questionName(item, exam)}
           number={item.number}

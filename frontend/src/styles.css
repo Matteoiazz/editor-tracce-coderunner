@@ -773,6 +773,61 @@ input[type="checkbox"] {
   border-radius: var(--radius);
 }
 
+/* clip invece di hidden: non crea un contenitore di scorrimento, così le barre
+   possono restare fisse (sticky) mentre scorre la pagina */
+.html-editor {
+  overflow: clip;
+}
+
+.html-bars {
+  position: sticky;
+  top: var(--head-height, 0px);
+  z-index: 50;
+}
+
+.html-toolbar button.expand {
+  margin-left: auto;
+  gap: 6px;
+}
+
+/* Editor espanso: occupa quasi tutta la finestra, scorre solo il testo */
+.html-editor.expanded {
+  position: fixed;
+  inset: 24px max(24px, calc((100vw - 1100px) / 2));
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+.html-editor.expanded .html-bars {
+  position: static;
+  flex: none;
+}
+
+.html-editor.expanded .html-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.html-editor.expanded .html-content .tiptap {
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+.editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  background: rgb(28 35 33 / 0.35);
+}
+
+body.editor-expanded .main {
+  overflow: hidden;
+}
+
 .html-toolbar {
   display: flex;
   flex-wrap: wrap;

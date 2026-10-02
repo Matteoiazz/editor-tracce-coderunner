@@ -5,6 +5,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { joinList, unsupportedElements } from "../richtext";
 import {
   IconBulletList,
+  IconCollapse,
+  IconExpand,
   IconInlineCode,
   IconNumberedList,
   IconRedo,
@@ -33,6 +35,13 @@ export function HtmlEditor({ value, onChange }: Props) {
   const [original] = useState(value);
   const lost = unsupportedElements(original);
   const [edited, setEdited] = useState(false);
+
+  // Modalità espansa: l'editor occupa quasi tutta la finestra, le barre restano in alto
+  // e scorre solo il testo. Lo spazio lasciato nella pagina viene mantenuto, così alla
+  // chiusura la pagina resta nella stessa posizione.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [expandedHeight, setExpandedHeight] = useState<number | null>(null);
+  const expanded = expandedHeight !== null;
 
   const editor = useEditor({
     extensions: [
@@ -64,8 +73,43 @@ export function HtmlEditor({ value, onChange }: Props) {
     }),
   });
 
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedHeight(null);
+    };
+    window.addEventListener("keydown", onKey);
+    // La pagina sotto non deve scorrere mentre l'editor è espanso
+    document.body.classList.add("editor-expanded");
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.classList.remove("editor-expanded");
+    };
+  }, [expanded]);
+
   if (!editor || !state) return null;
   const chain = () => editor.chain().focus();
+
+  // Inserisce una tabella 3x3 sotto il blocco corrente. Il comando standard sostituirebbe
+  // il testo selezionato, cancellandolo.
+  function insertTable() {
+    if (!editor) return;
+    const { $to } = editor.state.selection;
+    const at = $to.depth > 0 ? $to.after(1) : $to.pos;
+    const row = `<tr>${"<td><p></p></td>".repeat(3)}</tr>`;
+    // +4: dentro tabella, riga, cella e paragrafo, cioè nella prima cella
+    chain().insertContentAt(at, `<table><tbody>${row.repeat(3)}</tbody></table>`)
+      .setTextSelection(at + 4).run();
+  }
+
+  function toggleExpanded() {
+    if (expanded) {
+      setExpandedHeight(null);
+    } else {
+      setExpandedHeight(wrapperRef.current?.offsetHeight ?? 0);
+    }
+    editor?.commands.focus();
+  }
 
   function restoreOriginal() {
     if (!editor) return;
@@ -75,7 +119,16 @@ export function HtmlEditor({ value, onChange }: Props) {
   }
 
   return (
-    <div className="html-editor">
+    <>
+    {expanded && (
+      <>
+        <div className="editor-placeholder" style={{ height: expandedHeight }} />
+        <div className="editor-backdrop" onClick={() => setExpandedHeight(null)} />
+      </>
+    )}
+    <div ref={wrapperRef} className={`html-editor${expanded ? " expanded" : ""}`}>
+      {/* Le barre restano visibili mentre si scorre un testo lungo */}
+      <div className="html-bars">
       <div className="html-toolbar">
         <ToolbarButton label="G" title="Grassetto (Ctrl+B)" active={state.bold}
           onClick={() => chain().toggleBold().run()} className="bold" />
@@ -89,13 +142,20 @@ export function HtmlEditor({ value, onChange }: Props) {
         <ToolbarButton label={<IconNumberedList />} title="Elenco numerato" active={state.orderedList}
           onClick={() => chain().toggleOrderedList().run()} />
         <ToolbarButton label={<IconTable />} title="Inserisci tabella" active={state.inTable}
-          onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run()}
+          onClick={insertTable}
           disabled={state.inTable} />
         <span className="separator" />
         <ToolbarButton label={<IconUndo />} title="Annulla (Ctrl+Z)" disabled={!state.canUndo}
           onClick={() => chain().undo().run()} />
         <ToolbarButton label={<IconRedo />} title="Ripeti (Ctrl+Y)" disabled={!state.canRedo}
           onClick={() => chain().redo().run()} />
+        <ToolbarButton
+          label={expanded ? <><IconCollapse /> Riduci</> : <><IconExpand /> Espandi</>}
+          title={expanded ? "Riduci (Esc)" : "Espandi la traccia"}
+          active={expanded}
+          onClick={toggleExpanded}
+          className="expand"
+        />
       </div>
       {state.inTable && (
         <div className="html-toolbar table-tools" role="toolbar" aria-label="Tabella">
@@ -115,6 +175,7 @@ export function HtmlEditor({ value, onChange }: Props) {
             onClick={() => chain().deleteTable().run()} />
         </div>
       )}
+      </div>
       {lost.length > 0 &&
         (edited ? (
           <div className="editor-notice">
@@ -137,6 +198,7 @@ export function HtmlEditor({ value, onChange }: Props) {
         ))}
       <EditorContent editor={editor} className="html-content" />
     </div>
+    </>
   );
 }
 
