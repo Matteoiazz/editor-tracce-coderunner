@@ -838,6 +838,62 @@ input[type="checkbox"] {
   border-radius: 4px;
 }
 
+/* Tabelle nel testo della traccia (es. matrici di esempio) */
+.html-content .tiptap table {
+  margin: 4px 0 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.html-content .tiptap th,
+.html-content .tiptap td {
+  min-width: 2.5em;
+  padding: 3px 10px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid var(--rule-strong);
+}
+
+.html-content .tiptap th {
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--ground);
+}
+
+.html-content .tiptap th p,
+.html-content .tiptap td p {
+  margin: 0;
+}
+
+.html-content .tiptap .selectedCell {
+  background: var(--accent-soft);
+}
+
+.html-toolbar.table-tools {
+  background: var(--surface);
+}
+
+.html-toolbar button.danger {
+  color: var(--fail);
+}
+
+.html-toolbar button.danger:hover:not(:disabled) {
+  background: var(--fail-soft);
+}
+
+.editor-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  color: #5c3e00;
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--rule);
+}
+
 /* ------------------------------------------------------------------ tabella dei test */
 
 .table-scroll {

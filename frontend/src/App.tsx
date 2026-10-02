@@ -188,8 +188,9 @@ export function App() {
       setCommon(result.common);
       setItems((current) => [...current, ...result.items]);
       if (result.items.length > 0) select({ kind: "exercise", id: result.items[0].id });
-      const imported = result.items.length === 1 ? "1 esercizio" : `${result.items.length} esercizi`;
-      setNotice([`Importati ${imported}.`, ...messages].join("\n"));
+      const imported =
+        result.items.length === 1 ? "Importato 1 esercizio." : `Importati ${result.items.length} esercizi.`;
+      setNotice([imported, ...messages].join("\n"));
     } catch (e) {
       setError(`Importazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
     }

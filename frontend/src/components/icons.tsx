@@ -134,6 +134,13 @@ export const IconBulletList = (p: IconProps) => (
   </Icon>
 );
 
+export const IconTable = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+    <path d="M2.5 6.5h11M2.5 9.75h11M6.25 3v10M9.75 3v10" strokeWidth={1.3} />
+  </Icon>
+);
+
 export const IconNumberedList = (p: IconProps) => (
   <Icon {...p}>
     <path d="M7 4.5h6.5M7 8h6.5M7 11.5h6.5" />
