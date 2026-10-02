@@ -817,6 +817,40 @@ input[type="checkbox"] {
   padding: 24px 32px;
 }
 
+/* Editor di codice espanso: barra con il titolo, sotto l'editor a tutta altezza */
+.code-editor.expanded {
+  position: fixed;
+  inset: 24px max(24px, calc((100vw - 1200px) / 2));
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-editor.expanded .code-area {
+  flex: 1;
+  min-height: 0;
+}
+
+.expanded-bar {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 4px 14px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule);
+}
+
+.expanded-title {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .editor-backdrop {
   position: fixed;
   inset: 0;

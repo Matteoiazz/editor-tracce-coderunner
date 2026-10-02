@@ -3,6 +3,7 @@ import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { joinList, unsupportedElements } from "../richtext";
+import { useExpandedLayer } from "./ExpandedLayer";
 import {
   IconBulletList,
   IconCollapse,
@@ -36,12 +37,9 @@ export function HtmlEditor({ value, onChange }: Props) {
   const lost = unsupportedElements(original);
   const [edited, setEdited] = useState(false);
 
-  // Modalità espansa: l'editor occupa quasi tutta la finestra, le barre restano in alto
-  // e scorre solo il testo. Lo spazio lasciato nella pagina viene mantenuto, così alla
-  // chiusura la pagina resta nella stessa posizione.
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [expandedHeight, setExpandedHeight] = useState<number | null>(null);
-  const expanded = expandedHeight !== null;
+  // Modalità espansa: le barre restano in alto e scorre solo il testo
+  const [expanded, setExpanded] = useState(false);
+  const { ref: wrapperRef, layer } = useExpandedLayer(expanded, () => setExpanded(false));
 
   const editor = useEditor({
     extensions: [
@@ -73,20 +71,6 @@ export function HtmlEditor({ value, onChange }: Props) {
     }),
   });
 
-  useEffect(() => {
-    if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpandedHeight(null);
-    };
-    window.addEventListener("keydown", onKey);
-    // La pagina sotto non deve scorrere mentre l'editor è espanso
-    document.body.classList.add("editor-expanded");
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.classList.remove("editor-expanded");
-    };
-  }, [expanded]);
-
   if (!editor || !state) return null;
   const chain = () => editor.chain().focus();
 
@@ -103,11 +87,7 @@ export function HtmlEditor({ value, onChange }: Props) {
   }
 
   function toggleExpanded() {
-    if (expanded) {
-      setExpandedHeight(null);
-    } else {
-      setExpandedHeight(wrapperRef.current?.offsetHeight ?? 0);
-    }
+    setExpanded(!expanded);
     editor?.commands.focus();
   }
 
@@ -120,12 +100,7 @@ export function HtmlEditor({ value, onChange }: Props) {
 
   return (
     <>
-    {expanded && (
-      <>
-        <div className="editor-placeholder" style={{ height: expandedHeight }} />
-        <div className="editor-backdrop" onClick={() => setExpandedHeight(null)} />
-      </>
-    )}
+    {layer}
     <div ref={wrapperRef} className={`html-editor${expanded ? " expanded" : ""}`}>
       {/* Le barre restano visibili mentre si scorre un testo lungo */}
       <div className="html-bars">

@@ -7,7 +7,7 @@ import type { TestRow } from "../testcases";
 import type { Question, TestOutcome } from "../types";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
-import { IconGenerate } from "./icons";
+import { IconExpand, IconGenerate } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
 import { SectionStateIcon } from "./SectionState";
 import { TestsSection } from "./TestsSection";
@@ -39,6 +39,7 @@ export function QuestionEditor(props: Props) {
   const { item, exam, common, status, onUpdate } = props;
   const { question } = item;
   const [error, setError] = useState<string | null>(null);
+  const [expandedCode, setExpandedCode] = useState<"solution" | "studentCode" | null>(null);
 
   // Altezza dell'intestazione fissa: le barre dell'editor del testo si fermano subito sotto.
   const headRef = useRef<HTMLElement>(null);
@@ -73,6 +74,17 @@ export function QuestionEditor(props: Props) {
   function goTo(key: SectionKey) {
     document.getElementById(`sezione-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  const expandButton = (key: "solution" | "studentCode") => (
+    <button
+      type="button"
+      className="ghost small expand-code"
+      onClick={() => setExpandedCode(key)}
+      title="Espandi l'editor"
+    >
+      <IconExpand /> Espandi
+    </button>
+  );
 
   const heading = (key: SectionKey, title: string, sectionStatus: SectionStatus, extra?: ReactNode) => (
     <div className="section-head">
@@ -127,21 +139,38 @@ export function QuestionEditor(props: Props) {
 
       <section id="sezione-solution" className="exercise-section">
         {heading("solution", "Soluzione", status.sections.solution, (
-          <span className="section-aside">nascosta agli studenti</span>
+          <>
+            <span className="section-aside">nascosta agli studenti</span>
+            <div className="section-actions">{expandButton("solution")}</div>
+          </>
         ))}
-        <CodeEditor value={question.solution} onChange={(solution) => update({ solution })} />
+        <CodeEditor
+          value={question.solution}
+          onChange={(solution) => update({ solution })}
+          expanded={expandedCode === "solution"}
+          onExpandedChange={(open) => setExpandedCode(open ? "solution" : null)}
+          title={`Soluzione · ${questionName(item, exam)}`}
+        />
       </section>
 
       <section id="sezione-studentCode" className="exercise-section">
         {heading("studentCode", "Codice per gli studenti", status.sections.studentCode, (
-          <button type="button" className="secondary" onClick={handleGenerateStudentCode}>
-            <IconGenerate /> Genera dalla soluzione
-          </button>
+          <>
+            <div className="section-actions">
+              <button type="button" className="secondary" onClick={handleGenerateStudentCode}>
+                <IconGenerate /> Genera dalla soluzione
+              </button>
+              {expandButton("studentCode")}
+            </div>
+          </>
         ))}
         {error && <p className="inline-error">{error}</p>}
         <CodeEditor
           value={question.student_code}
           onChange={(student_code) => update({ student_code })}
+          expanded={expandedCode === "studentCode"}
+          onExpandedChange={(open) => setExpandedCode(open ? "studentCode" : null)}
+          title={`Codice per gli studenti · ${questionName(item, exam)}`}
         />
       </section>
 
