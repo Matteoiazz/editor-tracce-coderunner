@@ -9,7 +9,17 @@ contextBridge.exposeInMainWorld("desktop", {
   saveXmlFile: (defaultName, content) =>
     ipcRenderer.invoke("dialog:save-xml", { defaultName, content }),
   loadSession: () => ipcRenderer.invoke("session:load"),
-  saveSession: (content) => ipcRenderer.invoke("session:save", content),
-  saveSessionNow: (content) => ipcRenderer.sendSync("session:save-sync", content),
+  markSessionTransferred: () => ipcRenderer.invoke("session:mark-transferred"),
   backupCorruptSession: () => ipcRenderer.invoke("session:backup-corrupt"),
+  // Alla chiusura della finestra la pagina completa il salvataggio, poi conferma
+  onBeforeClose: (callback) => {
+    ipcRenderer.removeAllListeners("app:before-close");
+    ipcRenderer.on("app:before-close", async () => {
+      try {
+        await callback();
+      } finally {
+        ipcRenderer.send("app:close-ready");
+      }
+    });
+  },
 });

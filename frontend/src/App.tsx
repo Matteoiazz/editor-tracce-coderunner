@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { exportXml, importXml, verifyQuestion } from "./api";
+import {
+  exportXml,
+  getTrack,
+  importXml,
+  listTracks,
+  markExported,
+  saveTrack,
+  verifyQuestion,
+} from "./api";
+import { type ArchivedTrack, fromArchive, type OpenTrack, toArchive } from "./archive";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
@@ -19,7 +28,7 @@ import {
 } from "./exam";
 import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
 import { EMPTY_EXAM, type ExamInfo } from "./naming";
-import { isEmptySession, parseSession, serializeSession } from "./session";
+import { isEmptySession, parseSession } from "./session";
 import {
   examSummary,
   exerciseStatus,
@@ -29,6 +38,14 @@ import {
 } from "./status";
 import { composeTests, type TestRow } from "./testcases";
 import type { TestOutcome } from "./types";
+
+function errorText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function exerciseCount(n: number): string {
+  return n === 1 ? "1 esercizio" : `${n} esercizi`;
+}
 
 export function App() {
   const [exam, setExam] = useState<ExamInfo>(EMPTY_EXAM);
@@ -53,16 +70,54 @@ export function App() {
   const statuses = new Map(items.map((it) => [it.id, exerciseStatus(it, common, records[it.id])]));
   const summary = examSummary([...statuses.values()]);
 
-  // ------------------------------------------------ salvataggio automatico
+  // ------------------------------------------------ archivio
+  // Identificativo della traccia aperta nell'archivio
+  const [trackId, setTrackId] = useState<string>(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
-  const latestSession = useRef<string | null>(null);
+  // Ultima versione della traccia non ancora inviata all'archivio
+  const pending = useRef<ArchivedTrack | null>(null);
+  // I salvataggi sono eseguiti in ordine: uno più vecchio non può sovrascrivere uno più recente
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
-  // All'avvio si ripristina il lavoro della sessione precedente
+  /** Invia subito all'archivio l'eventuale versione in attesa; si risolve a salvataggio finito. */
+  function flushSave(): Promise<void> {
+    const track = pending.current;
+    pending.current = null;
+    if (track) {
+      saveQueue.current = saveQueue.current
+        .then(async () => {
+          await saveTrack(track);
+        })
+        .catch((e) => setError(`Salvataggio nell'archivio non riuscito: ${errorText(e)}`));
+    }
+    return saveQueue.current;
+  }
+
+  function openTrack(track: OpenTrack) {
+    setTrackId(track.id);
+    setExam(track.exam);
+    setCommon(track.common);
+    setItems(track.items);
+    setRecords({});
+    setSelection(track.items.length > 0 ? { kind: "exercise", id: track.items[0].id } : null);
+  }
+
+  // All'avvio si riapre la traccia modificata più di recente. Se l'archivio è vuoto e c'è
+  // il file di sessione delle versioni precedenti, il suo contenuto diventa la prima traccia.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        const [last] = await listTracks();
+        if (last) {
+          const track = fromArchive(await getTrack(last.id));
+          if (cancelled) return;
+          openTrack(track);
+          if (track.items.length > 0) {
+            setNotice(`Riaperta l'ultima traccia (${exerciseCount(track.items.length)}).`);
+          }
+          return;
+        }
         const text = await window.desktop.loadSession();
         if (cancelled || text === null) return;
         const session = parseSession(text);
@@ -74,15 +129,19 @@ export function App() {
           );
           return;
         }
-        setExam(session.exam);
-        setCommon(session.common);
-        setItems(session.items);
-        if (session.items.length > 0) {
-          setSelection({ kind: "exercise", id: session.items[0].id });
-          setNotice(`Ripristinato il lavoro della sessione precedente (${session.items.length} esercizi).`);
+        if (!isEmptySession(session)) {
+          const track = { id: crypto.randomUUID(), ...session };
+          await saveTrack(toArchive(track));
+          if (cancelled) return;
+          openTrack(track);
+          setNotice(
+            `Il lavoro della sessione precedente è stato trasferito nell'archivio ` +
+              `(${exerciseCount(track.items.length)}).`,
+          );
         }
+        await window.desktop.markSessionTransferred();
       } catch (e) {
-        setError(`Ripristino del lavoro non riuscito: ${e instanceof Error ? e.message : String(e)}`);
+        setError(`Apertura dell'archivio non riuscita: ${errorText(e)}`);
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -92,29 +151,22 @@ export function App() {
     };
   }, []);
 
-  // Ogni modifica viene salvata poco dopo; i salvataggi sono eseguiti in ordine,
-  // così uno più vecchio non può sovrascrivere uno più recente.
+  // Ogni modifica viene salvata poco dopo. Una traccia ancora vuota non viene salvata,
+  // per non riempire l'archivio di tracce vuote.
   useEffect(() => {
     if (!loaded) return;
-    const content = serializeSession({ exam, common, items });
-    latestSession.current = content;
-    const timer = setTimeout(() => {
-      saveQueue.current = saveQueue.current
-        .then(() => window.desktop.saveSession(content))
-        .catch((e) =>
-          setError(`Salvataggio automatico non riuscito: ${e instanceof Error ? e.message : String(e)}`),
-        );
-    }, 500);
+    if (isEmptySession({ exam, common, items })) {
+      pending.current = null;
+      return;
+    }
+    pending.current = toArchive({ id: trackId, exam, common, items });
+    const timer = setTimeout(flushSave, 500);
     return () => clearTimeout(timer);
-  }, [loaded, exam, common, items]);
+  }, [loaded, trackId, exam, common, items]);
 
-  // Alla chiusura o alla ricarica si salva subito, senza attendere
+  // Alla chiusura della finestra Electron attende la fine del salvataggio
   useEffect(() => {
-    const saveNow = () => {
-      if (latestSession.current !== null) window.desktop.saveSessionNow(latestSession.current);
-    };
-    window.addEventListener("beforeunload", saveNow);
-    return () => window.removeEventListener("beforeunload", saveNow);
+    window.desktop.onBeforeClose(() => flushSave());
   }, []);
 
   // ------------------------------------------------ selezione ed esiti
@@ -143,20 +195,12 @@ export function App() {
     setNotice(null);
   }
 
-  function handleNewExam() {
-    if (
-      !window.confirm(
-        "Svuotare l'esame corrente? Esercizi e test verranno eliminati: esporta prima l'XML se vuoi conservarli.",
-      )
-    ) {
-      return;
-    }
-    setExam(EMPTY_EXAM);
-    setCommon([]);
-    setItems([]);
-    setRecords({});
-    setSelection(null);
+  // La traccia corrente resta nell'archivio: se ne apre una nuova vuota
+  async function handleNewExam() {
+    await flushSave();
+    openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] });
     clearMessages();
+    setNotice("Nuova traccia. Quella precedente è salvata nell'archivio.");
   }
 
   function handleNew() {
@@ -225,7 +269,13 @@ export function App() {
       }
       const questions = sortedByNumber(items).map((item) => prepareQuestion(item, exam, common));
       const path = await window.desktop.saveXmlFile(exportFileName(exam), await exportXml(questions));
-      if (path) setNotice(`Esportati ${questions.length} esercizi in ${path}`);
+      if (!path) return;
+      setNotice(
+        `${questions.length === 1 ? "Esportato" : "Esportati"} ${exerciseCount(questions.length)} in ${path}`,
+      );
+      // L'archivio registra l'esportazione: prima va salvata l'ultima versione della traccia
+      await flushSave();
+      await markExported(trackId);
     } catch (e) {
       setError(`Esportazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

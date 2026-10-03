@@ -1,0 +1,85 @@
+// Conversione tra la traccia aperta nell'interfaccia e la forma salvata nell'archivio
+// (tesi.domain.track nel backend). Gli identificativi dei test servono solo all'interfaccia:
+// nell'archivio gli output dei test comuni sono salvati nello stesso ordine dei test.
+
+import type { EditableQuestion } from "./exam";
+import type { ExamInfo, ExamKind } from "./naming";
+import { type TestRow, toRow, toTestCase } from "./testcases";
+import type { Question, TestCase } from "./types";
+
+export interface ArchivedExercise {
+  question: Question; // in question.testcases ci sono solo i test specifici
+  number: number | null;
+  use_common: boolean;
+  common_expected: string[];
+}
+
+export interface ArchivedTrack {
+  id: string;
+  kind: ExamKind | null;
+  day: string | null; // "AAAA-MM-GG"
+  number: number | null;
+  common_tests: TestCase[];
+  exercises: ArchivedExercise[];
+  created_at?: string | null;
+  updated_at?: string | null;
+  exported_at?: string | null;
+  deleted_at?: string | null;
+}
+
+export interface TrackSummary {
+  id: string;
+  kind: ExamKind | null;
+  day: string | null;
+  number: number | null;
+  exercise_count: number;
+  updated_at: string;
+  exported_at: string | null;
+  deleted_at: string | null;
+}
+
+/** Traccia così come la usa l'interfaccia. */
+export interface OpenTrack {
+  id: string;
+  exam: ExamInfo;
+  common: TestRow[];
+  items: EditableQuestion[];
+}
+
+export function toArchive({ id, exam, common, items }: OpenTrack): ArchivedTrack {
+  return {
+    id,
+    kind: exam.kind,
+    day: exam.date || null,
+    number: exam.track,
+    common_tests: common.map((row) => ({ ...toTestCase(row), expected: "" })),
+    exercises: items.map((item) => ({
+      number: item.number,
+      use_common: item.useCommon,
+      common_expected: common.map((row) => item.commonExpected[row.id] ?? ""),
+      question: { ...item.question, testcases: item.specific.map(toTestCase) },
+    })),
+  };
+}
+
+export function fromArchive(track: ArchivedTrack): OpenTrack {
+  const common = track.common_tests.map(toRow);
+  return {
+    id: track.id,
+    exam: { date: track.day ?? "", kind: track.kind, track: track.number },
+    common,
+    items: track.exercises.map((exercise) => ({
+      id: crypto.randomUUID(),
+      number: exercise.number,
+      useCommon: exercise.use_common,
+      // Un output vuoto significa "da calcolare": non viene riportato
+      commonExpected: Object.fromEntries(
+        common.flatMap((row, i) =>
+          exercise.common_expected[i] ? [[row.id, exercise.common_expected[i]]] : [],
+        ),
+      ),
+      specific: exercise.question.testcases.map(toRow),
+      question: { ...exercise.question, testcases: [] },
+    })),
+  };
+}

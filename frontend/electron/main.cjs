@@ -4,12 +4,13 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
-const fsSync = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
 
 const isDev = !app.isPackaged;
 const DEV_SERVER_URL = "http://localhost:5173";
+// Tempo massimo concesso alla pagina per completare il salvataggio alla chiusura
+const CLOSE_TIMEOUT_MS = 3000;
 
 let backendProcess = null;
 let backendPort = null;
@@ -102,6 +103,7 @@ function createWindow() {
     },
   });
   protectWork(win);
+  completeSaveOnClose(win);
   if (isDev) {
     win.loadURL(DEV_SERVER_URL);
   } else {
@@ -110,7 +112,7 @@ function createWindow() {
 }
 
 /** Evita di perdere la pagina per una navigazione involontaria. Chiusura e ricarica non
- *  richiedono conferma: il lavoro viene salvato automaticamente (vedi sessione). */
+ *  richiedono conferma: il lavoro viene salvato automaticamente nell'archivio. */
 function protectWork(win) {
   // Trascinare un file nella finestra la farebbe navigare verso quel file, perdendo la pagina.
   // Si blocca ogni navigazione; i link web si aprono nel browser di sistema.
@@ -121,6 +123,24 @@ function protectWork(win) {
   win.webContents.setWindowOpenHandler(({ url }) => {
     openInBrowser(url);
     return { action: "deny" };
+  });
+}
+
+/** Alla chiusura la pagina completa il salvataggio nell'archivio prima che la finestra
+ *  si chiuda; se non risponde entro qualche secondo, la finestra si chiude comunque. */
+function completeSaveOnClose(win) {
+  let closing = false;
+  win.on("close", (event) => {
+    if (closing) return;
+    event.preventDefault();
+    const close = () => {
+      if (closing) return;
+      closing = true;
+      if (!win.isDestroyed()) win.close();
+    };
+    ipcMain.once("app:close-ready", close);
+    setTimeout(close, CLOSE_TIMEOUT_MS);
+    win.webContents.send("app:before-close");
   });
 }
 
@@ -147,44 +167,26 @@ ipcMain.handle("dialog:open-xml", async (event) => {
   return { path: filePath, content: await fs.readFile(filePath, "utf-8") };
 });
 
-// ---------------------------------------------------------------- sessione
-// Il lavoro in corso viene salvato automaticamente in un file nella cartella dati
-// dell'applicazione (%APPDATA%\tesi-frontend su Windows) e ripristinato all'avvio.
+// ---------------------------------------------------------------- vecchio file di sessione
+// Prima dell'archivio il lavoro in corso era salvato in sessione.json nella cartella dati.
+// Al primo avvio con l'archivio il suo contenuto viene trasferito e il file rinominato.
 
 function sessionFile() {
   return path.join(app.getPath("userData"), "sessione.json");
-}
-
-// Scrittura su file temporaneo e poi rinomina: un'interruzione a metà non lascia
-// un file incompleto al posto del salvataggio precedente.
-async function writeSession(content) {
-  const temp = `${sessionFile()}.tmp`;
-  await fs.writeFile(temp, content, "utf-8");
-  await fs.rename(temp, sessionFile());
 }
 
 ipcMain.handle("session:load", async () => {
   try {
     return await fs.readFile(sessionFile(), "utf-8");
   } catch (err) {
-    if (err.code === "ENOENT") return null; // primo avvio
+    if (err.code === "ENOENT") return null; // nessun lavoro da trasferire
     throw err;
   }
 });
 
-ipcMain.handle("session:save", (_event, content) => writeSession(content));
-
-// Salvataggio sincrono, usato alla chiusura della finestra quando non c'è tempo di attendere.
-ipcMain.on("session:save-sync", (event, content) => {
-  try {
-    const temp = `${sessionFile()}.tmp`;
-    fsSync.writeFileSync(temp, content, "utf-8");
-    fsSync.renameSync(temp, sessionFile());
-    event.returnValue = true;
-  } catch (err) {
-    console.error(err);
-    event.returnValue = false;
-  }
+// Il file resta come copia di sicurezza con un altro nome
+ipcMain.handle("session:mark-transferred", async () => {
+  await fs.rename(sessionFile(), path.join(app.getPath("userData"), "sessione-trasferita.json"));
 });
 
 // Un salvataggio illeggibile viene messo da parte invece di essere sovrascritto.

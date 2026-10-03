@@ -67,7 +67,7 @@ export function Sidebar(props: Props) {
               className="ghost small"
               onClick={props.onNewExam}
               disabled={!props.canClearExam}
-              title="Svuota l'esame corrente per iniziarne uno nuovo"
+              title="Inizia una nuova traccia; quella attuale resta salvata nell'archivio"
             >
               <IconNewExam /> Nuovo esame
             </button>

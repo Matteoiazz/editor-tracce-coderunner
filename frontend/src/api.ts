@@ -1,5 +1,6 @@
 // Chiamate al backend Python. L'indirizzo lo fornisce Electron, perché la porta cambia a ogni avvio.
 
+import type { ArchivedTrack, TrackSummary } from "./archive";
 import type { Question, TestOutcome } from "./types";
 
 let backendUrl: Promise<string> | null = null;
@@ -73,4 +74,25 @@ export function verifyQuestion(question: Question): Promise<TestOutcome[]> {
 /** Restituisce l'esercizio con gli output attesi calcolati dalla soluzione. */
 export function fillExpected(question: Question): Promise<Question> {
   return request("/api/questions/fill-expected", jsonBody(question));
+}
+
+// ---------------------------------------------------------------- archivio delle tracce
+
+export function listTracks(trash = false): Promise<TrackSummary[]> {
+  return request(`/api/tracks${trash ? "?trash=true" : ""}`, { method: "GET" });
+}
+
+export function getTrack(id: string): Promise<ArchivedTrack> {
+  return request(`/api/tracks/${encodeURIComponent(id)}`, { method: "GET" });
+}
+
+export function saveTrack(track: ArchivedTrack): Promise<ArchivedTrack> {
+  return request(`/api/tracks/${encodeURIComponent(track.id)}`, {
+    ...jsonBody(track),
+    method: "PUT",
+  });
+}
+
+export function markExported(id: string): Promise<ArchivedTrack> {
+  return request(`/api/tracks/${encodeURIComponent(id)}/exported`, { method: "POST" });
 }
