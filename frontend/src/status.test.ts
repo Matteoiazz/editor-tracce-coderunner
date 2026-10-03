@@ -10,7 +10,7 @@ import {
 } from "./status";
 import { composeTests, newRow, standardCommonTests } from "./testcases";
 
-const exam: ExamInfo = { date: "2026-10-15", kind: "Esame" };
+const exam: ExamInfo = { date: "2026-10-15", kind: "Esame", track: 1 };
 const common = standardCommonTests();
 
 function complete(): EditableQuestion {

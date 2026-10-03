@@ -11,7 +11,7 @@ interface Props {
   /** Modalità espansa, comandata dal pulsante nell'intestazione della sezione. */
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
-  /** Titolo mostrato nella barra della modalità espansa (es. "Soluzione · Esercizio1-…"). */
+  /** Titolo mostrato nella barra della modalità espansa (es. "Soluzione · Esame-…-Esercizio1"). */
   title?: string;
 }
 

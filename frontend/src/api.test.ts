@@ -10,7 +10,7 @@ describe("chiamate al backend", () => {
     vi.stubGlobal("fetch", async () => {
       throw new TypeError("Failed to fetch");
     });
-    const { question } = createQuestion(1, { date: "2026-10-15", kind: "Esame" });
+    const { question } = createQuestion(1, { date: "2026-10-15", kind: "Esame", track: 1 });
 
     await expect(verifyQuestion(question)).rejects.toThrow(BACKEND_UNREACHABLE);
   });

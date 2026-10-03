@@ -1,3 +1,4 @@
+import { parseExerciseNumber } from "../exam";
 import type { ExamInfo, ExamKind } from "../naming";
 import type { ExamSummary, ExerciseStatus } from "../status";
 import { IconCheck, IconExport, IconImport, IconNewExam, IconPlus } from "./icons";
@@ -7,7 +8,10 @@ export type Selection = { kind: "common" } | { kind: "exercise"; id: string } | 
 
 export interface SidebarExercise {
   id: string;
+  /** Nome completo, mostrato al passaggio del mouse. */
   name: string;
+  /** Etichetta breve nella colonna: data, tipo e traccia sono già indicati sopra. */
+  label: string;
   kind: ExamKind | null;
   grade: number;
   status: ExerciseStatus;
@@ -31,6 +35,8 @@ interface Props {
   selection: Selection;
   onSelect: (selection: Selection) => void;
   canCreate: boolean;
+  /** Perché non si possono aggiungere esercizi, se la traccia è completa (es. pretest). */
+  createHint: string | null;
   onNew: () => void;
   onImport: () => void;
   canClearExam: boolean;
@@ -75,6 +81,17 @@ export function Sidebar(props: Props) {
             onChange={(e) => onExamChange({ ...exam, date: e.target.value })}
           />
         </label>
+        <label className="field">
+          <span>Traccia</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="number-input"
+            value={exam.track ?? ""}
+            onChange={(e) => onExamChange({ ...exam, track: parseExerciseNumber(e.target.value) })}
+            title="Tracce diverse dello stesso giorno hanno numeri diversi"
+          />
+        </label>
         <div className="segmented" role="radiogroup" aria-label="Tipo di esame">
           {(["Esame", "Pretest"] as ExamKind[]).map((kind) => (
             <button
@@ -108,7 +125,7 @@ export function Sidebar(props: Props) {
           <p className="session-empty">
             {props.canCreate
               ? "Nessun esercizio: creane uno o importa un XML."
-              : "Indica data e tipo dell'esame per creare il primo esercizio."}
+              : "Indica data, tipo e traccia per creare il primo esercizio."}
           </p>
         ) : (
           <ul className="exercise-list">
@@ -125,7 +142,7 @@ export function Sidebar(props: Props) {
                   >
                     <span className="row-line">
                       <span className="row-title mono" title={ex.name}>
-                        {ex.name}
+                        {ex.label}
                       </span>
                       {status.ready && (
                         <span className="ready-mark" title="Pronto per l'esportazione">
@@ -166,9 +183,11 @@ export function Sidebar(props: Props) {
           className="ghost add-exercise"
           onClick={props.onNew}
           disabled={!props.canCreate}
+          title={props.createHint ?? undefined}
         >
           <IconPlus /> Nuovo esercizio
         </button>
+        {props.createHint && <p className="session-empty">{props.createHint}.</p>}
       </nav>
 
       <footer className="summary">

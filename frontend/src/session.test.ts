@@ -4,7 +4,7 @@ import type { ExamInfo } from "./naming";
 import { isEmptySession, parseSession, serializeSession } from "./session";
 import { standardCommonTests } from "./testcases";
 
-const exam: ExamInfo = { date: "2026-10-15", kind: "Esame" };
+const exam: ExamInfo = { date: "2026-10-15", kind: "Esame", track: 1 };
 
 describe("salvataggio della sessione", () => {
   it("salva e ripristina esame, test comuni ed esercizi senza perdite", () => {
@@ -25,7 +25,14 @@ describe("salvataggio della sessione", () => {
   });
 
   it("riconosce una sessione vuota", () => {
-    expect(isEmptySession({ exam: { date: "", kind: null }, common: [], items: [] })).toBe(true);
+    expect(isEmptySession({ exam: { date: "", kind: null, track: 1 }, common: [], items: [] })).toBe(true);
     expect(isEmptySession({ exam, common: [], items: [] })).toBe(false);
+  });
+});
+
+describe("salvataggi precedenti al numero di traccia", () => {
+  it("valgono come traccia 1", () => {
+    const old = JSON.stringify({ version: 1, exam: { date: "2026-10-15", kind: "Esame" }, common: [], items: [] });
+    expect(parseSession(old)?.exam).toEqual({ date: "2026-10-15", kind: "Esame", track: 1 });
   });
 });

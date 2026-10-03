@@ -1,6 +1,6 @@
 // Regole dell'esame: creazione degli esercizi, numerazione, adattamento degli importati.
 
-import { buildName, type ExamInfo, type ExamKind, parseName } from "./naming";
+import { buildName, DEFAULT_TRACK, type ExamInfo, type ExamKind, parseName } from "./naming";
 import { detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
 import type { Question, TestCase } from "./types";
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 `;
 
 export function isExamComplete(exam: ExamInfo): boolean {
-  return Boolean(exam.date) && exam.kind !== null;
+  return Boolean(exam.date) && exam.kind !== null && exam.track !== null;
 }
 
 /** Punti predefiniti, come negli XML del docente. */
@@ -80,6 +80,35 @@ export function duplicateNumbers(items: EditableQuestion[]): Set<number> {
   return duplicates;
 }
 
+/** Il pretest ha un solo esercizio: non se ne possono aggiungere altri. */
+export function canAddExercise(items: EditableQuestion[], exam: ExamInfo): boolean {
+  return isExamComplete(exam) && !(exam.kind === "Pretest" && items.length >= 1);
+}
+
+/** Copia di un esercizio con il numero successivo al più alto: stessi testo, codice e test.
+ *  I test ricevono identificativi nuovi; gli output dei test comuni restano validi
+ *  finché la soluzione non cambia. */
+export function duplicateQuestion(
+  source: EditableQuestion,
+  items: EditableQuestion[],
+  exam: ExamInfo,
+): EditableQuestion {
+  const number = nextNumber(items);
+  return {
+    ...source,
+    id: crypto.randomUUID(),
+    number,
+    commonExpected: { ...source.commonExpected },
+    specific: source.specific.map((row) => ({ ...row, id: crypto.randomUUID() })),
+    question: {
+      ...source.question,
+      name: buildName(number, exam) ?? `Esercizio${number}`,
+      tags: [...source.question.tags],
+      settings: { ...source.question.settings },
+    },
+  };
+}
+
 export function createQuestion(number: number, exam: ExamInfo): EditableQuestion {
   return {
     id: crypto.randomUUID(),
@@ -123,23 +152,33 @@ export function adoptImported(
 ): ImportResult {
   const parsed = imported.map((question) => ({ question, parts: parseName(question.name) }));
 
+  // Traccia ancora da impostare: prende anche il numero di traccia dai nomi importati
+  const fresh = !exam.date && exam.kind === null;
   const newExam: ExamInfo = {
     date: exam.date || (parsed.find((p) => p.parts.date)?.parts.date ?? ""),
     kind: exam.kind ?? parsed.find((p) => p.parts.kind)?.parts.kind ?? null,
+    track: fresh
+      ? (parsed.find((p) => p.parts.track !== null)?.parts.track ?? exam.track ?? DEFAULT_TRACK)
+      : exam.track,
   };
 
   const different = isExamComplete(exam)
     ? parsed.filter(
         ({ parts }) =>
-          (parts.date && parts.date !== exam.date) || (parts.kind && parts.kind !== exam.kind),
+          (parts.date && parts.date !== exam.date) ||
+          (parts.kind && parts.kind !== exam.kind) ||
+          (parts.track !== null && parts.track !== exam.track),
       )
     : [];
-  // Es. "Pretest", "Esame del 2026-07-03"
+  // Es. "Pretest", "Esame del 2026-07-03, traccia 2"
   const origins = [
     ...new Set(
-      different.map(({ parts }) =>
-        [parts.kind, parts.date && `del ${parts.date}`].filter(Boolean).join(" "),
-      ),
+      different.map(({ parts }) => {
+        const label = [parts.kind, parts.date && `del ${parts.date}`].filter(Boolean).join(" ");
+        return parts.track !== null && parts.track !== exam.track
+          ? `${label}, traccia ${parts.track}`
+          : label;
+      }),
     ),
   ];
   const notice = origins.length

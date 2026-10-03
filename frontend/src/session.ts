@@ -1,7 +1,7 @@
 // Salvataggio automatico del lavoro in corso: formato del file e controlli in lettura.
 
 import type { EditableQuestion } from "./exam";
-import type { ExamInfo } from "./naming";
+import { DEFAULT_TRACK, type ExamInfo } from "./naming";
 import type { TestRow } from "./testcases";
 
 // Da incrementare se il formato cambia in modo incompatibile.
@@ -46,7 +46,12 @@ export function parseSession(text: string): SessionData | null {
     );
   if (!valid) return null;
   return {
-    exam: { date: exam.date as string, kind: exam.kind as ExamInfo["kind"] },
+    exam: {
+      date: exam.date as string,
+      kind: exam.kind as ExamInfo["kind"],
+      // I salvataggi precedenti al numero di traccia valgono come traccia 1
+      track: typeof exam.track === "number" || exam.track === null ? exam.track : DEFAULT_TRACK,
+    },
     common: data.common as TestRow[],
     items: data.items as EditableQuestion[],
   };

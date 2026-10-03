@@ -4,7 +4,7 @@ import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from 
 import type { ExamInfo } from "./naming";
 import { newRow, standardCommonTests } from "./testcases";
 
-const esame: ExamInfo = { date: "2026-10-15", kind: "Esame" };
+const esame: ExamInfo = { date: "2026-10-15", kind: "Esame", track: 1 };
 const common = standardCommonTests();
 
 /** Esercizio completo e pronto per l'esportazione. */
@@ -24,8 +24,8 @@ function readyQuestion(number: number): EditableQuestion {
 
 describe("exportFileName", () => {
   it("propone tipo e data dell'esame", () => {
-    expect(exportFileName(esame)).toBe("Esame-2026-10-15.xml");
-    expect(exportFileName({ date: "2026-11-05", kind: "Pretest" })).toBe("Pretest-2026-11-05.xml");
+    expect(exportFileName(esame)).toBe("Esame-2026-10-15-Traccia1.xml");
+    expect(exportFileName({ date: "2026-11-05", kind: "Pretest", track: 1 })).toBe("Pretest-2026-11-05-Traccia1.xml");
   });
 });
 
@@ -33,7 +33,7 @@ describe("prepareQuestion", () => {
   it("usa il nome della convenzione e mette i test comuni prima degli specifici", () => {
     const question = prepareQuestion(readyQuestion(2), esame, common);
 
-    expect(question.name).toBe("Esercizio2-2026-10-15-Esame");
+    expect(question.name).toBe("Esame-2026-10-15-Traccia1-Esercizio2");
     expect(question.testcases).toHaveLength(10);
     expect(question.testcases[0]).toMatchObject({ stdin: "0\n1", expected: "comune-0\n" });
     expect(question.testcases[9]).toMatchObject({ stdin: "9\n12", expected: "specifico\n" });
@@ -69,7 +69,7 @@ describe("exportProblems", () => {
   });
 
   it("segnala dati dell'esame mancanti e nessun esercizio", () => {
-    expect(exportProblems([], { date: "", kind: null }, common)).toEqual([
+    expect(exportProblems([], { date: "", kind: null, track: 1 }, common)).toEqual([
       "Esame: manca la data",
       "Esame: manca il tipo (Esame o Pretest)",
       "Nessun esercizio da esportare",
@@ -97,9 +97,9 @@ describe("exportProblems", () => {
     );
 
     expect(problems).toEqual([
-      "Esercizio1-2026-10-15-Esame: il testo della traccia è vuoto",
-      "Esercizio1-2026-10-15-Esame: il codice per gli studenti è uguale alla soluzione (premi «Genera dalla soluzione»)",
-      "Esercizio1-2026-10-15-Esame: 9 test senza output atteso (premi «Calcola output»)",
+      "Esame-2026-10-15-Traccia1-Esercizio1: il testo della traccia è vuoto",
+      "Esame-2026-10-15-Traccia1-Esercizio1: il codice per gli studenti è uguale alla soluzione (premi «Genera dalla soluzione»)",
+      "Esame-2026-10-15-Traccia1-Esercizio1: 9 test senza output atteso (premi «Calcola output»)",
     ]);
   });
 
@@ -112,8 +112,8 @@ describe("exportProblems", () => {
     );
 
     expect(problems).toEqual([
-      "Esercizio1-2026-10-15-Esame: il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)",
-      "Esercizio1-2026-10-15-Esame: nessun test",
+      "Esame-2026-10-15-Traccia1-Esercizio1: il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)",
+      "Esame-2026-10-15-Traccia1-Esercizio1: nessun test",
     ]);
   });
 });
@@ -124,7 +124,7 @@ describe("exportProblems sui punti", () => {
 
     expect(
       exportProblems([{ ...item, question: { ...item.question, default_grade: 0 } }], esame, common),
-    ).toEqual(["Esercizio1-2026-10-15-Esame: i punti devono essere maggiori di 0"]);
+    ).toEqual(["Esame-2026-10-15-Traccia1-Esercizio1: i punti devono essere maggiori di 0"]);
   });
 });
 
@@ -138,8 +138,29 @@ describe("exportProblems sulle righe di input", () => {
     };
 
     expect(exportProblems([incompleto], esame, common)).toEqual([
-      "Esercizio1-2026-10-15-Esame: Test 1, 2: mancano valori di input. La soluzione ne legge 2 " +
+      "Esame-2026-10-15-Traccia1-Esercizio1: Test 1, 2: mancano valori di input. La soluzione ne legge 2 " +
         "con input(), uno per riga (es. seed e dimensione su due righe).",
     ]);
+  });
+});
+
+describe("exportProblems per il pretest", () => {
+  const pretest: ExamInfo = { ...esame, kind: "Pretest" };
+
+  it("non chiede il numero dell'esercizio", () => {
+    const item = { ...readyQuestion(1), number: null };
+    expect(exportProblems([item], pretest, common)).toEqual([]);
+  });
+
+  it("segnala più di un esercizio", () => {
+    expect(exportProblems([readyQuestion(1), readyQuestion(2)], pretest, common)).toContain(
+      "Il pretest ha un solo esercizio: ce ne sono 2, rimuovi quelli in più",
+    );
+  });
+
+  it("segnala il numero di traccia mancante", () => {
+    expect(exportProblems([readyQuestion(1)], { ...esame, track: null }, common)).toContain(
+      "Esame: manca il numero della traccia",
+    );
   });
 });

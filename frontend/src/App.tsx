@@ -6,7 +6,9 @@ import { QuestionEditor } from "./components/QuestionEditor";
 import { type Blocker, type Selection, Sidebar } from "./components/Sidebar";
 import {
   adoptImported,
+  canAddExercise,
   createQuestion,
+  duplicateQuestion,
   duplicateNumbers,
   type EditableQuestion,
   ignoredMessage,
@@ -16,7 +18,7 @@ import {
   unsupportedReason,
 } from "./exam";
 import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
-import type { ExamInfo } from "./naming";
+import { EMPTY_EXAM, type ExamInfo } from "./naming";
 import { isEmptySession, parseSession, serializeSession } from "./session";
 import {
   examSummary,
@@ -29,7 +31,7 @@ import { composeTests, type TestRow } from "./testcases";
 import type { TestOutcome } from "./types";
 
 export function App() {
-  const [exam, setExam] = useState<ExamInfo>({ date: "", kind: null });
+  const [exam, setExam] = useState<ExamInfo>(EMPTY_EXAM);
   const [common, setCommon] = useState<TestRow[]>([]);
   const [items, setItems] = useState<EditableQuestion[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
@@ -45,7 +47,8 @@ export function App() {
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selectedId;
 
-  const canCreate = isExamComplete(exam);
+  const canCreate = canAddExercise(items, exam);
+  const pretestFull = exam.kind === "Pretest" && items.length >= 1;
   const duplicates = duplicateNumbers(items);
   const statuses = new Map(items.map((it) => [it.id, exerciseStatus(it, common, records[it.id])]));
   const summary = examSummary([...statuses.values()]);
@@ -148,7 +151,7 @@ export function App() {
     ) {
       return;
     }
-    setExam({ date: "", kind: null });
+    setExam(EMPTY_EXAM);
     setCommon([]);
     setItems([]);
     setRecords({});
@@ -249,6 +252,14 @@ export function App() {
     }
   }
 
+  function handleDuplicate(item: EditableQuestion) {
+    const copy = duplicateQuestion(item, items, exam);
+    const index = items.findIndex((it) => it.id === item.id);
+    setItems((current) => [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]);
+    select({ kind: "exercise", id: copy.id });
+    setNotice(`Creato ${questionName(copy, exam)} come copia di ${questionName(item, exam)}.`);
+  }
+
   function handleRemove(item: EditableQuestion) {
     const name = questionName(item, exam);
     if (!window.confirm(`Eliminare ${name}? L'operazione non si può annullare.`)) return;
@@ -293,9 +304,15 @@ export function App() {
         exam={exam}
         onExamChange={setExam}
         commonCount={common.length}
-        exercises={items.map((it) => ({
+        exercises={sortedByNumber(items).map((it) => ({
           id: it.id,
           name: questionName(it, exam),
+          label:
+            exam.kind === "Pretest"
+              ? "Esercizio del pretest"
+              : it.number !== null
+                ? `Esercizio ${it.number}`
+                : "Esercizio senza numero",
           kind: exam.kind,
           grade: it.question.default_grade,
           status: statuses.get(it.id)!,
@@ -306,6 +323,7 @@ export function App() {
         selection={selection}
         onSelect={select}
         canCreate={canCreate}
+        createHint={pretestFull ? "Il pretest ha un solo esercizio" : null}
         onNew={handleNew}
         onImport={handleImport}
         canClearExam={!isEmptySession({ exam, common, items })}
@@ -346,13 +364,15 @@ export function App() {
               recordOutcomes(selectedItem.id, rows, solution, outcomes)
             }
             onRemove={() => handleRemove(selectedItem)}
+            canDuplicate={exam.kind !== "Pretest" && isExamComplete(exam)}
+            onDuplicate={() => handleDuplicate(selectedItem)}
           />
         ) : (
           <section className="start">
             <h1>Prepara un esame per Moodle</h1>
             <ol className="start-steps">
               <li className={isExamComplete(exam) ? "done" : ""}>
-                <strong>Indica data e tipo</strong> dell'esame nella colonna a sinistra.
+                <strong>Indica data, tipo e traccia</strong> nella colonna a sinistra.
               </li>
               <li className={common.length > 0 ? "done" : ""}>
                 <strong>Definisci i test comuni</strong>, per esempio i 9 test standard.

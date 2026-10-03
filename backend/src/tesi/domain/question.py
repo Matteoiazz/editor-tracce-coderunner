@@ -50,6 +50,15 @@ class Question:
     settings: dict[str, str] = field(default_factory=dict)
 
 
-def question_name(number: int, day: date, kind: ExamKind) -> str:
-    """Nome secondo la convenzione del docente, es. ``Esercizio1-2026-07-03-Esame``."""
-    return f"Esercizio{number}-{day.isoformat()}-{kind}"
+def question_name(day: date, kind: ExamKind, track: int, number: int | None = None) -> str:
+    """Nome secondo la convenzione del docente.
+
+    Esame: ``Esame-2026-07-03-Traccia1-Esercizio1``; pretest, che ha un solo esercizio:
+    ``Pretest-2026-07-03-Traccia1``.
+    """
+    base = f"{kind}-{day.isoformat()}-Traccia{track}"
+    if kind is ExamKind.PRETEST:
+        return base
+    if number is None:
+        raise ValueError("Negli esami il nome contiene il numero dell'esercizio")
+    return f"{base}-Esercizio{number}"

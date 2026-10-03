@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   adoptImported,
+  canAddExercise,
   createQuestion,
+  duplicateQuestion,
   duplicateNumbers,
   ignoredMessage,
   type EditableQuestion,
@@ -18,8 +20,8 @@ import { newRow, standardCommonTests } from "./testcases";
 import { parseInputs, REAL_INPUTS } from "./testdata";
 import type { Question } from "./types";
 
-const esame: ExamInfo = { date: "2026-07-03", kind: "Esame" };
-const vuoto: ExamInfo = { date: "", kind: null };
+const esame: ExamInfo = { date: "2026-07-03", kind: "Esame", track: 1 };
+const vuoto: ExamInfo = { date: "", kind: null, track: 1 };
 
 function importedQuestion(name: string): Question {
   return { ...createQuestion(1, vuoto).question, name };
@@ -34,7 +36,7 @@ describe("createQuestion", () => {
     const item = createQuestion(3, esame);
 
     expect(item.number).toBe(3);
-    expect(questionName(item, esame)).toBe("Esercizio3-2026-07-03-Esame");
+    expect(questionName(item, esame)).toBe("Esame-2026-07-03-Traccia1-Esercizio3");
     expect(item.question.default_grade).toBe(5);
     expect(item.question.solution).toBe(SOLUTION_SKELETON);
     expect(item.question.student_code).toBe("");
@@ -63,8 +65,8 @@ describe("questionName", () => {
   it("segue l'esame corrente quando i dati sono completi", () => {
     const [item] = withNumbers(2);
 
-    expect(questionName(item, { date: "2026-09-30", kind: "Pretest" })).toBe(
-      "Esercizio2-2026-09-30-Pretest",
+    expect(questionName(item, { date: "2026-09-30", kind: "Pretest", track: 1 })).toBe(
+      "Pretest-2026-09-30-Traccia1",
     );
   });
 
@@ -93,11 +95,11 @@ describe("adoptImported", () => {
     const result = adoptImported(
       [importedQuestion("2026-07 - Esercizio pretest 1")],
       withNumbers(1),
-      { date: "2026-09-30", kind: "Esame" },
+      { date: "2026-09-30", kind: "Esame", track: 1 },
       [],
     );
 
-    expect(result.exam).toEqual({ date: "2026-09-30", kind: "Esame" });
+    expect(result.exam).toEqual({ date: "2026-09-30", kind: "Esame", track: 1 });
     expect(result.items[0].number).toBe(2); // il numero 1 era già usato
     expect(result.notice).toBe(
       "Gli esercizi importati provenivano da un altro esame (Pretest): " +
@@ -109,7 +111,7 @@ describe("adoptImported", () => {
     const result = adoptImported(
       [importedQuestion("Esame-2026-07-03 - Traccia 1 - Esercizio 1")],
       [],
-      { date: "2026-09-30", kind: "Pretest" },
+      { date: "2026-09-30", kind: "Pretest", track: 1 },
       [],
     );
 
@@ -240,5 +242,62 @@ describe("parseTags", () => {
     expect(parseTags("Python - easy, liste")).toEqual(["Python - easy", "liste"]);
     expect(parseTags(" a ,, b , a ,")).toEqual(["a", "b"]);
     expect(parseTags("")).toEqual([]);
+  });
+});
+
+describe("tracce", () => {
+  it("prende il numero di traccia dai nomi importati se la traccia è ancora vuota", () => {
+    const result = adoptImported(
+      [importedQuestion("Esame-2026-07-03 - Traccia 2 - Esercizio 1")],
+      [],
+      vuoto,
+      [],
+    );
+    expect(result.exam).toEqual({ date: "2026-07-03", kind: "Esame", track: 2 });
+  });
+
+  it("segnala gli esercizi di un'altra traccia", () => {
+    const result = adoptImported(
+      [importedQuestion("Esame-2026-07-03-Traccia2-Esercizio1")],
+      [],
+      esame,
+      [],
+    );
+    expect(result.notice).toContain("(Esame del 2026-07-03, traccia 2)");
+  });
+
+  it("il pretest ammette un solo esercizio", () => {
+    const pretest: ExamInfo = { ...esame, kind: "Pretest" };
+    expect(canAddExercise([], pretest)).toBe(true);
+    expect(canAddExercise(withNumbers(1), pretest)).toBe(false);
+    expect(canAddExercise(withNumbers(1, 2), esame)).toBe(true);
+    expect(canAddExercise([], vuoto)).toBe(false);
+  });
+});
+
+describe("duplicateQuestion", () => {
+  it("copia testo, codice e test con il numero successivo e identificativi nuovi", () => {
+    const source = createQuestion(1, esame);
+    source.question.text_html = "<p>Testo</p>";
+    source.question.tags = ["Python - easy"];
+    source.specific = [{ ...newRow("5\n10"), expected: "out" }];
+    source.commonExpected = { c1: "comune" };
+    const items = [source, ...withNumbers(2)];
+
+    const copy = duplicateQuestion(source, items, esame);
+
+    expect(copy.id).not.toBe(source.id);
+    expect(copy.number).toBe(3);
+    expect(copy.question.name).toBe("Esame-2026-07-03-Traccia1-Esercizio3");
+    expect(copy.question.text_html).toBe("<p>Testo</p>");
+    expect(copy.question.solution).toBe(source.question.solution);
+    expect(copy.specific[0].stdin).toBe("5\n10");
+    expect(copy.specific[0].expected).toBe("out");
+    expect(copy.specific[0].id).not.toBe(source.specific[0].id);
+    expect(copy.commonExpected).toEqual({ c1: "comune" });
+
+    // La copia è indipendente dall'originale
+    copy.question.tags.push("altro");
+    expect(source.question.tags).toEqual(["Python - easy"]);
   });
 });

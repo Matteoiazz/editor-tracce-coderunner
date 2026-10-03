@@ -23,6 +23,9 @@ interface Props {
   onUpdate: (change: (item: EditableQuestion) => EditableQuestion) => void;
   onVerified: (rows: TestRow[], solution: string, outcomes: TestOutcome[]) => void;
   onRemove: () => void;
+  /** Falso nel pretest, che ha un solo esercizio. */
+  canDuplicate: boolean;
+  onDuplicate: () => void;
 }
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
@@ -115,6 +118,8 @@ export function QuestionEditor(props: Props) {
           onGradeChange={(default_grade) => update({ default_grade })}
           onTagsChange={(tags) => update({ tags })}
           onRemove={props.onRemove}
+          canDuplicate={props.canDuplicate}
+          onDuplicate={props.onDuplicate}
         />
         <nav className="section-index" aria-label="Sezioni dell'esercizio">
           {SECTIONS.map(({ key, title }) => (

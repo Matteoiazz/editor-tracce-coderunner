@@ -18,9 +18,11 @@ import {
 } from "./testcases";
 import type { Question } from "./types";
 
-/** Nome proposto per il file, es. "Esame-2026-10-15.xml". */
+/** Nome proposto per il file, es. "Esame-2026-10-15-Traccia1.xml". */
 export function exportFileName(exam: ExamInfo): string {
-  return exam.kind && exam.date ? `${exam.kind}-${exam.date}.xml` : "esercizi.xml";
+  return exam.kind && exam.date && exam.track !== null
+    ? `${exam.kind}-${exam.date}-Traccia${exam.track}.xml`
+    : "esercizi.xml";
 }
 
 export function sortedByNumber(items: EditableQuestion[]): EditableQuestion[] {
@@ -68,9 +70,16 @@ export function exportProblems(
   const problems: string[] = [];
   if (!exam.date) problems.push("Esame: manca la data");
   if (!exam.kind) problems.push("Esame: manca il tipo (Esame o Pretest)");
+  if (exam.track === null) problems.push("Esame: manca il numero della traccia");
   if (items.length === 0) problems.push("Nessun esercizio da esportare");
+  const pretest = exam.kind === "Pretest";
+  if (pretest && items.length > 1) {
+    problems.push(
+      `Il pretest ha un solo esercizio: ce ne sono ${items.length}, rimuovi quelli in più`,
+    );
+  }
 
-  const duplicates = [...duplicateNumbers(items)].sort((a, b) => a - b);
+  const duplicates = pretest ? [] : [...duplicateNumbers(items)].sort((a, b) => a - b);
   if (duplicates.length) {
     problems.push(`Numeri usati da più esercizi: ${duplicates.join(", ")}`);
   }
@@ -78,7 +87,7 @@ export function exportProblems(
   for (const item of sortedByNumber(items)) {
     const { question } = item;
     const issues: string[] = [];
-    if (item.number === null) issues.push("manca il numero");
+    if (item.number === null && !pretest) issues.push("manca il numero");
     if (!isValidGrade(question.default_grade)) issues.push("i punti devono essere maggiori di 0");
     if (!hasText(question.text_html)) issues.push("il testo della traccia è vuoto");
     if (!question.solution.trim()) issues.push("la soluzione è vuota");

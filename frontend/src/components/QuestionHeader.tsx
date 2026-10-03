@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { isValidGrade, parseExerciseNumber, parseTags } from "../exam";
 import type { ExamKind } from "../naming";
-import { IconTrash } from "./icons";
+import { IconCopy, IconTrash } from "./icons";
 
 interface Props {
   name: string;
@@ -14,6 +14,8 @@ interface Props {
   onGradeChange: (grade: number) => void;
   onTagsChange: (tags: string[]) => void;
   onRemove: () => void;
+  canDuplicate: boolean;
+  onDuplicate: () => void;
 }
 
 /** Intestazione dell'esercizio: nome, numero, punti, tag e rimozione. */
@@ -28,11 +30,24 @@ export function QuestionHeader(props: Props) {
     <div className="question-header">
       <div className="title-row">
         <h1 className="mono">{name}</h1>
-        <button type="button" className="ghost danger" onClick={onRemove}>
-          <IconTrash /> Rimuovi
-        </button>
+        <div className="title-actions">
+          {props.canDuplicate && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={props.onDuplicate}
+              title="Crea un nuovo esercizio con lo stesso testo, codice e test, da modificare"
+            >
+              <IconCopy /> Duplica
+            </button>
+          )}
+          <button type="button" className="ghost danger" onClick={onRemove}>
+            <IconTrash /> Rimuovi
+          </button>
+        </div>
       </div>
       <div className="fields">
+        {examKind !== "Pretest" && (
         <label>
           N°
           <input
@@ -43,8 +58,13 @@ export function QuestionHeader(props: Props) {
             onChange={(e) => onNumberChange(parseExerciseNumber(e.target.value))}
           />
         </label>
-        {number === null && <span className="error">Indica il numero dell'esercizio</span>}
-        {duplicate && <span className="error">Numero già usato da un altro esercizio</span>}
+        )}
+        {examKind !== "Pretest" && number === null && (
+          <span className="error">Indica il numero dell'esercizio</span>
+        )}
+        {examKind !== "Pretest" && duplicate && (
+          <span className="error">Numero già usato da un altro esercizio</span>
+        )}
         <label>
           Punti
           <input
