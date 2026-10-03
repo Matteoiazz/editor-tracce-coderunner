@@ -58,5 +58,15 @@ Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API:
 | `POST /api/questions/verify` | esegue la soluzione del docente su ogni test e dice quali passano |
 | `POST /api/questions/fill-expected` | calcola gli output attesi dei test dalla soluzione del docente |
 | `POST /api/questions/export` | produce l'XML da importare nella banca delle domande di Moodle |
+| `GET /api/tracks` | elenco delle tracce in archivio (`?trash=true` per il cestino) |
+| `GET`, `PUT /api/tracks/{id}` | apre o salva una traccia |
+| `POST /api/tracks/{id}/duplicate` | copia una traccia per un nuovo appello |
+| `POST /api/tracks/{id}/exported` | registra l'esportazione della traccia |
+| `POST /api/tracks/{id}/trash`, `/restore` | sposta nel cestino o ripristina |
+| `DELETE /api/tracks/{id}` | elimina definitivamente una traccia del cestino |
+| `DELETE /api/trash` | svuota il cestino |
+
+L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione
+(`%APPDATA%\tesi-frontend`); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
 
 Gli XML reali del docente usati nei test sono in `backend/tests/fixtures/moodle/`.

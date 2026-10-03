@@ -37,7 +37,9 @@ function pythonExecutable() {
 
 function startBackend(port) {
   const backendDir = path.join(__dirname, "..", "..", "backend");
-  backendProcess = spawn(pythonExecutable(), ["-m", "tesi", "--port", String(port)], {
+  // L'archivio delle tracce sta nella cartella dati dell'applicazione
+  const args = ["-m", "tesi", "--port", String(port), "--data-dir", app.getPath("userData")];
+  backendProcess = spawn(pythonExecutable(), args, {
     cwd: backendDir,
     env: { ...process.env, PYTHONPATH: path.join(backendDir, "src"), PYTHONUNBUFFERED: "1" },
   });
