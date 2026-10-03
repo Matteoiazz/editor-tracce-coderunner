@@ -10,8 +10,17 @@ import {
   trashTrack,
   verifyQuestion,
 } from "./api";
-import { type ArchivedTrack, fromArchive, type OpenTrack, toArchive, trackLabel } from "./archive";
+import {
+  type ArchivedTrack,
+  type ExerciseMatch,
+  fromArchive,
+  type OpenTrack,
+  reuseExercise,
+  toArchive,
+  trackLabel,
+} from "./archive";
 import { ArchivePanel } from "./components/ArchivePanel";
+import { ReusePanel } from "./components/ReusePanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
@@ -248,6 +257,24 @@ export function App() {
     }
   }
 
+  async function handleReuse(match: ExerciseMatch) {
+    const source = await getTrack(match.track_id);
+    const { item, common: adopted } = reuseExercise(
+      source.exercises[match.position],
+      source.common_tests,
+      items,
+      exam,
+      common,
+    );
+    if (adopted) setCommon(adopted);
+    setItems((current) => [...current, item]);
+    select({ kind: "exercise", id: item.id });
+    setNotice(
+      `Aggiunto ${questionName(item, exam)}, copiato da ${trackLabel(source)}` +
+        (adopted ? ". La traccia ha preso anche i suoi test comuni." : "."),
+    );
+  }
+
   // La traccia corrente resta nell'archivio: se ne apre una nuova vuota
   async function handleNewExam() {
     await flushSave();
@@ -432,6 +459,10 @@ export function App() {
         canClearExam={!isEmptySession({ exam, common, items })}
         onNewExam={handleNewExam}
         onArchive={handleShowArchive}
+        onReuse={() => {
+          clearMessages();
+          select({ kind: "reuse" });
+        }}
         summary={summary}
         blockers={items.length === 0 ? [] : blockers}
         exporting={exporting}
@@ -448,7 +479,14 @@ export function App() {
           </div>
         )}
 
-        {selection?.kind === "archive" ? (
+        {selection?.kind === "reuse" ? (
+          <ReusePanel
+            currentTrackId={trackId}
+            blockedReason={pretestFull ? "Il pretest ha un solo esercizio" : null}
+            onAdd={handleReuse}
+            onError={setError}
+          />
+        ) : selection?.kind === "archive" ? (
           <ArchivePanel
             key={archiveKey}
             currentId={trackId}

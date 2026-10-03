@@ -7,6 +7,7 @@ import { StatusDots } from "./StatusDots";
 export type Selection =
   | { kind: "common" }
   | { kind: "archive" }
+  | { kind: "reuse" }
   | { kind: "exercise"; id: string }
   | null;
 
@@ -46,6 +47,7 @@ interface Props {
   canClearExam: boolean;
   onNewExam: () => void;
   onArchive: () => void;
+  onReuse: () => void;
   summary: ExamSummary;
   blockers: Blocker[];
   exporting: boolean;
@@ -200,6 +202,15 @@ export function Sidebar(props: Props) {
           title={props.createHint ?? undefined}
         >
           <IconPlus /> Nuovo esercizio
+        </button>
+        <button
+          type="button"
+          className={`ghost add-exercise${selection?.kind === "reuse" ? " active" : ""}`}
+          onClick={props.onReuse}
+          disabled={!props.canCreate}
+          title={props.createHint ?? "Copia un esercizio di un'altra traccia dell'archivio"}
+        >
+          <IconArchive /> Aggiungi da archivio
         </button>
         {props.createHint && <p className="session-empty">{props.createHint}.</p>}
       </nav>

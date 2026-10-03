@@ -585,6 +585,7 @@ input[type="checkbox"] {
 .exercise,
 .common-view,
 .archive-view,
+.reuse-view,
 .start {
   max-width: 1040px;
   margin: 0 auto;
@@ -1270,6 +1271,56 @@ body.editor-expanded .main {
   display: flex;
   flex: none;
   gap: 4px;
+}
+
+.reuse-search {
+  width: 100%;
+  max-width: 640px;
+  min-height: 36px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.reuse-row {
+  align-items: flex-start;
+}
+
+.reuse-row .archive-info {
+  flex: 1 1 360px;
+}
+
+.reuse-origin {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.reuse-text {
+  display: -webkit-box;
+  max-width: 75ch;
+  margin: 4px 0 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  white-space: pre-line;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.reuse-text.open {
+  display: block;
+}
+
+.ghost.toggle svg {
+  transition: transform 150ms ease-out;
+}
+
+.ghost.toggle.open svg {
+  transform: rotate(90deg);
 }
 
 button.ghost.active {

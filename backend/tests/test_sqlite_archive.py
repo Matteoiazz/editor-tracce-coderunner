@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from tesi.adapters.sqlite_archive import SqliteTrackArchive
+from tesi.adapters.sqlite_archive import SqliteTrackArchive, plain_text
 from tesi.application.archive import duplicate_track
 from tesi.domain import ExamKind, ExamTrack, Question, TestCase, TrackExercise
 from tesi.ports import TrackNotFound, TrackNotInTrash
@@ -184,3 +184,52 @@ def test_archivio_di_una_versione_piu_recente(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="versione più recente"):
         SqliteTrackArchive(path).list()
+
+
+def test_testo_senza_formattazione() -> None:
+    html = "<p>Calcola la <strong>somma</strong></p><ul><li>pari &amp; dispari</li></ul>a<br>b"
+    assert plain_text(html) == "Calcola la somma\npari & dispari\na\nb"
+
+
+def with_text(track_id: str, texts: list[tuple[str, list[str]]]) -> ExamTrack:
+    track = make_track(track_id, exercises=len(texts))
+    for exercise, (text, tags) in zip(track.exercises, texts, strict=True):
+        exercise.question.text_html = text
+        exercise.question.tags = tags
+    return track
+
+
+def test_ricerca_per_parole_nel_testo_e_nei_tag(archive: SqliteTrackArchive) -> None:
+    archive.save(with_text("a", [("<p>Somma dei <b>numeri</b> pari</p>", ["liste"])]))
+    archive.save(with_text("b", [("<p>Matrice a forma di Z</p>", ["Matrici"]), ("<p>Città</p>", [])]))
+
+    assert [m.text for m in archive.search_exercises("SOMMA pari")] == ["Somma dei numeri pari"]
+    assert [m.track_id for m in archive.search_exercises("matrici")] == ["b"]
+    # Lettere accentate e maiuscole
+    assert [m.text for m in archive.search_exercises("CITTÀ")] == ["Città"]
+    assert archive.search_exercises("somma matrice") == []
+
+
+def test_ricerca_senza_parole_dalla_traccia_piu_recente(archive: SqliteTrackArchive) -> None:
+    archive.save(with_text("a", [("<p>Uno</p>", [])]))
+    archive.save(with_text("b", [("<p>Due</p>", []), ("<p>Tre</p>", [])]))
+
+    matches = archive.search_exercises()
+
+    assert [(m.track_id, m.position, m.text) for m in matches] == [
+        ("b", 0, "Due"),
+        ("b", 1, "Tre"),
+        ("a", 0, "Uno"),
+    ]
+    assert matches[0].track_kind is ExamKind.ESAME
+    assert matches[0].track_day == date(2026, 7, 3)
+    assert matches[0].name == "Esame-2026-07-03-Traccia1-Esercizio1"
+
+
+def test_ricerca_esclude_cestino_e_traccia_aperta(archive: SqliteTrackArchive) -> None:
+    archive.save(with_text("a", [("<p>Uno</p>", [])]))
+    archive.save(with_text("b", [("<p>Due</p>", [])]))
+    archive.save(with_text("c", [("<p>Tre</p>", [])]))
+    archive.move_to_trash("c")
+
+    assert [m.track_id for m in archive.search_exercises(exclude_track="a")] == ["b"]

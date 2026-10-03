@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from tesi.application.archive import duplicate_track
-from tesi.domain import ExamTrack, TrackSummary
+from tesi.domain import ExamTrack, ExerciseMatch, TrackSummary
 from tesi.ports import TrackArchive, TrackNotFound, TrackNotInTrash
 
 router = APIRouter(prefix="/api", tags=["archivio"])
@@ -94,6 +94,15 @@ def delete_forever(track_id: str, archive: Archive) -> None:
             status_code=409,
             detail="Solo le tracce nel cestino si possono eliminare definitivamente",
         ) from exc
+
+
+@router.get("/exercises")
+def search_exercises(
+    archive: Archive, q: str = "", exclude_track: str | None = None
+) -> list[ExerciseMatch]:
+    """Esercizi dell'archivio che contengono le parole cercate, per riusarli in un'altra
+    traccia; ``exclude_track`` esclude la traccia aperta."""
+    return archive.search_exercises(q, exclude_track=exclude_track)
 
 
 @router.delete("/trash")

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  type ArchivedExercise,
   formatDay,
   fromArchive,
+  reuseExercise,
   type OpenTrack,
   toArchive,
   trackLabel,
@@ -98,5 +100,62 @@ describe("etichette dell'archivio", () => {
   it("anni presenti, dal più recente e senza doppioni", () => {
     const tracks = [summary("2025-02-01"), summary(null), summary("2026-07-03"), summary("2026-09-30")];
     expect(trackYears(tracks)).toEqual([2026, 2025]);
+  });
+});
+
+describe("reuseExercise", () => {
+  const sourceCommon = standardCommonTests().slice(0, 2).map(({ id: _id, ...test }) => test);
+
+  function source(useCommon = true): ArchivedExercise {
+    const { question } = createQuestion(4, { date: "2025-01-20", kind: "Esame", track: 1 });
+    return {
+      number: 4,
+      use_common: useCommon,
+      common_expected: ["out 0", "out 1"],
+      question: {
+        ...question,
+        text_html: "<p>Vecchio</p>",
+        tags: ["liste"],
+        testcases: [{ ...newRow("9 9"), expected: "spec" }].map(({ id: _id, ...t }) => t),
+      },
+    };
+  }
+
+  it("prende il numero successivo e il nome della traccia aperta", () => {
+    const items = [createQuestion(1, exam), createQuestion(2, exam)];
+    const { item } = reuseExercise(source(), sourceCommon, items, exam, []);
+    expect(item.number).toBe(3);
+    expect(item.question.name).toBe("Esame-2026-07-03-Traccia2-Esercizio3");
+    expect(item.question.text_html).toBe("<p>Vecchio</p>");
+    expect(item.specific.map((r) => r.expected)).toEqual(["spec"]);
+  });
+
+  it("usa i test comuni della traccia se sono gli stessi", () => {
+    const common = standardCommonTests().slice(0, 2);
+    const { item, common: adopted } = reuseExercise(source(), sourceCommon, [], exam, common);
+    expect(adopted).toBeNull();
+    expect(item.useCommon).toBe(true);
+    expect(item.commonExpected).toEqual({ [common[0].id]: "out 0", [common[1].id]: "out 1" });
+  });
+
+  it("adotta i test comuni se la traccia non ne ha", () => {
+    const { item, common } = reuseExercise(source(), sourceCommon, [], exam, []);
+    expect(common?.map((r) => r.stdin)).toEqual(sourceCommon.map((t) => t.stdin));
+    expect(common?.every((r) => r.expected === "")).toBe(true);
+    expect(Object.values(item.commonExpected)).toEqual(["out 0", "out 1"]);
+  });
+
+  it("con test comuni diversi li trasforma in test specifici con i loro output", () => {
+    const other = standardCommonTests().slice(3, 6);
+    const { item, common } = reuseExercise(source(), sourceCommon, [], exam, other);
+    expect(common).toBeNull();
+    expect(item.useCommon).toBe(false);
+    expect(item.specific.map((r) => r.expected)).toEqual(["out 0", "out 1", "spec"]);
+  });
+
+  it("un esercizio senza test comuni resta senza", () => {
+    const { item } = reuseExercise(source(false), sourceCommon, [], exam, []);
+    expect(item.useCommon).toBe(false);
+    expect(item.specific).toHaveLength(1);
   });
 });

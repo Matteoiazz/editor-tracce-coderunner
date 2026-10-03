@@ -2,9 +2,9 @@
 // (tesi.domain.track nel backend). Gli identificativi dei test servono solo all'interfaccia:
 // nell'archivio gli output dei test comuni sono salvati nello stesso ordine dei test.
 
-import type { EditableQuestion } from "./exam";
-import type { ExamInfo, ExamKind } from "./naming";
-import { type TestRow, toRow, toTestCase } from "./testcases";
+import { type EditableQuestion, nextNumber } from "./exam";
+import { buildName, type ExamInfo, type ExamKind } from "./naming";
+import { sameTest, type TestRow, toRow, toTestCase } from "./testcases";
 import type { Question, TestCase } from "./types";
 
 export interface ArchivedExercise {
@@ -119,4 +119,81 @@ export function trackLabel(track: Pick<TrackSummary, "kind" | "day" | "number">)
 export function trackYears(tracks: TrackSummary[]): number[] {
   const years = new Set(tracks.flatMap((t) => (t.day ? [Number(t.day.slice(0, 4))] : [])));
   return [...years].sort((a, b) => b - a);
+}
+
+/** Esercizio trovato nell'archivio (tesi.domain.track.ExerciseMatch). */
+export interface ExerciseMatch {
+  track_id: string;
+  position: number;
+  track_kind: ExamKind | null;
+  track_day: string | null;
+  track_number: number | null;
+  number: number | null;
+  name: string;
+  tags: string[];
+  text: string; // testo senza formattazione
+}
+
+export interface ReusedExercise {
+  item: EditableQuestion;
+  /** Test comuni da adottare per la traccia, se finora non ne aveva. */
+  common: TestRow[] | null;
+}
+
+/** Copia nella traccia aperta un esercizio di un'altra traccia, con il numero successivo.
+ *  I test comuni dell'esercizio di provenienza:
+ *  - se la traccia ha gli stessi test comuni, l'esercizio li usa con i propri output;
+ *  - se la traccia non ha test comuni, li adotta;
+ *  - altrimenti diventano test specifici dell'esercizio, con i loro output. */
+export function reuseExercise(
+  source: ArchivedExercise,
+  sourceCommon: TestCase[],
+  items: EditableQuestion[],
+  exam: ExamInfo,
+  common: TestRow[],
+): ReusedExercise {
+  const number = nextNumber(items);
+  const specific = source.question.testcases.map(toRow);
+  const base = {
+    id: crypto.randomUUID(),
+    number,
+    question: {
+      ...source.question,
+      name: buildName(number, exam) ?? source.question.name,
+      testcases: [],
+      tags: [...source.question.tags],
+      settings: { ...source.question.settings },
+    },
+  };
+  const expectedFor = (rows: TestRow[]) =>
+    Object.fromEntries(
+      rows.flatMap((row, i) => (source.common_expected[i] ? [[row.id, source.common_expected[i]]] : [])),
+    );
+
+  if (!source.use_common || sourceCommon.length === 0) {
+    return { item: { ...base, useCommon: false, commonExpected: {}, specific }, common: null };
+  }
+  const same =
+    common.length === sourceCommon.length && common.every((row, i) => sameTest(row, sourceCommon[i]));
+  if (same) {
+    return {
+      item: { ...base, useCommon: true, commonExpected: expectedFor(common), specific },
+      common: null,
+    };
+  }
+  if (common.length === 0) {
+    const adopted = sourceCommon.map((test) => ({ ...toRow(test), expected: "" }));
+    return {
+      item: { ...base, useCommon: true, commonExpected: expectedFor(adopted), specific },
+      common: adopted,
+    };
+  }
+  const fromCommon = sourceCommon.map((test, i) => ({
+    ...toRow(test),
+    expected: source.common_expected[i] ?? "",
+  }));
+  return {
+    item: { ...base, useCommon: false, commonExpected: {}, specific: [...fromCommon, ...specific] },
+    common: null,
+  };
 }

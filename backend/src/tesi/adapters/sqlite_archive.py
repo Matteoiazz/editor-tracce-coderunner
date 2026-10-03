@@ -5,7 +5,11 @@ Il contenuto completo di un esercizio è salvato in JSON; nome, testo e tag hann
 anche colonne proprie, per le ricerche.
 """
 
+from __future__ import annotations
+
+import html
 import json
+import re
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -13,7 +17,15 @@ from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from tesi.domain import ExamKind, ExamTrack, Question, TestCase, TrackExercise, TrackSummary
+from tesi.domain import (
+    ExamKind,
+    ExamTrack,
+    ExerciseMatch,
+    Question,
+    TestCase,
+    TrackExercise,
+    TrackSummary,
+)
 from tesi.ports import TrackNotFound, TrackNotInTrash
 
 # Da incrementare a ogni modifica dello schema, con la relativa migrazione in _prepare
@@ -86,6 +98,43 @@ class SqliteTrackArchive:
     def get(self, track_id: str) -> ExamTrack:
         with self._connect() as db:
             return self._read(db, track_id)
+
+    def search_exercises(
+        self, query: str = "", *, exclude_track: str | None = None, limit: int = 100
+    ) -> list[ExerciseMatch]:
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT t.id, e.position, t.kind, t.day, t.number, e.number, e.name,
+                          e.tags, e.text_html
+                   FROM exercises e JOIN tracks t ON t.id = e.track_id
+                   WHERE t.deleted_at IS NULL AND t.id IS NOT ?
+                   ORDER BY t.updated_at DESC, e.position""",
+                (exclude_track,),
+            ).fetchall()
+        # Il filtro è fatto in Python: confronta il testo senza formattazione e gestisce
+        # maiuscole e lettere accentate, che LIKE di SQLite non tratta
+        words = query.casefold().split()
+        matches = []
+        for track_id, position, kind, day, track_number, number, name, tags, text_html in rows:
+            text = plain_text(text_html)
+            haystack = f"{name}\n{tags}\n{text}".casefold()
+            if all(word in haystack for word in words):
+                matches.append(
+                    ExerciseMatch(
+                        track_id=track_id,
+                        position=position,
+                        track_kind=_kind(kind),
+                        track_day=_day(day),
+                        track_number=track_number,
+                        number=number,
+                        name=name,
+                        tags=[tag for tag in tags.split(", ") if tag],
+                        text=text,
+                    )
+                )
+                if len(matches) == limit:
+                    break
+        return matches
 
     # ---------------------------------------------------------------- scrittura
 
@@ -219,6 +268,17 @@ class SqliteTrackArchive:
             exported_at=_moment(row[6]),
             deleted_at=_moment(row[7]),
         )
+
+
+_BLOCK_END = re.compile(r"</(p|div|li|h[1-6]|tr|pre)>|<br\s*/?>", re.IGNORECASE)
+_TAG = re.compile(r"<[^>]+>")
+
+
+def plain_text(text_html: str) -> str:
+    """Testo leggibile di un frammento HTML: un a capo per ogni paragrafo o riga."""
+    text = html.unescape(_TAG.sub("", _BLOCK_END.sub("\n", text_html)))
+    lines = (" ".join(line.split()) for line in text.splitlines())
+    return "\n".join(line for line in lines if line)
 
 
 def _exercise(data: dict) -> TrackExercise:

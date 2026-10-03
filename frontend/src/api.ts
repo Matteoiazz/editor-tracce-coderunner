@@ -1,6 +1,6 @@
 // Chiamate al backend Python. L'indirizzo lo fornisce Electron, perché la porta cambia a ogni avvio.
 
-import type { ArchivedTrack, TrackSummary } from "./archive";
+import type { ArchivedTrack, ExerciseMatch, TrackSummary } from "./archive";
 import type { Question, TestOutcome } from "./types";
 
 let backendUrl: Promise<string> | null = null;
@@ -117,4 +117,10 @@ export async function deleteTrack(id: string): Promise<void> {
 /** Svuota il cestino e restituisce quante tracce sono state eliminate. */
 export async function emptyTrash(): Promise<number> {
   return (await request<{ deleted: number }>("/api/trash", { method: "DELETE" })).deleted;
+}
+
+/** Esercizi dell'archivio che contengono le parole cercate, esclusa la traccia aperta. */
+export function searchExercises(query: string, excludeTrack: string): Promise<ExerciseMatch[]> {
+  const params = new URLSearchParams({ q: query, exclude_track: excludeTrack });
+  return request(`/api/exercises?${params}`, { method: "GET" });
 }

@@ -99,3 +99,15 @@ def test_duplica_ed_esportazione(client: TestClient) -> None:
     assert copy["id"] != "t1"
     assert copy["exported_at"] is None
     assert len(client.get("/api/tracks").json()) == 2
+
+
+def test_ricerca_degli_esercizi(client: TestClient) -> None:
+    client.put("/api/tracks/t1", json=track_json())
+
+    [match] = client.get("/api/exercises", params={"q": "testo"}).json()
+    assert match["track_id"] == "t1"
+    assert match["position"] == 0
+    assert match["text"] == "Testo"
+    assert match["tags"] == ["Python - easy"]
+    assert client.get("/api/exercises", params={"q": "assente"}).json() == []
+    assert client.get("/api/exercises", params={"exclude_track": "t1"}).json() == []

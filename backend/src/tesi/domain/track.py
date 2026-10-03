@@ -50,3 +50,18 @@ class TrackSummary:
     updated_at: datetime
     exported_at: datetime | None
     deleted_at: datetime | None
+
+
+@dataclass
+class ExerciseMatch:
+    """Esercizio trovato nell'archivio, con la traccia da cui proviene."""
+
+    track_id: str
+    position: int  # posizione dell'esercizio nella traccia
+    track_kind: ExamKind | None
+    track_day: date | None
+    track_number: int | None
+    number: int | None
+    name: str
+    tags: list[str]
+    text: str  # testo della traccia senza formattazione

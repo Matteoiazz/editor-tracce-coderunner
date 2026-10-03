@@ -4,9 +4,11 @@ L'implementazione attuale usa SQLite; il resto dell'applicazione dipende solo da
 questa interfaccia.
 """
 
+from __future__ import annotations
+
 from typing import Protocol
 
-from tesi.domain import ExamTrack, TrackSummary
+from tesi.domain import ExamTrack, ExerciseMatch, TrackSummary
 
 
 class TrackNotFound(LookupError):
@@ -42,6 +44,14 @@ class TrackArchive(Protocol):
 
     def delete_forever(self, track_id: str) -> None:
         """Elimina una traccia del cestino; solleva TrackNotInTrash se non vi si trova."""
+        ...
+
+    def search_exercises(
+        self, query: str = "", *, exclude_track: str | None = None, limit: int = 100
+    ) -> list[ExerciseMatch]:
+        """Esercizi delle tracce in archivio (non nel cestino) che contengono tutte le parole
+        di ``query`` nel nome, nel testo o nei tag; senza parole, tutti. Dalla traccia
+        modificata più di recente."""
         ...
 
     def empty_trash(self) -> int:

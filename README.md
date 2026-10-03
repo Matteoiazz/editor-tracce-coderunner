@@ -65,6 +65,7 @@ Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API:
 | `POST /api/tracks/{id}/trash`, `/restore` | sposta nel cestino o ripristina |
 | `DELETE /api/tracks/{id}` | elimina definitivamente una traccia del cestino |
 | `DELETE /api/trash` | svuota il cestino |
+| `GET /api/exercises?q=parole` | cerca gli esercizi dell'archivio per riusarli (`exclude_track` esclude una traccia) |
 
 L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione
 (`%APPDATA%\tesi-frontend`); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
