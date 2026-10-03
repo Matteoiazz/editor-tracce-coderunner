@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { deleteTrack, emptyTrash, listTracks, restoreTrack } from "../api";
 import { formatMoment, trackLabel, trackYears, type TrackSummary } from "../archive";
 import type { ExamKind } from "../naming";
-import { IconCopy, IconRestore, IconTrash } from "./icons";
+import { IconCopy, IconExport, IconImport, IconRestore, IconTrash } from "./icons";
 
 interface Props {
   /** Traccia aperta in questo momento, evidenziata nell'elenco. */
@@ -10,13 +10,18 @@ interface Props {
   onOpen: (id: string) => Promise<void>;
   onDuplicate: (id: string) => Promise<void>;
   onTrash: (id: string) => Promise<void>;
+  /** Importa uno o più file XML del docente come nuove tracce. */
+  onImportFiles: () => Promise<void>;
+  onBackup: () => Promise<void>;
+  onRestore: () => Promise<void>;
   onError: (message: string) => void;
 }
 
 type Tab = "archive" | "trash";
 
 /** Tracce salvate: apertura, duplicazione e cestino. */
-export function ArchivePanel({ currentId, onOpen, onDuplicate, onTrash, onError }: Props) {
+export function ArchivePanel(props: Props) {
+  const { currentId, onOpen, onDuplicate, onTrash, onError } = props;
   const [tab, setTab] = useState<Tab>("archive");
   const [tracks, setTracks] = useState<TrackSummary[] | null>(null);
   const [trash, setTrash] = useState<TrackSummary[]>([]);
@@ -89,6 +94,15 @@ export function ArchivePanel({ currentId, onOpen, onDuplicate, onTrash, onError 
         </div>
         {tab === "archive" ? (
           <div className="archive-filters">
+            <button
+              type="button"
+              className="ghost small"
+              disabled={busy}
+              title="Ogni traccia trovata nei file diventa una traccia dell'archivio"
+              onClick={() => run(props.onImportFiles)}
+            >
+              <IconImport /> Importa XML nell'archivio
+            </button>
             <label>
               Tipo
               <select value={kind} onChange={(e) => setKind(e.target.value as ExamKind | "")}>
@@ -232,6 +246,33 @@ export function ArchivePanel({ currentId, onOpen, onDuplicate, onTrash, onError 
           ))}
         </ul>
       )}
+
+      <section className="archive-backup" aria-label="Backup">
+        <h2>Backup</h2>
+        <p className="view-lede">
+          Una copia di tutto l'archivio, cestino compreso, in un file da conservare (per esempio su
+          una chiavetta o su OneDrive). Il ripristino sostituisce l'archivio attuale, che viene
+          comunque conservato in una copia.
+        </p>
+        <div className="view-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() => run(props.onBackup)}
+          >
+            <IconExport /> Salva un backup…
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={busy}
+            onClick={() => run(props.onRestore)}
+          >
+            <IconRestore /> Ripristina da backup…
+          </button>
+        </div>
+      </section>
     </article>
   );
 }

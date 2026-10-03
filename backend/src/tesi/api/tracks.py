@@ -1,13 +1,14 @@
 """Endpoint sull'archivio delle tracce."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from tesi.application.archive import duplicate_track
 from tesi.domain import ExamTrack, ExerciseMatch, TrackSummary
-from tesi.ports import TrackArchive, TrackNotFound, TrackNotInTrash
+from tesi.ports import InvalidBackup, TrackArchive, TrackNotFound, TrackNotInTrash
 
 router = APIRouter(prefix="/api", tags=["archivio"])
 
@@ -22,6 +23,17 @@ Archive = Annotated[TrackArchive, Depends(get_archive)]
 @dataclass
 class EmptyTrashResponse:
     deleted: int
+
+
+@dataclass
+class BackupRequest:
+    # Percorso scelto dal docente nella finestra di Windows
+    path: str
+
+
+@dataclass
+class BackupResponse:
+    tracks: int
 
 
 def _not_found() -> HTTPException:
@@ -108,3 +120,21 @@ def search_exercises(
 @router.delete("/trash")
 def empty_trash(archive: Archive) -> EmptyTrashResponse:
     return EmptyTrashResponse(deleted=archive.empty_trash())
+
+
+@router.post("/archive/backup")
+def backup(request: BackupRequest, archive: Archive) -> BackupResponse:
+    """Salva una copia completa dell'archivio nel file indicato."""
+    try:
+        return BackupResponse(tracks=archive.backup_to(Path(request.path)))
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=f"Backup non riuscito: {exc}") from exc
+
+
+@router.post("/archive/restore")
+def restore_backup(request: BackupRequest, archive: Archive) -> BackupResponse:
+    """Sostituisce l'archivio con un backup; l'archivio precedente viene conservato."""
+    try:
+        return BackupResponse(tracks=archive.restore_from(Path(request.path)))
+    except InvalidBackup as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

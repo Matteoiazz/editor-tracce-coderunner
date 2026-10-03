@@ -6,7 +6,7 @@ import pytest
 from tesi.adapters.sqlite_archive import SqliteTrackArchive, plain_text
 from tesi.application.archive import duplicate_track
 from tesi.domain import ExamKind, ExamTrack, Question, TestCase, TrackExercise
-from tesi.ports import TrackNotFound, TrackNotInTrash
+from tesi.ports import InvalidBackup, TrackNotFound, TrackNotInTrash
 
 
 class Clock:
@@ -233,3 +233,34 @@ def test_ricerca_esclude_cestino_e_traccia_aperta(archive: SqliteTrackArchive) -
     archive.move_to_trash("c")
 
     assert [m.track_id for m in archive.search_exercises(exclude_track="a")] == ["b"]
+
+
+def test_backup_e_ripristino(archive: SqliteTrackArchive, tmp_path: Path) -> None:
+    archive.save(make_track("a"))
+    archive.save(make_track("b"))
+    backup = tmp_path / "copie" / "backup.db"
+
+    assert archive.backup_to(backup) == 2
+
+    archive.move_to_trash("a")
+    archive.empty_trash()
+    archive.save(make_track("c"))
+
+    assert archive.restore_from(backup) == 2
+    assert {s.id for s in archive.list()} == {"a", "b"}
+    assert archive.get("a").exercises == make_track("a").exercises
+    # L'archivio prima del ripristino resta disponibile
+    before = SqliteTrackArchive(archive.path.with_name("archivio-prima-del-ripristino.db"))
+    assert {s.id for s in before.list()} == {"b", "c"}
+
+
+def test_ripristino_da_un_file_non_valido(archive: SqliteTrackArchive, tmp_path: Path) -> None:
+    archive.save(make_track("a"))
+    other = tmp_path / "altro.db"
+    other.write_text("non è un database", encoding="utf-8")
+
+    with pytest.raises(InvalidBackup, match="non è un backup"):
+        archive.restore_from(other)
+    with pytest.raises(InvalidBackup, match="non esiste"):
+        archive.restore_from(tmp_path / "manca.db")
+    assert [s.id for s in archive.list()] == ["a"]

@@ -153,6 +153,46 @@ function openInBrowser(url) {
 // Il renderer chiede al main process su quale porta gira il backend.
 ipcMain.handle("backend:get-url", () => `http://127.0.0.1:${backendPort}`);
 
+// Più file XML insieme, per importarli nell'archivio
+ipcMain.handle("dialog:open-xml-multiple", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: "Importa XML Moodle nell'archivio",
+    filters: [{ name: "XML Moodle", extensions: ["xml"] }],
+    properties: ["openFile", "multiSelections"],
+  });
+  if (result.canceled) return [];
+  return Promise.all(
+    result.filePaths.map(async (filePath) => ({
+      path: filePath,
+      content: await fs.readFile(filePath, "utf-8"),
+    })),
+  );
+});
+
+// Backup dell'archivio: la copia la scrive il backend, qui si sceglie solo il file
+const BACKUP_FILTERS = [{ name: "Backup dell'archivio", extensions: ["db"] }];
+
+ipcMain.handle("dialog:backup-target", async (event, defaultName) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showSaveDialog(win, {
+    title: "Salva un backup dell'archivio",
+    defaultPath: defaultName,
+    filters: BACKUP_FILTERS,
+  });
+  return result.canceled || !result.filePath ? null : result.filePath;
+});
+
+ipcMain.handle("dialog:backup-source", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: "Ripristina l'archivio da un backup",
+    filters: BACKUP_FILTERS,
+    properties: ["openFile"],
+  });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+});
+
 // Finestra di Windows "Apri file": il renderer non può leggere file da solo (non ha Node.js),
 // quindi lo fa il main process e gli restituisce il contenuto.
 ipcMain.handle("dialog:open-xml", async (event) => {

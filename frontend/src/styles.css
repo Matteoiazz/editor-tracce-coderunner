@@ -1323,6 +1323,21 @@ body.editor-expanded .main {
   transform: rotate(90deg);
 }
 
+.archive-backup {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.archive-backup h2 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.archive-backup .view-actions {
+  margin-top: 12px;
+}
+
 button.ghost.active {
   color: var(--accent-strong);
   background: var(--accent-soft);

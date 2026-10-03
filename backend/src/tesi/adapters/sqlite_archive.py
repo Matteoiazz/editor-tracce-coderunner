@@ -26,10 +26,13 @@ from tesi.domain import (
     TrackExercise,
     TrackSummary,
 )
-from tesi.ports import TrackNotFound, TrackNotInTrash
+from tesi.ports import InvalidBackup, TrackNotFound, TrackNotInTrash
 
 # Da incrementare a ogni modifica dello schema, con la relativa migrazione in _prepare
 SCHEMA_VERSION = 1
+
+# Copia dell'archivio fatta automaticamente prima di un ripristino
+BEFORE_RESTORE_FILE = "archivio-prima-del-ripristino.db"
 
 _SCHEMA = """
 CREATE TABLE tracks (
@@ -209,6 +212,23 @@ class SqliteTrackArchive:
         with self._connect() as db:
             return db.execute("DELETE FROM tracks WHERE deleted_at IS NOT NULL").rowcount
 
+    # ---------------------------------------------------------------- backup
+
+    def backup_to(self, target: Path) -> int:
+        # L'API di backup di SQLite produce una copia coerente anche a database aperto
+        with self._connect() as db:
+            count = db.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+        _copy_database(self.path, target)
+        return count
+
+    def restore_from(self, source: Path) -> int:
+        count = _check_backup(source)
+        with self._connect():
+            pass  # l'archivio esiste e ha lo schema aggiornato prima di essere copiato
+        _copy_database(self.path, self.path.with_name(BEFORE_RESTORE_FILE))
+        _copy_database(source, self.path)
+        return count
+
     # ---------------------------------------------------------------- interni
 
     @contextmanager
@@ -268,6 +288,40 @@ class SqliteTrackArchive:
             exported_at=_moment(row[6]),
             deleted_at=_moment(row[7]),
         )
+
+
+def _copy_database(source: Path, target: Path) -> None:
+    """Copia completa di un database SQLite, sostituendo il contenuto di ``target``."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(source)
+    dst = sqlite3.connect(target)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
+
+
+def _check_backup(path: Path) -> int:
+    """Numero di tracce del backup; InvalidBackup se il file non è un archivio valido."""
+    if not path.is_file():
+        raise InvalidBackup(f"Il file {path} non esiste")
+    try:
+        db = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        try:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master")}
+            if version < 1 or not {"tracks", "exercises"} <= tables:
+                raise InvalidBackup("Il file scelto non è un backup dell'archivio delle tracce")
+            if version > SCHEMA_VERSION:
+                raise InvalidBackup(
+                    "Il backup è stato creato da una versione più recente dell'applicazione"
+                )
+            return db.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+        finally:
+            db.close()
+    except sqlite3.DatabaseError as exc:
+        raise InvalidBackup("Il file scelto non è un backup dell'archivio delle tracce") from exc
 
 
 _BLOCK_END = re.compile(r"</(p|div|li|h[1-6]|tr|pre)>|<br\s*/?>", re.IGNORECASE)

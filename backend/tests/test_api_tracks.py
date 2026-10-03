@@ -111,3 +111,20 @@ def test_ricerca_degli_esercizi(client: TestClient) -> None:
     assert match["tags"] == ["Python - easy"]
     assert client.get("/api/exercises", params={"q": "assente"}).json() == []
     assert client.get("/api/exercises", params={"exclude_track": "t1"}).json() == []
+
+
+def test_backup_e_ripristino_via_api(client: TestClient, tmp_path: Path) -> None:
+    client.put("/api/tracks/t1", json=track_json())
+    target = tmp_path / "backup.db"
+
+    assert client.post("/api/archive/backup", json={"path": str(target)}).json() == {"tracks": 1}
+
+    client.post("/api/tracks/t1/trash")
+    client.delete("/api/trash")
+    assert client.get("/api/tracks").json() == []
+
+    assert client.post("/api/archive/restore", json={"path": str(target)}).json() == {"tracks": 1}
+    assert [t["id"] for t in client.get("/api/tracks").json()] == ["t1"]
+
+    response = client.post("/api/archive/restore", json={"path": str(tmp_path / "manca.db")})
+    assert response.status_code == 422

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  backupArchive,
   duplicateTrack,
   exportXml,
   getTrack,
   importXml,
   listTracks,
   markExported,
+  restoreArchive,
   saveTrack,
   trashTrack,
   verifyQuestion,
@@ -19,6 +21,7 @@ import {
   toArchive,
   trackLabel,
 } from "./archive";
+import { importIntoArchive, importReportMessage } from "./archiveImport";
 import { ArchivePanel } from "./components/ArchivePanel";
 import { ReusePanel } from "./components/ReusePanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
@@ -257,6 +260,52 @@ export function App() {
     }
   }
 
+  async function handleImportIntoArchive() {
+    clearMessages();
+    const files = await window.desktop.openXmlFiles();
+    if (files.length === 0) return;
+    await flushSave();
+    const report = await importIntoArchive(files, await listTracks(), { importXml, saveTrack });
+    setNotice(importReportMessage(report));
+  }
+
+  async function handleBackup() {
+    clearMessages();
+    await flushSave();
+    const today = new Date().toISOString().slice(0, 10);
+    const path = await window.desktop.chooseBackupTarget(`archivio-tracce-${today}.db`);
+    if (!path) return;
+    const count = await backupArchive(path);
+    setNotice(`Backup salvato in ${path} (${count === 1 ? "1 traccia" : `${count} tracce`}).`);
+  }
+
+  async function handleRestore() {
+    clearMessages();
+    const path = await window.desktop.chooseBackupSource();
+    if (!path) return;
+    if (
+      !window.confirm(
+        "Sostituire l'archivio con questo backup? L'archivio attuale viene conservato nel file " +
+          "archivio-prima-del-ripristino.db nella cartella dei dati dell'applicazione.",
+      )
+    ) {
+      return;
+    }
+    await flushSave();
+    const count = await restoreArchive(path);
+    // Si riapre la traccia aperta, nella versione del backup; se nel backup non c'è,
+    // la più recente
+    const restored = await listTracks();
+    const reopen = restored.find((t) => t.id === trackId) ?? restored[0];
+    openTrack(
+      reopen
+        ? fromArchive(await getTrack(reopen.id))
+        : { id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] },
+    );
+    setSelection({ kind: "archive" });
+    setNotice(`Archivio ripristinato dal backup (${count === 1 ? "1 traccia" : `${count} tracce`}).`);
+  }
+
   async function handleReuse(match: ExerciseMatch) {
     const source = await getTrack(match.track_id);
     const { item, common: adopted } = reuseExercise(
@@ -493,6 +542,9 @@ export function App() {
             onOpen={handleOpenTrack}
             onDuplicate={handleDuplicateTrack}
             onTrash={handleTrashTrack}
+            onImportFiles={handleImportIntoArchive}
+            onBackup={handleBackup}
+            onRestore={handleRestore}
             onError={setError}
           />
         ) : selection?.kind === "common" ? (

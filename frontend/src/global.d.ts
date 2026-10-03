@@ -9,6 +9,12 @@ interface Window {
     getBackendUrl(): Promise<string>;
     /** Apre la finestra "Apri file"; null se l'utente annulla. */
     openXmlFile(): Promise<OpenedFile | null>;
+    /** Scelta di più file XML; lista vuota se l'utente annulla. */
+    openXmlFiles(): Promise<OpenedFile[]>;
+    /** Percorso in cui salvare un backup dell'archivio, o null se l'utente annulla. */
+    chooseBackupTarget(defaultName: string): Promise<string | null>;
+    /** Backup da cui ripristinare l'archivio, o null se l'utente annulla. */
+    chooseBackupSource(): Promise<string | null>;
     /** Apre la finestra "Salva con nome" e scrive il file; restituisce il percorso, o null se l'utente annulla. */
     saveXmlFile(defaultName: string, content: string): Promise<string | null>;
     /** Contenuto del vecchio file di sessione (prima dell'archivio), o null se non c'è. */

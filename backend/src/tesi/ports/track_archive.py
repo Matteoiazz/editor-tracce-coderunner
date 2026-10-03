@@ -6,6 +6,7 @@ questa interfaccia.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol
 
 from tesi.domain import ExamTrack, ExerciseMatch, TrackSummary
@@ -17,6 +18,10 @@ class TrackNotFound(LookupError):
 
 class TrackNotInTrash(ValueError):
     """Solo le tracce nel cestino si possono eliminare definitivamente."""
+
+
+class InvalidBackup(ValueError):
+    """Il file indicato non è un backup dell'archivio utilizzabile."""
 
 
 class TrackArchive(Protocol):
@@ -56,4 +61,14 @@ class TrackArchive(Protocol):
 
     def empty_trash(self) -> int:
         """Elimina tutte le tracce del cestino e restituisce quante erano."""
+        ...
+
+    def backup_to(self, target: Path) -> int:
+        """Copia completa dell'archivio nel file indicato; restituisce il numero di tracce."""
+        ...
+
+    def restore_from(self, source: Path) -> int:
+        """Sostituisce l'archivio con il contenuto di un backup, dopo averne conservato una
+        copia; solleva InvalidBackup se il file non è utilizzabile. Restituisce il numero
+        di tracce ripristinate."""
         ...

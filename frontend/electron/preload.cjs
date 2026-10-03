@@ -6,6 +6,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
   getBackendUrl: () => ipcRenderer.invoke("backend:get-url"),
   openXmlFile: () => ipcRenderer.invoke("dialog:open-xml"),
+  openXmlFiles: () => ipcRenderer.invoke("dialog:open-xml-multiple"),
+  chooseBackupTarget: (defaultName) => ipcRenderer.invoke("dialog:backup-target", defaultName),
+  chooseBackupSource: () => ipcRenderer.invoke("dialog:backup-source"),
   saveXmlFile: (defaultName, content) =>
     ipcRenderer.invoke("dialog:save-xml", { defaultName, content }),
   loadSession: () => ipcRenderer.invoke("session:load"),

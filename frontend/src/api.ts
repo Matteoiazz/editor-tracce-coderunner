@@ -124,3 +124,13 @@ export function searchExercises(query: string, excludeTrack: string): Promise<Ex
   const params = new URLSearchParams({ q: query, exclude_track: excludeTrack });
   return request(`/api/exercises?${params}`, { method: "GET" });
 }
+
+/** Salva una copia dell'archivio nel file indicato; restituisce il numero di tracce. */
+export async function backupArchive(path: string): Promise<number> {
+  return (await request<{ tracks: number }>("/api/archive/backup", jsonBody({ path }))).tracks;
+}
+
+/** Sostituisce l'archivio con un backup; restituisce il numero di tracce ripristinate. */
+export async function restoreArchive(path: string): Promise<number> {
+  return (await request<{ tracks: number }>("/api/archive/restore", jsonBody({ path }))).tracks;
+}
