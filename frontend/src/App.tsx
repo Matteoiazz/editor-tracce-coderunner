@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  duplicateTrack,
   exportXml,
   getTrack,
   importXml,
   listTracks,
   markExported,
   saveTrack,
+  trashTrack,
   verifyQuestion,
 } from "./api";
-import { type ArchivedTrack, fromArchive, type OpenTrack, toArchive } from "./archive";
+import { type ArchivedTrack, fromArchive, type OpenTrack, toArchive, trackLabel } from "./archive";
+import { ArchivePanel } from "./components/ArchivePanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
@@ -74,8 +77,12 @@ export function App() {
   // Identificativo della traccia aperta nell'archivio
   const [trackId, setTrackId] = useState<string>(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
+  const [archiveKey, setArchiveKey] = useState(0);
   // Ultima versione della traccia non ancora inviata all'archivio
   const pending = useRef<ArchivedTrack | null>(null);
+  // Contenuto dell'ultima versione salvata o aperta: se non cambia, non si salva di nuovo
+  // (altrimenti la sola apertura aggiornerebbe la data di modifica)
+  const savedContent = useRef<string | null>(null);
   // I salvataggi sono eseguiti in ordine: uno più vecchio non può sovrascrivere uno più recente
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
@@ -84,9 +91,11 @@ export function App() {
     const track = pending.current;
     pending.current = null;
     if (track) {
+      const content = JSON.stringify(track);
       saveQueue.current = saveQueue.current
         .then(async () => {
           await saveTrack(track);
+          savedContent.current = content;
         })
         .catch((e) => setError(`Salvataggio nell'archivio non riuscito: ${errorText(e)}`));
     }
@@ -94,6 +103,7 @@ export function App() {
   }
 
   function openTrack(track: OpenTrack) {
+    savedContent.current = JSON.stringify(toArchive(track));
     setTrackId(track.id);
     setExam(track.exam);
     setCommon(track.common);
@@ -159,7 +169,12 @@ export function App() {
       pending.current = null;
       return;
     }
-    pending.current = toArchive({ id: trackId, exam, common, items });
+    const track = toArchive({ id: trackId, exam, common, items });
+    if (JSON.stringify(track) === savedContent.current) {
+      pending.current = null;
+      return;
+    }
+    pending.current = track;
     const timer = setTimeout(flushSave, 500);
     return () => clearTimeout(timer);
   }, [loaded, trackId, exam, common, items]);
@@ -193,6 +208,44 @@ export function App() {
   function clearMessages() {
     setError(null);
     setNotice(null);
+  }
+
+  // ------------------------------------------------ archivio: vista e azioni
+
+  // L'elenco mostra anche l'ultima modifica della traccia aperta
+  async function handleShowArchive() {
+    clearMessages();
+    await flushSave();
+    // Una nuova chiave rilegge l'elenco anche se la vista è già aperta
+    setArchiveKey((k) => k + 1);
+    select({ kind: "archive" });
+  }
+
+  async function handleOpenTrack(id: string) {
+    await flushSave();
+    const track = await getTrack(id);
+    openTrack(fromArchive(track));
+    setNotice(`Aperta la traccia ${trackLabel(track)}.`);
+  }
+
+  async function handleDuplicateTrack(id: string) {
+    await flushSave();
+    const copy = await duplicateTrack(id);
+    openTrack(fromArchive(copy));
+    setNotice(
+      `Creata e aperta una copia di ${trackLabel(copy)}: cambia data o numero di traccia ` +
+        "per il nuovo appello.",
+    );
+  }
+
+  async function handleTrashTrack(id: string) {
+    await flushSave();
+    await trashTrack(id);
+    // Se era la traccia aperta, si continua su una traccia nuova vuota
+    if (id === trackId) {
+      openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] });
+      setSelection({ kind: "archive" });
+    }
   }
 
   // La traccia corrente resta nell'archivio: se ne apre una nuova vuota
@@ -378,6 +431,7 @@ export function App() {
         onImport={handleImport}
         canClearExam={!isEmptySession({ exam, common, items })}
         onNewExam={handleNewExam}
+        onArchive={handleShowArchive}
         summary={summary}
         blockers={items.length === 0 ? [] : blockers}
         exporting={exporting}
@@ -394,7 +448,16 @@ export function App() {
           </div>
         )}
 
-        {selection?.kind === "common" ? (
+        {selection?.kind === "archive" ? (
+          <ArchivePanel
+            key={archiveKey}
+            currentId={trackId}
+            onOpen={handleOpenTrack}
+            onDuplicate={handleDuplicateTrack}
+            onTrash={handleTrashTrack}
+            onError={setError}
+          />
+        ) : selection?.kind === "common" ? (
           <CommonTestsPanel rows={common} onChange={handleCommonChange} />
         ) : selectedItem ? (
           <QuestionEditor

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { fromArchive, type OpenTrack, toArchive } from "./archive";
+import {
+  formatDay,
+  fromArchive,
+  type OpenTrack,
+  toArchive,
+  trackLabel,
+  trackYears,
+  type TrackSummary,
+} from "./archive";
 import { createQuestion } from "./exam";
 import type { ExamInfo } from "./naming";
 import { newRow, standardCommonTests } from "./testcases";
@@ -58,5 +66,37 @@ describe("fromArchive", () => {
   it("andata e ritorno senza perdite", () => {
     const archived = toArchive(openTrack());
     expect(toArchive(fromArchive(archived))).toEqual(archived);
+  });
+});
+
+describe("etichette dell'archivio", () => {
+  const summary = (day: string | null): TrackSummary => ({
+    id: day ?? "x",
+    kind: "Esame",
+    day,
+    number: 1,
+    exercise_count: 2,
+    updated_at: "2026-10-03T10:00:00Z",
+    exported_at: null,
+    deleted_at: null,
+  });
+
+  it("data estesa in italiano", () => {
+    expect(formatDay("2026-07-03")).toBe("3 luglio 2026");
+    expect(formatDay(null)).toBeNull();
+  });
+
+  it("nome della traccia, anche con dati mancanti", () => {
+    expect(trackLabel({ kind: "Esame", day: "2026-07-03", number: 1 })).toBe(
+      "Esame · 3 luglio 2026 · Traccia 1",
+    );
+    expect(trackLabel({ kind: null, day: null, number: null })).toBe(
+      "Tipo non indicato · senza data · traccia senza numero",
+    );
+  });
+
+  it("anni presenti, dal più recente e senza doppioni", () => {
+    const tracks = [summary("2025-02-01"), summary(null), summary("2026-07-03"), summary("2026-09-30")];
+    expect(trackYears(tracks)).toEqual([2026, 2025]);
   });
 });

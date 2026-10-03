@@ -584,6 +584,7 @@ input[type="checkbox"] {
 
 .exercise,
 .common-view,
+.archive-view,
 .start {
   max-width: 1040px;
   margin: 0 auto;
@@ -1181,6 +1182,99 @@ body.editor-expanded .main {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+/* Archivio delle tracce */
+.archive-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.archive-tabs {
+  min-width: 260px;
+}
+
+.archive-filters {
+  display: flex;
+  gap: 16px;
+}
+
+.archive-filters label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.archive-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.archive-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.archive-row + .archive-row {
+  border-top: 1px solid var(--rule);
+}
+
+.archive-row.current {
+  background: var(--accent-soft);
+}
+
+.archive-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.archive-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.archive-badge {
+  padding: 0 6px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--accent-strong);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+}
+
+.archive-meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.archive-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+button.ghost.active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
 .empty-state {

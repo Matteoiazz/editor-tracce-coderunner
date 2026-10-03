@@ -134,6 +134,19 @@ export const IconBulletList = (p: IconProps) => (
   </Icon>
 );
 
+export const IconArchive = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="3.5" rx="1" />
+    <path d="M3 6.5v6A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-6M6.5 9h3" />
+  </Icon>
+);
+
+export const IconRestore = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.5h2.5" />
+  </Icon>
+);
+
 export const IconCopy = (p: IconProps) => (
   <Icon {...p}>
     <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />

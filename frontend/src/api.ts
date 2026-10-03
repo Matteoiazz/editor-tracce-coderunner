@@ -96,3 +96,25 @@ export function saveTrack(track: ArchivedTrack): Promise<ArchivedTrack> {
 export function markExported(id: string): Promise<ArchivedTrack> {
   return request(`/api/tracks/${encodeURIComponent(id)}/exported`, { method: "POST" });
 }
+
+export function duplicateTrack(id: string): Promise<ArchivedTrack> {
+  return request(`/api/tracks/${encodeURIComponent(id)}/duplicate`, { method: "POST" });
+}
+
+export async function trashTrack(id: string): Promise<void> {
+  await send(`/api/tracks/${encodeURIComponent(id)}/trash`, { method: "POST" });
+}
+
+export async function restoreTrack(id: string): Promise<void> {
+  await send(`/api/tracks/${encodeURIComponent(id)}/restore`, { method: "POST" });
+}
+
+/** Eliminazione definitiva di una traccia del cestino. */
+export async function deleteTrack(id: string): Promise<void> {
+  await send(`/api/tracks/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/** Svuota il cestino e restituisce quante tracce sono state eliminate. */
+export async function emptyTrash(): Promise<number> {
+  return (await request<{ deleted: number }>("/api/trash", { method: "DELETE" })).deleted;
+}

@@ -1,10 +1,14 @@
 import { parseExerciseNumber } from "../exam";
 import type { ExamInfo, ExamKind } from "../naming";
 import type { ExamSummary, ExerciseStatus } from "../status";
-import { IconCheck, IconExport, IconImport, IconNewExam, IconPlus } from "./icons";
+import { IconArchive, IconCheck, IconExport, IconImport, IconNewExam, IconPlus } from "./icons";
 import { StatusDots } from "./StatusDots";
 
-export type Selection = { kind: "common" } | { kind: "exercise"; id: string } | null;
+export type Selection =
+  | { kind: "common" }
+  | { kind: "archive" }
+  | { kind: "exercise"; id: string }
+  | null;
 
 export interface SidebarExercise {
   id: string;
@@ -41,6 +45,7 @@ interface Props {
   onImport: () => void;
   canClearExam: boolean;
   onNewExam: () => void;
+  onArchive: () => void;
   summary: ExamSummary;
   blockers: Blocker[];
   exporting: boolean;
@@ -70,6 +75,15 @@ export function Sidebar(props: Props) {
               title="Inizia una nuova traccia; quella attuale resta salvata nell'archivio"
             >
               <IconNewExam /> Nuovo esame
+            </button>
+            <button
+              type="button"
+              className={`ghost small${selection?.kind === "archive" ? " active" : ""}`}
+              onClick={props.onArchive}
+              aria-pressed={selection?.kind === "archive"}
+              title="Tracce salvate e cestino"
+            >
+              <IconArchive /> Archivio
             </button>
           </div>
         </div>

@@ -83,3 +83,40 @@ export function fromArchive(track: ArchivedTrack): OpenTrack {
     })),
   };
 }
+
+/** Data in forma estesa, es. "3 luglio 2026"; null se assente. */
+export function formatDay(day: string | null): string | null {
+  if (!day) return null;
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date).toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** Data e ora brevi, es. "3 ott 2026, 16:55". */
+export function formatMoment(moment: string): string {
+  return new Date(moment).toLocaleString("it-IT", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Nome della traccia nell'elenco, es. "Esame · 3 luglio 2026 · Traccia 1". */
+export function trackLabel(track: Pick<TrackSummary, "kind" | "day" | "number">): string {
+  return [
+    track.kind ?? "Tipo non indicato",
+    formatDay(track.day) ?? "senza data",
+    track.number !== null ? `Traccia ${track.number}` : "traccia senza numero",
+  ].join(" · ");
+}
+
+/** Anni presenti nelle tracce, dal più recente. */
+export function trackYears(tracks: TrackSummary[]): number[] {
+  const years = new Set(tracks.flatMap((t) => (t.day ? [Number(t.day.slice(0, 4))] : [])));
+  return [...years].sort((a, b) => b - a);
+}
