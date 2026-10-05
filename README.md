@@ -10,6 +10,13 @@ backend/    API Python (FastAPI). Sorgenti in src/tesi, test in tests/
 frontend/   App Electron + React + TypeScript (Vite)
 ```
 
+Gli XML Moodle in `backend/tests/fixtures/moodle/` sono esercizi d'esame reali, pubblicati con il
+consenso del docente.
+
+## Licenza
+
+[MIT](LICENSE).
+
 ## Setup (una volta)
 
 ```bash
