@@ -123,7 +123,7 @@ describe("reuseExercise", () => {
 
   it("prende il numero successivo e il nome della traccia aperta", () => {
     const items = [createQuestion(1, exam), createQuestion(2, exam)];
-    const { item } = reuseExercise(source(), sourceCommon, items, exam, []);
+    const { item } = reuseExercise(source(false), sourceCommon, items, exam, []);
     expect(item.number).toBe(3);
     expect(item.question.name).toBe("Esame-2026-07-03-Traccia2-Esercizio3");
     expect(item.question.text_html).toBe("<p>Vecchio</p>");
@@ -138,11 +138,19 @@ describe("reuseExercise", () => {
     expect(item.commonExpected).toEqual({ [common[0].id]: "out 0", [common[1].id]: "out 1" });
   });
 
-  it("adotta i test comuni se la traccia non ne ha", () => {
+  it("adotta i test comuni se la traccia è ancora vuota", () => {
     const { item, common } = reuseExercise(source(), sourceCommon, [], exam, []);
     expect(common?.map((r) => r.stdin)).toEqual(sourceCommon.map((t) => t.stdin));
     expect(common?.every((r) => r.expected === "")).toBe(true);
     expect(Object.values(item.commonExpected)).toEqual(["out 0", "out 1"]);
+  });
+
+  it("non adotta i test comuni se la traccia ha già esercizi", () => {
+    const items = [createQuestion(1, exam)];
+    const { item, common } = reuseExercise(source(), sourceCommon, items, exam, []);
+    expect(common).toBeNull();
+    expect(item.useCommon).toBe(false);
+    expect(item.specific.map((r) => r.expected)).toEqual(["out 0", "out 1", "spec"]);
   });
 
   it("con test comuni diversi li trasforma in test specifici con i loro output", () => {

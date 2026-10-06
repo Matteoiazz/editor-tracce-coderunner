@@ -9,8 +9,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "electron": "electron .",
-    "test": "vitest run",
-    "start": "npm run build && electron ."
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

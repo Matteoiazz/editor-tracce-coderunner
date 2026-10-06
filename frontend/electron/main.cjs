@@ -1,7 +1,7 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
 const net = require("node:net");
@@ -104,6 +104,7 @@ function createWindow() {
   });
   protectWork(win);
   completeSaveOnClose(win);
+  if (isDev) developerShortcuts(win);
   if (isDev) {
     win.loadURL(DEV_SERVER_URL);
   } else {
@@ -126,21 +127,45 @@ function protectWork(win) {
   });
 }
 
-/** Alla chiusura la pagina completa il salvataggio nell'archivio prima che la finestra
- *  si chiuda; se non risponde entro qualche secondo, la finestra si chiude comunque. */
+/** Chiede alla pagina di completare il salvataggio nell'archivio, poi esegue `action`;
+ *  se la pagina non risponde entro qualche secondo, la esegue comunque. */
+function afterSave(win, action) {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    if (!win.isDestroyed()) action();
+  };
+  ipcMain.once("app:close-ready", run);
+  setTimeout(run, CLOSE_TIMEOUT_MS);
+  win.webContents.send("app:before-close");
+}
+
+/** Alla chiusura la pagina completa il salvataggio prima che la finestra si chiuda. */
 function completeSaveOnClose(win) {
   let closing = false;
   win.on("close", (event) => {
     if (closing) return;
     event.preventDefault();
-    const close = () => {
-      if (closing) return;
+    afterSave(win, () => {
       closing = true;
-      if (!win.isDestroyed()) win.close();
-    };
-    ipcMain.once("app:close-ready", close);
-    setTimeout(close, CLOSE_TIMEOUT_MS);
-    win.webContents.send("app:before-close");
+      win.close();
+    });
+  });
+}
+
+/** Senza menu servono scorciatoie per lo sviluppo: F12 apre gli strumenti per sviluppatori,
+ *  Ctrl+R ricarica la pagina dopo aver completato il salvataggio. */
+function developerShortcuts(win) {
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    if (input.key === "F12") {
+      event.preventDefault();
+      win.webContents.toggleDevTools();
+    } else if (input.control && input.key.toLowerCase() === "r") {
+      event.preventDefault();
+      afterSave(win, () => win.webContents.reload());
+    }
   });
 }
 
@@ -249,7 +274,22 @@ ipcMain.handle("dialog:save-xml", async (event, { defaultName, content }) => {
   return result.filePath;
 });
 
+// Una sola istanza: due finestre sullo stesso archivio si sovrascriverebbero il lavoro.
+// Un secondo avvio porta in primo piano la finestra già aperta.
+const isFirstInstance = app.requestSingleInstanceLock();
+if (!isFirstInstance) app.quit();
+
+app.on("second-instance", () => {
+  const [win] = BrowserWindow.getAllWindows();
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
 app.whenReady().then(async () => {
+  if (!isFirstInstance) return;
+  // Il menu predefinito di Electron (in inglese, con strumenti per sviluppatori) non serve
+  Menu.setApplicationMenu(null);
   try {
     backendPort = await getFreePort();
     startBackend(backendPort);
@@ -270,4 +310,5 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", stopBackend);
+// Il backend si ferma solo dopo la chiusura delle finestre, che completano il salvataggio
+app.on("will-quit", stopBackend);

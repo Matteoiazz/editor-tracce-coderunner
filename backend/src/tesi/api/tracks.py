@@ -127,6 +127,8 @@ def backup(request: BackupRequest, archive: Archive) -> BackupResponse:
     """Salva una copia completa dell'archivio nel file indicato."""
     try:
         return BackupResponse(tracks=archive.backup_to(Path(request.path)))
+    except InvalidBackup as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except OSError as exc:
         raise HTTPException(status_code=422, detail=f"Backup non riuscito: {exc}") from exc
 
@@ -138,3 +140,5 @@ def restore_backup(request: BackupRequest, archive: Archive) -> BackupResponse:
         return BackupResponse(tracks=archive.restore_from(Path(request.path)))
     except InvalidBackup as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=f"Ripristino non riuscito: {exc}") from exc

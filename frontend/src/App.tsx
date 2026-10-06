@@ -13,7 +13,6 @@ import {
   verifyQuestion,
 } from "./api";
 import {
-  type ArchivedTrack,
   type ExerciseMatch,
   fromArchive,
   type OpenTrack,
@@ -22,6 +21,7 @@ import {
   trackLabel,
 } from "./archive";
 import { importIntoArchive, importReportMessage } from "./archiveImport";
+import { createArchiveSaver } from "./archiveSaver";
 import { ArchivePanel } from "./components/ArchivePanel";
 import { ReusePanel } from "./components/ReusePanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
@@ -90,32 +90,23 @@ export function App() {
   const [trackId, setTrackId] = useState<string>(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
   const [archiveKey, setArchiveKey] = useState(0);
-  // Ultima versione della traccia non ancora inviata all'archivio
-  const pending = useRef<ArchivedTrack | null>(null);
-  // Contenuto dell'ultima versione salvata o aperta: se non cambia, non si salva di nuovo
-  // (altrimenti la sola apertura aggiornerebbe la data di modifica)
-  const savedContent = useRef<string | null>(null);
-  // I salvataggi sono eseguiti in ordine: uno più vecchio non può sovrascrivere uno più recente
-  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  // Salvataggio nell'archivio: in caso di errore la versione viene ritentata in seguito
+  const [saver] = useState(() =>
+    createArchiveSaver(saveTrack, (e) =>
+      setError(
+        `Salvataggio nell'archivio non riuscito: ${errorText(e).replace(/\.$/, "")}. ` +
+          "Verrà ritentato alla prossima modifica o alla chiusura.",
+      ),
+    ),
+  );
 
   /** Invia subito all'archivio l'eventuale versione in attesa; si risolve a salvataggio finito. */
   function flushSave(): Promise<void> {
-    const track = pending.current;
-    pending.current = null;
-    if (track) {
-      const content = JSON.stringify(track);
-      saveQueue.current = saveQueue.current
-        .then(async () => {
-          await saveTrack(track);
-          savedContent.current = content;
-        })
-        .catch((e) => setError(`Salvataggio nell'archivio non riuscito: ${errorText(e)}`));
-    }
-    return saveQueue.current;
+    return saver.flush();
   }
 
   function openTrack(track: OpenTrack) {
-    savedContent.current = JSON.stringify(toArchive(track));
+    saver.markSaved(toArchive(track));
     setTrackId(track.id);
     setExam(track.exam);
     setCommon(track.common);
@@ -177,16 +168,8 @@ export function App() {
   // per non riempire l'archivio di tracce vuote.
   useEffect(() => {
     if (!loaded) return;
-    if (isEmptySession({ exam, common, items })) {
-      pending.current = null;
-      return;
-    }
-    const track = toArchive({ id: trackId, exam, common, items });
-    if (JSON.stringify(track) === savedContent.current) {
-      pending.current = null;
-      return;
-    }
-    pending.current = track;
+    const empty = isEmptySession({ exam, common, items });
+    if (!saver.set(empty ? null : toArchive({ id: trackId, exam, common, items }))) return;
     const timer = setTimeout(flushSave, 500);
     return () => clearTimeout(timer);
   }, [loaded, trackId, exam, common, items]);
@@ -399,12 +382,16 @@ export function App() {
       const questions = sortedByNumber(items).map((item) => prepareQuestion(item, exam, common));
       const path = await window.desktop.saveXmlFile(exportFileName(exam), await exportXml(questions));
       if (!path) return;
-      setNotice(
-        `${questions.length === 1 ? "Esportato" : "Esportati"} ${exerciseCount(questions.length)} in ${path}`,
-      );
-      // L'archivio registra l'esportazione: prima va salvata l'ultima versione della traccia
-      await flushSave();
-      await markExported(trackId);
+      const exported = `${questions.length === 1 ? "Esportato" : "Esportati"} ${exerciseCount(questions.length)} in ${path}`;
+      setNotice(exported);
+      // L'archivio registra l'esportazione: prima va salvata l'ultima versione della traccia.
+      // Se la registrazione non riesce, il file resta comunque esportato.
+      try {
+        await flushSave();
+        await markExported(trackId);
+      } catch (e) {
+        setError(`${exported}, ma l'archivio non ha registrato l'esportazione: ${errorText(e)}`);
+      }
     } catch (e) {
       setError(`Esportazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

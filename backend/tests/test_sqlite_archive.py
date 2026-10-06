@@ -264,3 +264,39 @@ def test_ripristino_da_un_file_non_valido(archive: SqliteTrackArchive, tmp_path:
     with pytest.raises(InvalidBackup, match="non esiste"):
         archive.restore_from(tmp_path / "manca.db")
     assert [s.id for s in archive.list()] == ["a"]
+
+
+def test_backup_e_ripristino_sull_archivio_stesso(archive: SqliteTrackArchive) -> None:
+    archive.save(make_track("a"))
+    # Scritto in modo diverso, ma è lo stesso file
+    same = archive.path.parent / "." / archive.path.name
+
+    with pytest.raises(InvalidBackup, match="archivio stesso"):
+        archive.backup_to(same)
+    with pytest.raises(InvalidBackup, match="archivio attuale"):
+        archive.restore_from(same)
+    assert [s.id for s in archive.list()] == ["a"]
+
+
+def test_ripristino_dalla_copia_fatta_prima_del_ripristino(
+    archive: SqliteTrackArchive, tmp_path: Path
+) -> None:
+    archive.save(make_track("a"))
+    backup = tmp_path / "backup.db"
+    archive.backup_to(backup)
+    archive.save(make_track("b"))
+    archive.restore_from(backup)  # ora l'archivio ha solo "a"; la copia ha "a" e "b"
+
+    # Annullare il ripristino usando la copia automatica
+    archive.restore_from(archive.path.with_name("archivio-prima-del-ripristino.db"))
+
+    assert {s.id for s in archive.list()} == {"a", "b"}
+
+
+def test_backup_su_un_file_non_scrivibile(archive: SqliteTrackArchive, tmp_path: Path) -> None:
+    archive.save(make_track("a"))
+    folder = tmp_path / "una-cartella"
+    folder.mkdir()
+
+    with pytest.raises(OSError, match="non si può scrivere"):
+        archive.backup_to(folder)

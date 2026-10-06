@@ -11,6 +11,7 @@ import html
 import json
 import re
 import sqlite3
+import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -215,6 +216,9 @@ class SqliteTrackArchive:
     # ---------------------------------------------------------------- backup
 
     def backup_to(self, target: Path) -> int:
+        # Copiare un database su se stesso bloccherebbe SQLite senza mai terminare
+        if _same_file(target, self.path):
+            raise InvalidBackup("Il backup non può sostituire l'archivio stesso: scegli un altro file")
         # L'API di backup di SQLite produce una copia coerente anche a database aperto
         with self._connect() as db:
             count = db.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
@@ -222,11 +226,18 @@ class SqliteTrackArchive:
         return count
 
     def restore_from(self, source: Path) -> int:
+        if _same_file(source, self.path):
+            raise InvalidBackup("Il file scelto è l'archivio attuale: scegli un backup")
         count = _check_backup(source)
         with self._connect():
             pass  # l'archivio esiste e ha lo schema aggiornato prima di essere copiato
-        _copy_database(self.path, self.path.with_name(BEFORE_RESTORE_FILE))
-        _copy_database(source, self.path)
+        # Il backup viene prima copiato a parte: potrebbe essere proprio la copia che sta per
+        # essere sovrascritta (ripristino da archivio-prima-del-ripristino.db)
+        with tempfile.TemporaryDirectory() as folder:
+            staged = Path(folder) / "backup.db"
+            _copy_database(source, staged)
+            _copy_database(self.path, self.path.with_name(BEFORE_RESTORE_FILE))
+            _copy_database(staged, self.path)
         return count
 
     # ---------------------------------------------------------------- interni
@@ -290,16 +301,30 @@ class SqliteTrackArchive:
         )
 
 
-def _copy_database(source: Path, target: Path) -> None:
-    """Copia completa di un database SQLite, sostituendo il contenuto di ``target``."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    src = sqlite3.connect(source)
-    dst = sqlite3.connect(target)
+def _same_file(a: Path, b: Path) -> bool:
+    """Vero se i due percorsi indicano lo stesso file, anche se scritti in modo diverso."""
     try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+        return a.resolve() == b.resolve() or (a.exists() and b.exists() and a.samefile(b))
+    except OSError:
+        return False
+
+
+def _copy_database(source: Path, target: Path) -> None:
+    """Copia completa di un database SQLite, sostituendo il contenuto di ``target``.
+    Gli errori di SQLite (es. file bloccato da un altro programma) diventano OSError."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        src = sqlite3.connect(source)
+        try:
+            dst = sqlite3.connect(target)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+    except sqlite3.Error as exc:
+        raise OSError(f"il file {target} non si può scrivere ({exc})") from exc
 
 
 def _check_backup(path: Path) -> int:

@@ -128,3 +128,17 @@ def test_backup_e_ripristino_via_api(client: TestClient, tmp_path: Path) -> None
 
     response = client.post("/api/archive/restore", json={"path": str(tmp_path / "manca.db")})
     assert response.status_code == 422
+
+
+def test_errori_di_backup_con_messaggio(client: TestClient, tmp_path: Path) -> None:
+    client.put("/api/tracks/t1", json=track_json())
+
+    same = client.post("/api/archive/backup", json={"path": str(tmp_path / "archivio.db")})
+    assert same.status_code == 422
+    assert "archivio stesso" in same.json()["detail"]
+
+    folder = tmp_path / "cartella"
+    folder.mkdir()
+    locked = client.post("/api/archive/backup", json={"path": str(folder)})
+    assert locked.status_code == 422
+    assert locked.json()["detail"].startswith("Backup non riuscito")

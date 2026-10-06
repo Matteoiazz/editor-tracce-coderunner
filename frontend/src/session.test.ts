@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createQuestion } from "./exam";
 import type { ExamInfo } from "./naming";
-import { isEmptySession, parseSession, serializeSession } from "./session";
+import { isEmptySession, parseSession, SESSION_VERSION } from "./session";
 import { standardCommonTests } from "./testcases";
 
 const exam: ExamInfo = { date: "2026-10-15", kind: "Esame", track: 1 };
 
-describe("salvataggio della sessione", () => {
-  it("salva e ripristina esame, test comuni ed esercizi senza perdite", () => {
+describe("vecchio file di sessione", () => {
+  it("legge esame, test comuni ed esercizi senza perdite", () => {
     const common = standardCommonTests();
     const item = { ...createQuestion(1, exam), commonExpected: { [common[0].id]: "0\n1\nx\n" } };
 
-    const restored = parseSession(serializeSession({ exam, common, items: [item] }));
+    const text = JSON.stringify({ version: SESSION_VERSION, exam, common, items: [item] });
+    const restored = parseSession(text);
 
     expect(restored).toEqual({ exam, common, items: [item] });
   });

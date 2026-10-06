@@ -61,10 +61,10 @@ export function Sidebar(props: Props) {
   const isSelected = (id: string) => selection?.kind === "exercise" && selection.id === id;
 
   return (
-    <aside className="sidebar" aria-label="Esame">
+    <aside className="sidebar" aria-label="Traccia">
       <section className="exam-panel">
         <div className="exam-panel-head">
-          <h1>Esame</h1>
+          <h1>Traccia</h1>
           <div className="exam-actions">
             <button type="button" className="ghost small" onClick={props.onImport}>
               <IconImport /> Importa XML
@@ -218,7 +218,8 @@ export function Sidebar(props: Props) {
       <footer className="summary">
         <p className="summary-line mono">
           {summary.exercises === 1 ? "1 esercizio" : `${summary.exercises} esercizi`} ·{" "}
-          {summary.ready} pronti · {summary.passed}/{summary.tests} superati
+          {summary.ready === 1 ? "1 pronto" : `${summary.ready} pronti`} ·{" "}
+          {`${summary.passed}/${summary.tests}`} superati
         </p>
         {blockers.length > 0 && (
           <div className="blockers">

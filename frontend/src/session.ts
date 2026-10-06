@@ -1,20 +1,17 @@
-// Salvataggio automatico del lavoro in corso: formato del file e controlli in lettura.
+// Lettura del file di sessione usato prima dell'archivio delle tracce: serve solo a
+// trasferirne il contenuto nell'archivio al primo avvio.
 
 import type { EditableQuestion } from "./exam";
 import { DEFAULT_TRACK, type ExamInfo } from "./naming";
 import type { TestRow } from "./testcases";
 
-// Da incrementare se il formato cambia in modo incompatibile.
+// Versione del formato del vecchio file di sessione
 export const SESSION_VERSION = 1;
 
 export interface SessionData {
   exam: ExamInfo;
   common: TestRow[];
   items: EditableQuestion[];
-}
-
-export function serializeSession(data: SessionData): string {
-  return JSON.stringify({ version: SESSION_VERSION, savedAt: new Date().toISOString(), ...data });
 }
 
 /** Legge un salvataggio; null se il contenuto non è valido o di una versione diversa. */

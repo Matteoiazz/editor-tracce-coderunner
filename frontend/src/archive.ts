@@ -143,8 +143,9 @@ export interface ReusedExercise {
 /** Copia nella traccia aperta un esercizio di un'altra traccia, con il numero successivo.
  *  I test comuni dell'esercizio di provenienza:
  *  - se la traccia ha gli stessi test comuni, l'esercizio li usa con i propri output;
- *  - se la traccia non ha test comuni, li adotta;
- *  - altrimenti diventano test specifici dell'esercizio, con i loro output. */
+ *  - se la traccia è ancora vuota (né test comuni né esercizi), li adotta;
+ *  - altrimenti diventano test specifici dell'esercizio, con i loro output: adottarli
+ *    li aggiungerebbe anche agli altri esercizi della traccia. */
 export function reuseExercise(
   source: ArchivedExercise,
   sourceCommon: TestCase[],
@@ -181,7 +182,7 @@ export function reuseExercise(
       common: null,
     };
   }
-  if (common.length === 0) {
+  if (common.length === 0 && items.length === 0) {
     const adopted = sourceCommon.map((test) => ({ ...toRow(test), expected: "" }));
     return {
       item: { ...base, useCommon: true, commonExpected: expectedFor(adopted), specific },

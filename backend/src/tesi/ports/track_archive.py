@@ -64,7 +64,8 @@ class TrackArchive(Protocol):
         ...
 
     def backup_to(self, target: Path) -> int:
-        """Copia completa dell'archivio nel file indicato; restituisce il numero di tracce."""
+        """Copia completa dell'archivio nel file indicato; restituisce il numero di tracce.
+        Solleva InvalidBackup se il file è l'archivio stesso, OSError se non si può scrivere."""
         ...
 
     def restore_from(self, source: Path) -> int:

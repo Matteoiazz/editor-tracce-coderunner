@@ -3,6 +3,21 @@
 App desktop (Electron + React) con backend Python (FastAPI) per preparare tracce d'esame
 da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
 
+## Funzioni
+
+- **Tracce d'esame e pretest** con i nomi della convenzione del docente
+  (`Esame-AAAA-MM-GG-Traccia1-Esercizio1`, `Pretest-AAAA-MM-GG-Traccia1`).
+- **Esercizi** con testo in HTML (anche tabelle), soluzione nascosta, codice per gli studenti
+  generato dalla soluzione e test case; editor espandibili a tutta finestra.
+- **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente.
+- **Calcola output**: gli output attesi si ottengono eseguendo la soluzione, come CodeRunner
+  (`python3_w_input`).
+- **Verifica**: la soluzione viene eseguita su ogni test e confrontata con l'output atteso;
+  l'esportazione è possibile solo quando tutto è superato.
+- **Import ed export XML Moodle**, nello stesso formato degli export di Moodle (CDATA).
+- **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di
+  un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
+
 ## Struttura
 
 ```
@@ -41,13 +56,19 @@ npm run electron   # apre l'app: avvia da sola il backend Python
 ```
 
 Il backend non va avviato a mano: lo lancia Electron su una porta libera e lo ferma alla chiusura.
+L'app non ha menu; durante lo sviluppo F12 apre gli strumenti per sviluppatori e Ctrl+R ricarica
+la pagina dopo aver completato il salvataggio.
 
-## Test e controlli del backend
+## Test e controlli
 
 ```bash
 cd backend
 .venv/Scripts/python.exe -m pytest
 .venv/Scripts/python.exe -m ruff check src tests
+
+cd ../frontend
+npm test           # test automatici (Vitest)
+npm run build      # controllo dei tipi (TypeScript) e build
 ```
 
 ## Provare il backend da solo

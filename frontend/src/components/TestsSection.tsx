@@ -172,7 +172,7 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
 
       {item.useCommon &&
         (common.length === 0 ? (
-          <p className="muted small-text">Nessun test comune definito nell'esame.</p>
+          <p className="muted small-text">Nessun test comune definito nella traccia.</p>
         ) : (
           <details className="common-summary">
             <summary>
