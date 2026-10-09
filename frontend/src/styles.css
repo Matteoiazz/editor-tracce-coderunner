@@ -53,6 +53,12 @@ body,
   height: 100%;
 }
 
+/* La finestra non scorre mai nel suo insieme: scorrono la colonna e l'area principale.
+   Altrimenti un clic vicino al bordo può spostare tutta la pagina senza poterla riportare indietro. */
+html {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   overflow: hidden;
@@ -267,6 +273,7 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   background: var(--rail);
   border-right: 1px solid var(--rule);
 }
@@ -330,10 +337,13 @@ input[type="checkbox"] {
   background: var(--accent);
 }
 
-.session {
+.sidebar-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+.session {
   padding: 10px 10px 14px;
 }
 
@@ -485,20 +495,26 @@ input[type="checkbox"] {
 }
 
 .summary {
-  display: grid;
+  display: flex;
+  flex: none;
+  flex-direction: column;
   gap: 10px;
+  /* L'elenco dei problemi scorre al suo interno: Esporta resta visibile */
+  max-height: 45vh;
   padding: 14px 18px 18px;
   background: var(--rail);
   border-top: 1px solid var(--rule);
 }
 
 .summary-line {
+  flex: none;
   font-size: var(--text-xs);
   color: var(--ink-2);
 }
 
 .blockers {
-  max-height: 180px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   font-size: var(--text-xs);
   color: var(--ink-2);
@@ -522,6 +538,7 @@ input[type="checkbox"] {
 }
 
 .export-button {
+  flex: none;
   width: 100%;
   min-height: 38px;
 }

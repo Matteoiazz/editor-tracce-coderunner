@@ -442,19 +442,29 @@ export function App() {
 
   // ------------------------------------------------ vista
 
-  // Cosa impedisce l'esportazione: problemi di struttura e test falliti nell'ultima verifica
-  const names = new Map(items.map((it) => [questionName(it, exam), it.id]));
+  // Etichetta breve di un esercizio nella colonna: data, tipo e traccia sono già indicati sopra
+  const shortLabel = (it: EditableQuestion) =>
+    exam.kind === "Pretest"
+      ? "Esercizio del pretest"
+      : it.number !== null
+        ? `Esercizio ${it.number}`
+        : "Esercizio senza numero";
+
+  // Cosa impedisce l'esportazione: problemi di struttura e test falliti nell'ultima verifica.
+  // Nell'elenco ogni problema inizia con l'etichetta breve; il nome completo resta nel suggerimento.
+  const blockerFor = (it: EditableQuestion, problem: string): Blocker => ({
+    text: `${shortLabel(it)}: ${problem}`,
+    title: `${questionName(it, exam)}: ${problem}`,
+    exerciseId: it.id,
+  });
   const blockers: Blocker[] = exportProblems(items, exam, common).map((text) => {
-    const name = [...names.keys()].find((n) => text.startsWith(`${n}: `));
-    return { text, exerciseId: name ? names.get(name) : undefined };
+    const it = items.find((item) => text.startsWith(`${questionName(item, exam)}: `));
+    return it ? blockerFor(it, text.slice(questionName(it, exam).length + 2)) : { text };
   });
   for (const it of items) {
     const failed = statuses.get(it.id)?.failed ?? 0;
     if (failed > 0) {
-      blockers.push({
-        text: `${questionName(it, exam)}: ${failed === 1 ? "1 test fallito" : `${failed} test falliti`}`,
-        exerciseId: it.id,
-      });
+      blockers.push(blockerFor(it, failed === 1 ? "1 test fallito" : `${failed} test falliti`));
     }
   }
 
@@ -473,12 +483,7 @@ export function App() {
         exercises={sortedByNumber(items).map((it) => ({
           id: it.id,
           name: questionName(it, exam),
-          label:
-            exam.kind === "Pretest"
-              ? "Esercizio del pretest"
-              : it.number !== null
-                ? `Esercizio ${it.number}`
-                : "Esercizio senza numero",
+          label: shortLabel(it),
           kind: exam.kind,
           grade: it.question.default_grade,
           status: statuses.get(it.id)!,

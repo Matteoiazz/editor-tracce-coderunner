@@ -29,6 +29,8 @@ export interface SidebarExercise {
 /** Problema che blocca l'esportazione; con exerciseId è cliccabile e porta all'esercizio. */
 export interface Blocker {
   text: string;
+  /** Testo completo con il nome dell'esercizio, mostrato al passaggio del mouse. */
+  title?: string;
   exerciseId?: string;
 }
 
@@ -62,6 +64,9 @@ export function Sidebar(props: Props) {
 
   return (
     <aside className="sidebar" aria-label="Traccia">
+      {/* Dati della traccia ed elenco degli esercizi scorrono insieme; il riepilogo con
+          Esporta resta sempre visibile in fondo, anche con la finestra bassa */}
+      <div className="sidebar-scroll">
       <section className="exam-panel">
         <div className="exam-panel-head">
           <h1>Traccia</h1>
@@ -214,6 +219,7 @@ export function Sidebar(props: Props) {
         </button>
         {props.createHint && <p className="session-empty">{props.createHint}.</p>}
       </nav>
+      </div>
 
       <footer className="summary">
         <p className="summary-line mono">
@@ -225,12 +231,14 @@ export function Sidebar(props: Props) {
           <div className="blockers">
             <p>Prima di esportare:</p>
             <ul>
-              {blockers.slice(0, 6).map((b) => (
-                <li key={b.text}>
+              {/* L'elenco scorre al suo interno: si mostrano tutti i problemi */}
+              {blockers.map((b, i) => (
+                <li key={`${i}-${b.text}`}>
                   {b.exerciseId ? (
                     <button
                       type="button"
                       className="link"
+                      title={b.title}
                       onClick={() => onSelect({ kind: "exercise", id: b.exerciseId! })}
                     >
                       {b.text}
@@ -240,7 +248,6 @@ export function Sidebar(props: Props) {
                   )}
                 </li>
               ))}
-              {blockers.length > 6 && <li>…e altri {blockers.length - 6}</li>}
             </ul>
           </div>
         )}
