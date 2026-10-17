@@ -59,6 +59,38 @@ Il backend non va avviato a mano: lo lancia Electron su una porta libera e lo fe
 L'app non ha menu; durante lo sviluppo F12 apre gli strumenti per sviluppatori e Ctrl+R ricarica
 la pagina dopo aver completato il salvataggio.
 
+## Creare l'installer per Windows
+
+Dentro `frontend/` (con il server Vite spento, che altrimenti blocca la cartella di uscita):
+
+```bash
+npm run prepara-python   # una volta, o dopo aver cambiato il backend o le sue dipendenze
+npm run installer        # build dell'interfaccia e installer in release/
+```
+
+`prepara-python` scarica Python 3.13 "embeddable" da python.org (controllandone l'impronta
+SHA256), vi installa le dipendenze del backend con le stesse versioni del venv e copia il codice
+del backend in `python-runtime/`. Lo stesso `python.exe` avvia il backend ed esegue le soluzioni
+degli esercizi, come in sviluppo; per questo il backend non è trasformato in un unico `.exe`.
+
+L'installer (`release/Editor-tracce-CodeRunner-Setup-<versione>.exe`) installa l'app per
+l'utente corrente, senza permessi di amministratore, con collegamenti sul desktop e nel menu
+Start. La disinstallazione non cancella l'archivio delle tracce.
+
+L'installer non ha firma digitale: al primo avvio Windows può mostrare "Windows ha protetto il
+PC". Si prosegue con **Ulteriori informazioni** → **Esegui comunque**.
+
+## Sicurezza
+
+- Il backend ascolta solo su `127.0.0.1` e a ogni avvio Electron genera un codice segreto che
+  passa al backend (variabile d'ambiente) e alla pagina (preload): le API rispondono solo alle
+  richieste con l'intestazione `X-App-Token` corretta. Così una pagina web aperta nel browser
+  non può usare il backend, che esegue codice Python.
+- Nell'app installata la pagina ha una Content Security Policy: script solo dai file dell'app e
+  connessioni solo verso il backend locale. Un eventuale script dentro il testo HTML di un
+  esercizio importato non viene eseguito.
+- La pagina non ha accesso a Node.js (`contextIsolation`), solo alle funzioni del preload.
+
 ## Test e controlli
 
 ```bash
@@ -78,7 +110,8 @@ cd backend
 .venv/Scripts/python.exe -m tesi --port 8000
 ```
 
-Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API:
+Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API. Avviato a mano
+il backend non richiede il codice segreto (lo richiede solo se c'è la variabile `TESI_TOKEN`).
 
 | Endpoint | Cosa fa |
 |---|---|

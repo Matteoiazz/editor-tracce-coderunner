@@ -1,22 +1,26 @@
-// Chiamate al backend Python. L'indirizzo lo fornisce Electron, perché la porta cambia a ogni avvio.
+// Chiamate al backend Python. Indirizzo e codice segreto li fornisce Electron, perché cambiano
+// a ogni avvio.
 
 import type { ArchivedTrack, ExerciseMatch, TrackSummary } from "./archive";
 import type { Question, TestOutcome } from "./types";
 
-let backendUrl: Promise<string> | null = null;
+let connection: Promise<BackendConnection> | null = null;
 
-function getBackendUrl(): Promise<string> {
-  backendUrl ??= window.desktop.getBackendUrl();
-  return backendUrl;
+function getConnection(): Promise<BackendConnection> {
+  connection ??= window.desktop.getBackendConnection();
+  return connection;
 }
 
 export const BACKEND_UNREACHABLE =
   "Il backend non risponde. Chiudi e riapri l'applicazione; se il problema continua, riavvia il computer.";
 
 async function send(path: string, init: RequestInit): Promise<Response> {
+  const { url, token } = await getConnection();
+  const headers = new Headers(init.headers);
+  headers.set("X-App-Token", token);
   let response: Response;
   try {
-    response = await fetch(`${await getBackendUrl()}${path}`, init);
+    response = await fetch(`${url}${path}`, { ...init, headers });
   } catch {
     // fetch fallisce senza risposta solo se il backend non è raggiungibile
     throw new Error(BACKEND_UNREACHABLE);

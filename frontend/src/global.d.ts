@@ -4,9 +4,15 @@ interface OpenedFile {
   content: string;
 }
 
+/** Indirizzo del backend e codice segreto da presentare a ogni richiesta. */
+interface BackendConnection {
+  url: string;
+  token: string;
+}
+
 interface Window {
   desktop: {
-    getBackendUrl(): Promise<string>;
+    getBackendConnection(): Promise<BackendConnection>;
     /** Apre la finestra "Apri file"; null se l'utente annulla. */
     openXmlFile(): Promise<OpenedFile | null>;
     /** Scelta di più file XML; lista vuota se l'utente annulla. */

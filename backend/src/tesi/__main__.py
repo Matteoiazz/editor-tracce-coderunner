@@ -1,6 +1,7 @@
 """Punto di ingresso: `python -m tesi --port 8000 [--data-dir CARTELLA]`."""
 
 import argparse
+import os
 from pathlib import Path
 
 import uvicorn
@@ -16,7 +17,10 @@ def main() -> None:
     args = parser.parse_args()
 
     # Solo localhost: il backend serve esclusivamente l'app Electron sulla stessa macchina.
-    uvicorn.run(create_app(args.data_dir), host="127.0.0.1", port=args.port, log_level="info")
+    # Il codice segreto arriva da Electron come variabile d'ambiente, non sulla riga di
+    # comando, dove sarebbe visibile ad altri programmi; avviato a mano il backend non lo usa.
+    app = create_app(args.data_dir, token=os.environ.get("TESI_TOKEN") or None)
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="info")
 
 
 if __name__ == "__main__":

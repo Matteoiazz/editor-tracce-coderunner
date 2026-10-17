@@ -30,3 +30,7 @@ out/
 # IDE
 .idea/
 .vscode/
+
+# Installer
+frontend/python-runtime/
+frontend/release/

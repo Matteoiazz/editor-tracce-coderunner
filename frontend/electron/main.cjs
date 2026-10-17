@@ -3,6 +3,7 @@
 
 const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
 const { spawn } = require("node:child_process");
+const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
@@ -20,6 +21,9 @@ const CLOSE_TIMEOUT_MS = 3000;
 
 let backendProcess = null;
 let backendPort = null;
+// Codice segreto generato a ogni avvio: il backend risponde solo a chi lo presenta, cioè
+// alla pagina dell'app. Senza, una pagina web aperta nel browser potrebbe chiamarlo.
+const backendToken = crypto.randomBytes(32).toString("hex");
 // Ultime righe scritte dal backend sugli errori: servono a spiegare un avvio fallito.
 let backendErrorTail = "";
 let backendExitCode = null;
@@ -37,18 +41,31 @@ function getFreePort() {
   });
 }
 
-/** In sviluppo usa il Python del venv del progetto. */
-function pythonExecutable() {
-  return path.join(__dirname, "..", "..", "backend", ".venv", "Scripts", "python.exe");
+/** Come avviare il backend. In sviluppo: il Python del venv e i sorgenti del progetto.
+ *  Nell'app installata: il Python incluso (risorsa "python"), che contiene già il codice del
+ *  backend e le sue dipendenze, preparato da scripts/prepara_python.py. */
+function backendCommand() {
+  if (isDev) {
+    const backendDir = path.join(__dirname, "..", "..", "backend");
+    return {
+      python: path.join(backendDir, ".venv", "Scripts", "python.exe"),
+      cwd: backendDir,
+      env: { PYTHONPATH: path.join(backendDir, "src") },
+    };
+  }
+  const runtime = path.join(process.resourcesPath, "python");
+  return { python: path.join(runtime, "python.exe"), cwd: runtime, env: {} };
 }
 
 function startBackend(port) {
-  const backendDir = path.join(__dirname, "..", "..", "backend");
+  const { python, cwd, env } = backendCommand();
   // L'archivio delle tracce sta nella cartella dati dell'applicazione
   const args = ["-m", "tesi", "--port", String(port), "--data-dir", app.getPath("userData")];
-  backendProcess = spawn(pythonExecutable(), args, {
-    cwd: backendDir,
-    env: { ...process.env, PYTHONPATH: path.join(backendDir, "src"), PYTHONUNBUFFERED: "1" },
+  backendProcess = spawn(python, args, {
+    cwd,
+    env: { ...process.env, ...env, PYTHONUNBUFFERED: "1", TESI_TOKEN: backendToken },
+    // Senza, Windows aprirebbe una finestra del prompt dei comandi accanto all'app
+    windowsHide: true,
   });
   backendProcess.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
   backendProcess.stderr.on("data", (d) => {
@@ -101,6 +118,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    // Nell'app installata l'icona viene dall'eseguibile; in sviluppo va indicata
+    ...(isDev && { icon: path.join(__dirname, "..", "build", "icon.png") }),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       // Sicurezza: la pagina non ha accesso a Node.js, solo a ciò che espone il preload.
@@ -181,8 +200,11 @@ function openInBrowser(url) {
   }
 }
 
-// Il renderer chiede al main process su quale porta gira il backend.
-ipcMain.handle("backend:get-url", () => `http://127.0.0.1:${backendPort}`);
+// Il renderer chiede al main process su quale porta gira il backend e con quale codice.
+ipcMain.handle("backend:get-connection", () => ({
+  url: `http://127.0.0.1:${backendPort}`,
+  token: backendToken,
+}));
 
 // Più file XML insieme, per importarli nell'archivio
 ipcMain.handle("dialog:open-xml-multiple", async (event) => {
