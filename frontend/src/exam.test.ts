@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  adaptGradesToKind,
+  adaptItemsToKind,
+  adaptQuestionToKind,
   adoptImported,
   canAddExercise,
   createQuestion,
@@ -303,21 +304,46 @@ describe("duplicateQuestion", () => {
   });
 });
 
-describe("adaptGradesToKind", () => {
+describe("adaptItemsToKind", () => {
   it("adatta solo i punti predefiniti al nuovo tipo", () => {
     const standard = createQuestion(1, esame); // 5 punti, predefiniti per l'esame
     const chosen = { ...createQuestion(2, esame), question: { ...createQuestion(2, esame).question, default_grade: 6 } };
 
-    const [a, b] = adaptGradesToKind([standard, chosen], "Esame", "Pretest");
+    const [a, b] = adaptItemsToKind([standard, chosen], "Esame", "Pretest");
 
     expect(a.question.default_grade).toBe(1);
     expect(b.question.default_grade).toBe(6);
-    expect(adaptGradesToKind([a], "Pretest", "Esame")[0].question.default_grade).toBe(5);
+    expect(adaptItemsToKind([a], "Pretest", "Esame")[0].question.default_grade).toBe(5);
   });
 
   it("senza cambio di tipo non cambia nulla", () => {
     const items = [createQuestion(1, esame)];
-    expect(adaptGradesToKind(items, "Esame", "Esame")).toBe(items);
-    expect(adaptGradesToKind(items, null, "Pretest")).toBe(items);
+    expect(adaptItemsToKind(items, "Esame", "Esame")).toBe(items);
+    expect(adaptItemsToKind(items, null, "Pretest")).toBe(items);
+  });
+});
+
+describe("adaptQuestionToKind", () => {
+  it("il tag con il nome del tipo di provenienza diventa quello nuovo", () => {
+    const question = { ...createQuestion(1, esame).question, default_grade: 1, tags: ["Pretest", "liste"] };
+
+    const adapted = adaptQuestionToKind(question, "Pretest", "Esame");
+
+    expect(adapted.default_grade).toBe(5);
+    expect(adapted.tags).toEqual(["Esame", "liste"]);
+  });
+
+  it("non crea tag doppi", () => {
+    const question = { ...createQuestion(1, esame).question, tags: ["Pretest", "Esame"] };
+    expect(adaptQuestionToKind(question, "Pretest", "Esame").tags).toEqual(["Esame"]);
+  });
+
+  it("un esercizio del pretest importato in un esame ne prende punti e tag", () => {
+    const pretest = { ...importedQuestion("Pretest-2026-07-03-Traccia1"), default_grade: 1, tags: ["Pretest"] };
+
+    const [item] = adoptImported([pretest], [], esame, []).items;
+
+    expect(item.question.default_grade).toBe(5);
+    expect(item.question.tags).toEqual(["Esame"]);
   });
 });

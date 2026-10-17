@@ -32,7 +32,10 @@ TARGET = FRONTEND / "python-runtime"
 
 # Percorsi in cui l'interprete cerca i moduli. Il file ._pth sostituisce le variabili
 # d'ambiente: il Python incluso non vede installazioni di Python già presenti sul computer.
-PTH_LINES = ["python313.zip", ".", "Lib\\site-packages", "app"]
+# "import site" carica il modulo site, che definisce exit() e quit() come nel Python normale
+# (le soluzioni possono usarle); Electron avvia il backend con -I, quindi site non aggiunge
+# i pacchetti installati dall'utente.
+PTH_LINES = ["python313.zip", ".", "Lib\\site-packages", "app", "import site"]
 
 
 def download(url: str, destination: Path) -> None:
@@ -84,12 +87,15 @@ def copy_backend() -> None:
 
 
 def check() -> None:
-    """Il Python preparato deve avviare il backend senza il venv."""
+    """Il Python preparato deve avviare il backend senza il venv ed eseguire le soluzioni
+    come il Python normale."""
     python = TARGET / "python.exe"
     subprocess.run(
         [str(python), "-I", "-c", "import tesi.api.app, uvicorn; print('Backend importato')"],
         check=True,
     )
+    # exit() e quit() devono esistere come nel Python installato normalmente
+    subprocess.run([str(python), "-I", "-c", "exit()"], check=True)
 
 
 def main() -> None:

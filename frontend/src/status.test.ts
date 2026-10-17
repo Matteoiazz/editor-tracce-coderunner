@@ -22,6 +22,7 @@ function complete(): EditableQuestion {
     question: {
       ...item.question,
       text_html: "<p>Calcola la somma.</p>",
+      solution: item.question.solution.replace("return None", "return sum(lst)"),
       student_code: "def calcola(lst):\n    return None\n",
     },
   };
@@ -100,6 +101,17 @@ describe("exerciseStatus", () => {
     expect(
       exerciseStatus({ ...item, specific: [newRow("0\n5")] }, common, undefined).sections.tests,
     ).toEqual({ state: "warning", note: "1 test da calcolare" });
+  });
+});
+
+describe("exerciseStatus sulla soluzione di partenza", () => {
+  it("la soluzione non ancora scritta resta da fare", () => {
+    const item = { ...complete(), question: { ...complete().question, solution: createQuestion(1, exam).question.solution } };
+
+    const status = exerciseStatus(item, common, undefined);
+
+    expect(status.sections.solution.state).toBe("todo");
+    expect(status.ready).toBe(false);
   });
 });
 

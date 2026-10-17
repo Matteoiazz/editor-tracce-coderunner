@@ -11,6 +11,14 @@ export interface TestCase {
   extra: string;
 }
 
+/** File incorporato nel testo (es. un'immagine), richiamato con @@PLUGINFILE@@/nome. */
+export interface EmbeddedFile {
+  name: string;
+  path: string;
+  encoding: string;
+  content: string;
+}
+
 export interface Question {
   name: string;
   text_html: string;
@@ -23,6 +31,8 @@ export interface Question {
   default_grade: number;
   general_feedback_html: string;
   tags: string[];
+  /** File richiamati dal testo, riscritti così come sono nell'XML esportato. */
+  text_files: EmbeddedFile[];
   settings: Record<string, string>;
 }
 

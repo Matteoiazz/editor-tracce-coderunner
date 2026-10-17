@@ -152,7 +152,7 @@ export function ArchivePanel(props: Props) {
         visible.length === 0 ? (
           <p className="empty-state">
             {tracks.length === 0
-              ? "L'archivio è vuoto: le tracce compaiono qui appena hanno data, tipo o esercizi."
+              ? "L'archivio è vuoto: una traccia compare qui appena ha un esercizio o dei test comuni."
               : "Nessuna traccia con questi filtri."}
           </p>
         ) : (

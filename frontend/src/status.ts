@@ -2,7 +2,7 @@
 // esiti della verifica, puntini dei test, stato di ogni sezione, riepilogo dell'esame.
 
 import { type EditableQuestion, unsupportedReason } from "./exam";
-import { hasText, normalizeCode } from "./export";
+import { hasText, isSkeletonSolution, normalizeCode } from "./export";
 import {
   composeTests,
   inputLineCount,
@@ -116,9 +116,11 @@ export function exerciseStatus(
   const text = hasText(question.text_html)
     ? section("done", "Testo presente")
     : section("todo", "Scrivi il testo della traccia");
-  const solution = question.solution.trim()
-    ? section("done", "Soluzione presente")
-    : section("todo", "Scrivi la soluzione");
+  const solution = !question.solution.trim()
+    ? section("todo", "Scrivi la soluzione")
+    : isSkeletonSolution(question.solution)
+      ? section("todo", "Sostituisci la soluzione di partenza con quella vera")
+      : section("done", "Soluzione presente");
   const studentCode = !question.student_code.trim()
     ? section("todo", "Genera il codice dalla soluzione")
     : normalizeCode(question.student_code) === normalizeCode(question.solution)

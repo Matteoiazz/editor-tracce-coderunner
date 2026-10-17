@@ -30,7 +30,7 @@ import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
 import { type Blocker, type Selection, Sidebar } from "./components/Sidebar";
 import {
-  adaptGradesToKind,
+  adaptItemsToKind,
   adoptImported,
   canAddExercise,
   createQuestion,
@@ -43,8 +43,14 @@ import {
   questionName,
   unsupportedReason,
 } from "./exam";
-import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
-import { EMPTY_EXAM, type ExamInfo } from "./naming";
+import {
+  exportFileName,
+  exportProblemList,
+  exportProblems,
+  prepareQuestion,
+  sortedByNumber,
+} from "./export";
+import { EMPTY_EXAM, type ExamInfo, localDay } from "./naming";
 import { isEmptySession, parseSession } from "./session";
 import {
   examSummary,
@@ -206,6 +212,10 @@ export function App() {
 
   function select(next: Selection) {
     setSelection(next);
+    // Un messaggio informativo riguarda la vista precedente: al cambio di vista sparisce.
+    // Non sparisce invece a tempo, perché la pagina salirebbe sotto il mouse del docente.
+    // Gli errori restano finché non vengono chiusi.
+    setNotice(null);
     mainRef.current?.scrollTo({ top: 0 });
     // Aprire un esercizio conferma di averne visto gli esiti aggiornati
     if (next?.kind === "exercise" && records[next.id]?.unseen) {
@@ -264,6 +274,10 @@ export function App() {
     if (id === trackId) {
       openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] }, false);
       setSelection({ kind: "archive" });
+      setNotice(
+        "La traccia aperta è stata spostata nel cestino (scheda Cestino, da cui si può " +
+          "ripristinare). Ora è aperta una traccia nuova.",
+      );
     }
   }
 
@@ -279,8 +293,7 @@ export function App() {
   async function handleBackup() {
     clearMessages();
     await flushSave();
-    const today = new Date().toISOString().slice(0, 10);
-    const path = await window.desktop.chooseBackupTarget(`archivio-tracce-${today}.db`);
+    const path = await window.desktop.chooseBackupTarget(`archivio-tracce-${localDay()}.db`);
     if (!path) return;
     const count = await backupArchive(path);
     setNotice(`Backup salvato in ${path} (${count === 1 ? "1 traccia" : `${count} tracce`}).`);
@@ -325,6 +338,7 @@ export function App() {
       items,
       exam,
       common,
+      source.kind,
     );
     if (adopted) setCommon(adopted);
     setItems((current) => [...current, item]);
@@ -344,7 +358,7 @@ export function App() {
   }
 
   function handleExamChange(next: ExamInfo) {
-    if (next.kind !== exam.kind) setItems((current) => adaptGradesToKind(current, exam.kind, next.kind));
+    if (next.kind !== exam.kind) setItems((current) => adaptItemsToKind(current, exam.kind, next.kind));
     setExam(next);
   }
 
@@ -467,7 +481,7 @@ export function App() {
     const rest = items.filter((it) => it.id !== item.id);
     setItems(rest);
     const neighbour = rest[Math.min(index, rest.length - 1)];
-    setSelection(neighbour ? { kind: "exercise", id: neighbour.id } : null);
+    select(neighbour ? { kind: "exercise", id: neighbour.id } : null);
   }
 
   function updateItem(id: string, change: (item: EditableQuestion) => EditableQuestion) {
@@ -491,10 +505,9 @@ export function App() {
     title: `${questionName(it, exam)}: ${problem}`,
     exerciseId: it.id,
   });
-  const blockers: Blocker[] = exportProblems(items, exam, common).map((text) => {
-    const it = items.find((item) => text.startsWith(`${questionName(item, exam)}: `));
-    return it ? blockerFor(it, text.slice(questionName(it, exam).length + 2)) : { text };
-  });
+  const blockers: Blocker[] = exportProblemList(items, exam, common).map((problem) =>
+    problem.item && problem.issue ? blockerFor(problem.item, problem.issue) : { text: problem.text },
+  );
   for (const it of items) {
     const failed = statuses.get(it.id)?.failed ?? 0;
     if (failed > 0) {

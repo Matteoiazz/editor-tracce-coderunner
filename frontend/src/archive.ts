@@ -2,7 +2,7 @@
 // (tesi.domain.track nel backend). Gli identificativi dei test servono solo all'interfaccia:
 // nell'archivio gli output dei test comuni sono salvati nello stesso ordine dei test.
 
-import { type EditableQuestion, nextNumber } from "./exam";
+import { adaptQuestionToKind, type EditableQuestion, nextNumber } from "./exam";
 import { buildName, type ExamInfo, type ExamKind, formatDay } from "./naming";
 
 export { formatDay };
@@ -132,6 +132,7 @@ export interface ReusedExercise {
 }
 
 /** Copia nella traccia aperta un esercizio di un'altra traccia, con il numero successivo.
+ *  Da una traccia di altro tipo (es. dal pretest a un esame) prende punti e tag del tipo corrente.
  *  I test comuni dell'esercizio di provenienza:
  *  - se la traccia ha gli stessi test comuni, l'esercizio li usa con i propri output;
  *  - se la traccia è ancora vuota (né test comuni né esercizi), li adotta;
@@ -143,19 +144,21 @@ export function reuseExercise(
   items: EditableQuestion[],
   exam: ExamInfo,
   common: TestRow[],
+  sourceKind: ExamKind | null = null,
 ): ReusedExercise {
   const number = nextNumber(items);
   const specific = source.question.testcases.map(toRow);
+  const question = {
+    ...source.question,
+    name: buildName(number, exam) ?? source.question.name,
+    testcases: [],
+    tags: [...source.question.tags],
+    settings: { ...source.question.settings },
+  };
   const base = {
     id: crypto.randomUUID(),
     number,
-    question: {
-      ...source.question,
-      name: buildName(number, exam) ?? source.question.name,
-      testcases: [],
-      tags: [...source.question.tags],
-      settings: { ...source.question.settings },
-    },
+    question: adaptQuestionToKind(question, sourceKind, exam.kind),
   };
   const expectedFor = (rows: TestRow[]) =>
     Object.fromEntries(

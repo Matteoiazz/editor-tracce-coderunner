@@ -167,3 +167,20 @@ describe("reuseExercise", () => {
     expect(item.specific).toHaveLength(1);
   });
 });
+
+describe("reuseExercise da una traccia di altro tipo", () => {
+  it("un esercizio del pretest copiato in un esame ne prende punti e tag", () => {
+    const { question } = createQuestion(1, { date: "2026-07-03", kind: "Pretest", track: 1 });
+    const fromPretest: ArchivedExercise = {
+      number: 1,
+      use_common: false,
+      common_expected: [],
+      question: { ...question, default_grade: 1, tags: ["Pretest", "liste"] },
+    };
+
+    const { item } = reuseExercise(fromPretest, [], [], exam, [], "Pretest");
+
+    expect(item.question.default_grade).toBe(5);
+    expect(item.question.tags).toEqual(["Esame", "liste"]);
+  });
+});

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createQuestion, type EditableQuestion } from "./exam";
-import { exportFileName, exportProblems, prepareQuestion, sortedByNumber } from "./export";
+import {
+  exportFileName,
+  exportProblemList,
+  exportProblems,
+  prepareQuestion,
+  sortedByNumber,
+} from "./export";
 import type { ExamInfo } from "./naming";
 import { newRow, standardCommonTests } from "./testcases";
 
@@ -17,6 +23,7 @@ function readyQuestion(number: number): EditableQuestion {
     question: {
       ...item.question,
       text_html: "<p>Implementare la funzione <strong>calcola(lst)</strong>.</p>",
+      solution: item.question.solution.replace("return None", "return sum(lst)"),
       student_code: "def calcola(lst):\n    return None\n",
     },
   };
@@ -162,5 +169,30 @@ describe("exportProblems per il pretest", () => {
     expect(exportProblems([readyQuestion(1)], { ...esame, track: null }, common)).toContain(
       "Esame: manca il numero della traccia",
     );
+  });
+});
+
+describe("exportProblems sulla soluzione di partenza", () => {
+  it("blocca un esercizio con la soluzione ancora da scrivere", () => {
+    const item = readyQuestion(1);
+    const untouched = { ...item, question: { ...item.question, solution: createQuestion(1, esame).question.solution } };
+
+    expect(exportProblems([untouched], esame, common)).toContain(
+      "Esame-2026-10-15-Traccia1-Esercizio1: la soluzione è ancora quella di partenza: scrivi la soluzione vera",
+    );
+  });
+});
+
+describe("exportProblemList", () => {
+  it("collega ogni problema al suo esercizio anche con nomi uguali", () => {
+    const pretest: ExamInfo = { ...esame, kind: "Pretest" };
+    const first = readyQuestion(1);
+    const second = { ...readyQuestion(2), question: { ...readyQuestion(2).question, text_html: "" } };
+
+    const problems = exportProblemList([first, second], pretest, common);
+
+    const empty = problems.find((p) => p.issue === "il testo della traccia è vuoto");
+    expect(empty?.item?.id).toBe(second.id);
+    expect(problems[0]).toEqual({ text: "Il pretest ha un solo esercizio: ce ne sono 2, rimuovi quelli in più" });
   });
 });

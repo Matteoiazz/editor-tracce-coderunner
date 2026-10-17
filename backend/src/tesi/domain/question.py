@@ -30,6 +30,17 @@ class TestCase:
 
 
 @dataclass
+class EmbeddedFile:
+    """File incorporato nel testo dell'esercizio (es. un'immagine), come negli XML di Moodle:
+    il testo lo richiama con ``@@PLUGINFILE@@/nome``."""
+
+    name: str
+    path: str = "/"
+    encoding: str = "base64"
+    content: str = ""
+
+
+@dataclass
 class Question:
     """Un esercizio completo, come lo prepara il docente."""
 
@@ -45,6 +56,8 @@ class Question:
     default_grade: float = 1.0
     general_feedback_html: str = ""
     tags: list[str] = field(default_factory=list)
+    # File richiamati dal testo: conservati per riscriverli all'esportazione
+    text_files: list[EmbeddedFile] = field(default_factory=list)
     # Impostazioni della piattaforma che l'app non modifica: conservate così come sono,
     # per non perderle quando un esercizio viene importato e poi riesportato.
     settings: dict[str, str] = field(default_factory=dict)

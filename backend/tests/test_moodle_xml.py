@@ -142,3 +142,37 @@ def test_cdata_con_la_sequenza_di_chiusura_nel_testo() -> None:
 
     assert reimported.text_html == q.text_html
     assert reimported.solution == q.solution
+
+
+_WITH_IMAGE = """<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="coderunner">
+    <name><text>Esame-2026-01-10-Traccia1-Esercizio1</text></name>
+    <questiontext format="html">
+      <text><![CDATA[<p>Guarda lo schema: <img src="@@PLUGINFILE@@/schema.png"></p>]]></text>
+      <file name="schema.png" path="/" encoding="base64">iVBORw0KGgo=</file>
+    </questiontext>
+    <coderunnertype>python3_w_input</coderunnertype>
+    <answer>print(1)</answer>
+    <testcases></testcases>
+  </question>
+</quiz>
+"""
+
+
+def test_le_immagini_incorporate_restano_nel_file_esportato() -> None:
+    [q] = parse_quiz(_WITH_IMAGE)
+    assert [f.name for f in q.text_files] == ["schema.png"]
+
+    [again] = parse_quiz(to_quiz_xml([q]))
+
+    assert again.text_files == q.text_files
+    assert again.text_files[0].content == "iVBORw0KGgo="
+    assert '@@PLUGINFILE@@/schema.png' in again.text_html
+
+
+def test_errore_leggibile_se_i_punti_non_sono_un_numero() -> None:
+    xml = _WITH_IMAGE.replace("<answer>", "<defaultgrade>cinque</defaultgrade><answer>")
+
+    with pytest.raises(MoodleXmlError, match="«cinque»"):
+        read_quiz(xml)

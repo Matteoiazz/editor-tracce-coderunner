@@ -1,9 +1,10 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
 
-const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
+const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
@@ -49,18 +50,24 @@ function backendCommand() {
     const backendDir = path.join(__dirname, "..", "..", "backend");
     return {
       python: path.join(backendDir, ".venv", "Scripts", "python.exe"),
+      flags: [],
       cwd: backendDir,
       env: { PYTHONPATH: path.join(backendDir, "src") },
     };
   }
   const runtime = path.join(process.resourcesPath, "python");
-  return { python: path.join(runtime, "python.exe"), cwd: runtime, env: {} };
+  // -I: il backend ignora variabili d'ambiente e pacchetti Python installati sul computer;
+  // -u: output non bufferizzato (con -I la variabile PYTHONUNBUFFERED non vale)
+  return { python: path.join(runtime, "python.exe"), flags: ["-I", "-u"], cwd: runtime, env: {} };
 }
 
 function startBackend(port) {
-  const { python, cwd, env } = backendCommand();
+  const { python, flags, cwd, env } = backendCommand();
   // L'archivio delle tracce sta nella cartella dati dell'applicazione
-  const args = ["-m", "tesi", "--port", String(port), "--data-dir", app.getPath("userData")];
+  const args = [
+    ...flags,
+    ...["-m", "tesi", "--port", String(port), "--data-dir", app.getPath("userData")],
+  ];
   backendProcess = spawn(python, args, {
     cwd,
     env: { ...process.env, ...env, PYTHONUNBUFFERED: "1", TESI_TOKEN: backendToken },
@@ -114,10 +121,70 @@ async function waitForBackend(port, timeoutMs = 15000) {
   throw new Error("Il backend non ha risposto entro il tempo limite");
 }
 
+// ---------------------------------------------------------------- dimensione della finestra
+// Sotto queste misure la colonna laterale e l'esercizio non stanno più affiancati
+const MIN_WIDTH = 960;
+const MIN_HEIGHT = 600;
+
+function windowStateFile() {
+  return path.join(app.getPath("userData"), "finestra.json");
+}
+
+/** Dimensione e posizione dell'ultima chiusura, se la finestra cade ancora su uno schermo
+ *  (un monitor esterno potrebbe essere stato scollegato); altrimenti null. */
+function savedWindowState() {
+  try {
+    const state = JSON.parse(fsSync.readFileSync(windowStateFile(), "utf-8"));
+    const { x, y, width, height } = state;
+    if (![x, y, width, height].every(Number.isFinite)) return null;
+    const area = screen.getDisplayMatching({ x, y, width, height }).workArea;
+    const visible =
+      x < area.x + area.width && x + width > area.x && y < area.y + area.height && y + height > area.y;
+    return visible ? { x, y, width, height, maximized: state.maximized === true } : null;
+  } catch {
+    return null; // primo avvio o file illeggibile
+  }
+}
+
+/** Al primo avvio: finestra ampia ma contenuta nello schermo, al centro. */
+function defaultWindowState() {
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  return { width: Math.min(1280, area.width), height: Math.min(820, area.height), maximized: false };
+}
+
+/** Alla chiusura si ricordano dimensione, posizione e finestra massimizzata. Le misure si
+ *  aggiornano solo quando la finestra viene spostata o ridimensionata senza essere
+ *  massimizzata: rileggerle a ogni chiusura le farebbe crescere di qualche pixel a ogni avvio,
+ *  per gli arrotondamenti di Windows con il ridimensionamento dello schermo non intero. */
+function rememberWindowState(win, initial) {
+  let bounds = initial.x === undefined ? win.getBounds() : initial;
+  const track = () => {
+    if (!win.isMaximized() && !win.isMinimized()) bounds = win.getBounds();
+  };
+  win.on("resized", track);
+  win.on("moved", track);
+  win.once("close", () => {
+    try {
+      const { x, y, width, height } = bounds;
+      const state = { x, y, width, height, maximized: win.isMaximized() };
+      fsSync.writeFileSync(windowStateFile(), JSON.stringify(state));
+    } catch (err) {
+      console.error(`Dimensione della finestra non salvata: ${err.message}`);
+    }
+  });
+}
+
 function createWindow() {
+  const state = savedWindowState() ?? defaultWindowState();
+  const area = screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    x: state.x,
+    y: state.y,
+    width: state.width,
+    height: state.height,
+    // Su uno schermo più piccolo delle misure minime vale lo schermo
+    minWidth: Math.min(MIN_WIDTH, area.width),
+    minHeight: Math.min(MIN_HEIGHT, area.height),
     // Nell'app installata l'icona viene dall'eseguibile; in sviluppo va indicata
     ...(isDev && { icon: path.join(__dirname, "..", "build", "icon.png") }),
     webPreferences: {
@@ -127,6 +194,8 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  if (state.maximized) win.maximize();
+  rememberWindowState(win, state);
   protectWork(win);
   completeSaveOnClose(win);
   if (isDev) developerShortcuts(win);

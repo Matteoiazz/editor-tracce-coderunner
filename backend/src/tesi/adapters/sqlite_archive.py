@@ -19,6 +19,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from tesi.domain import (
+    EmbeddedFile,
     ExamKind,
     ExamTrack,
     ExerciseMatch,
@@ -366,6 +367,8 @@ def plain_text(text_html: str) -> str:
 def _exercise(data: dict) -> TrackExercise:
     question = dict(data["question"])
     question["testcases"] = [TestCase(**test) for test in question["testcases"]]
+    # Gli esercizi salvati prima dei file incorporati non hanno il campo
+    question["text_files"] = [EmbeddedFile(**f) for f in question.get("text_files", [])]
     return TrackExercise(
         question=Question(**question),
         number=data["number"],

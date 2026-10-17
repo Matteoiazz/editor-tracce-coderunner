@@ -66,9 +66,17 @@ export async function importIntoArchive(
   for (const questions of groups.values()) {
     const { exam, common, items } = adoptImported(questions, [], EMPTY_EXAM, []);
     const label = trackLabel({ kind: exam.kind, day: exam.date || null, number: exam.track });
-    const duplicate = existing.some(
-      (t) => t.kind === exam.kind && t.day === (exam.date || null) && t.number === exam.track,
-    );
+    // Già presente: stessa traccia con data e con esercizi. Una traccia senza data non si può
+    // riconoscere, e una vuota non contiene nulla da proteggere: in questi casi si importa.
+    const duplicate =
+      exam.date !== "" &&
+      existing.some(
+        (t) =>
+          t.kind === exam.kind &&
+          t.day === exam.date &&
+          t.number === exam.track &&
+          t.exercise_count > 0,
+      );
     if (duplicate) {
       report.skipped.push(label);
       continue;

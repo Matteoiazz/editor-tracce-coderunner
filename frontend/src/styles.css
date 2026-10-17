@@ -273,6 +273,9 @@ input[type="checkbox"] {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Lo spazio della barra di scorrimento resta riservato: passando da una vista lunga a una
+     corta il contenuto non si sposta di lato */
+  scrollbar-gutter: stable;
   padding: 0 40px 72px;
 }
 

@@ -14,7 +14,8 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   (`python3_w_input`).
 - **Verifica**: la soluzione viene eseguita su ogni test e confrontata con l'output atteso;
   l'esportazione è possibile solo quando tutto è superato.
-- **Import ed export XML Moodle**, nello stesso formato degli export di Moodle (CDATA).
+- **Import ed export XML Moodle**, nello stesso formato degli export di Moodle (CDATA); le
+  immagini incorporate nel testo vengono riportate nel file esportato.
 - **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di
   un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
 
@@ -56,6 +57,8 @@ npm run electron   # apre l'app: avvia da sola il backend Python
 ```
 
 Il backend non va avviato a mano: lo lancia Electron su una porta libera e lo ferma alla chiusura.
+Dimensione, posizione e finestra massimizzata vengono ricordate tra un avvio e l'altro
+(`finestra.json` nella cartella dati).
 L'app non ha menu; durante lo sviluppo F12 apre gli strumenti per sviluppatori e Ctrl+R ricarica
 la pagina dopo aver completato il salvataggio.
 
@@ -90,6 +93,8 @@ PC". Si prosegue con **Ulteriori informazioni** → **Esegui comunque**.
   connessioni solo verso il backend locale. Un eventuale script dentro il testo HTML di un
   esercizio importato non viene eseguito.
 - La pagina non ha accesso a Node.js (`contextIsolation`), solo alle funzioni del preload.
+- Nell'app installata il backend gira con `python -I`: non legge variabili d'ambiente né pacchetti
+  Python installati sul computer, quindi si comporta allo stesso modo su ogni PC.
 
 ## Test e controlli
 

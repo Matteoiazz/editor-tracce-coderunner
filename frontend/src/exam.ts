@@ -38,20 +38,31 @@ export function defaultGrade(kind: ExamKind | null): number {
   return kind === "Pretest" ? 1 : 5;
 }
 
-/** Al cambio di tipo (Esame/Pretest) gli esercizi con i punti predefiniti del tipo precedente
- *  prendono quelli del nuovo tipo; i punti scelti dal docente restano invariati. */
-export function adaptGradesToKind(
+/** Esercizio che passa da un tipo di traccia all'altro (cambio di tipo, riuso, importazione):
+ *  i punti predefiniti del tipo di provenienza e il tag con il suo nome diventano quelli del
+ *  nuovo tipo; punti e tag scelti dal docente restano invariati. */
+export function adaptQuestionToKind(
+  question: Question,
+  from: ExamKind | null,
+  to: ExamKind | null,
+): Question {
+  if (from === null || to === null || from === to) return question;
+  const tags = question.tags.map((tag) => (tag.toLowerCase() === from.toLowerCase() ? to : tag));
+  return {
+    ...question,
+    default_grade: question.default_grade === defaultGrade(from) ? defaultGrade(to) : question.default_grade,
+    tags: [...new Set(tags)],
+  };
+}
+
+/** Al cambio di tipo della traccia ogni esercizio segue il nuovo tipo (vedi adaptQuestionToKind). */
+export function adaptItemsToKind(
   items: EditableQuestion[],
   from: ExamKind | null,
   to: ExamKind | null,
 ): EditableQuestion[] {
   if (from === null || to === null || from === to) return items;
-  const previous = defaultGrade(from);
-  return items.map((item) =>
-    item.question.default_grade === previous
-      ? { ...item, question: { ...item.question, default_grade: defaultGrade(to) } }
-      : item,
-  );
+  return items.map((item) => ({ ...item, question: adaptQuestionToKind(item.question, from, to) }));
 }
 
 /** Nome dell'esercizio secondo la convenzione; se mancano dati resta il nome originale. */
@@ -142,6 +153,7 @@ export function createQuestion(number: number, exam: ExamInfo): EditableQuestion
       default_grade: defaultGrade(exam.kind),
       general_feedback_html: "",
       tags: [],
+      text_files: [],
       settings: {},
     },
   };
@@ -230,7 +242,8 @@ export function adoptImported(
         newCommon.slice(0, commonCount).map((row, i) => [row.id, question.testcases[i].expected]),
       ),
       specific: question.testcases.slice(commonCount).map(toRow),
-      question: { ...question, testcases: [] },
+      // Un esercizio di un altro tipo (es. dal pretest in un esame) ne prende punti e tag
+      question: adaptQuestionToKind({ ...question, testcases: [] }, parts.kind, newExam.kind),
     };
   });
 

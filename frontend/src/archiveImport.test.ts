@@ -79,6 +79,24 @@ describe("importIntoArchive", () => {
     expect(report.skipped).toEqual(["Esame · 3 luglio 2026 · Traccia 1"]);
     expect(report.failed).toEqual(["rotto.xml: non è un XML valido"]);
   });
+
+  it("importa le tracce senza data e quelle che in archivio sono vuote", async () => {
+    const { saved, deps } = fakeDeps();
+    const files = [
+      { path: "a.xml", content: "2026-07 - Esercizio pretest 1" },
+      { path: "b.xml", content: "Esame-2026-07-03-Traccia1-Esercizio1" },
+    ];
+    const undated = { ...summary("Pretest", "", 1), day: null };
+    const empty = { ...summary("Esame", "2026-07-03", 1), exercise_count: 0 };
+
+    const report = await importIntoArchive(files, [undated, empty], deps);
+
+    expect(report.skipped).toEqual([]);
+    expect(saved.map((t) => [t.kind, t.day])).toEqual([
+      ["Pretest", null],
+      ["Esame", "2026-07-03"],
+    ]);
+  });
 });
 
 describe("importReportMessage", () => {

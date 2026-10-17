@@ -1,3 +1,5 @@
+import json
+import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -5,7 +7,7 @@ import pytest
 
 from tesi.adapters.sqlite_archive import SqliteTrackArchive, plain_text
 from tesi.application.archive import duplicate_track
-from tesi.domain import ExamKind, ExamTrack, Question, TestCase, TrackExercise
+from tesi.domain import EmbeddedFile, ExamKind, ExamTrack, Question, TestCase, TrackExercise
 from tesi.ports import InvalidBackup, TrackNotFound, TrackNotInTrash
 
 
@@ -45,6 +47,7 @@ def make_track(track_id: str = "t1", exercises: int = 2) -> ExamTrack:
                     testcases=[TestCase(stdin="5\n10", expected="5\n10\n", use_as_example=True)],
                     default_grade=6,
                     tags=["Python - easy", "liste"],
+                    text_files=[EmbeddedFile(name="schema.png", content="iVBORw0KGgo=")],
                     settings={"penalty": "0.0000000"},
                 ),
             )
@@ -87,6 +90,17 @@ def test_aggiornamento_sostituisce_gli_esercizi_e_mantiene_la_creazione(
     assert len(archive.get("t1").exercises) == 1
     assert second.created_at == first.created_at
     assert second.updated_at > first.updated_at
+
+
+def test_esercizi_salvati_prima_dei_file_incorporati(archive: SqliteTrackArchive) -> None:
+    archive.save(make_track(exercises=1))
+    with sqlite3.connect(archive.path) as db:
+        [(data,)] = db.execute("SELECT data FROM exercises").fetchall()
+        old = json.loads(data)
+        del old["question"]["text_files"]
+        db.execute("UPDATE exercises SET data = ?", (json.dumps(old),))
+
+    assert archive.get("t1").exercises[0].question.text_files == []
 
 
 def test_traccia_inesistente(archive: SqliteTrackArchive) -> None:

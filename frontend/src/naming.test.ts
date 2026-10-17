@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildName, parseName } from "./naming";
+import { buildName, localDay, parseName } from "./naming";
 
 describe("buildName", () => {
   it("compone il nome secondo la convenzione del docente", () => {
@@ -78,5 +78,12 @@ describe("parseName", () => {
       date: "",
       kind: null,
     });
+  });
+});
+
+describe("localDay", () => {
+  it("usa la data del computer anche poco dopo mezzanotte", () => {
+    // 17 ottobre 2026, ore 00:30 locali: per l'ora di Greenwich è ancora il 16
+    expect(localDay(new Date(2026, 9, 17, 0, 30))).toBe("2026-10-17");
   });
 });

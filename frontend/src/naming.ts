@@ -62,3 +62,10 @@ export function formatDay(day: string | null): string | null {
     year: "numeric",
   });
 }
+
+/** Data di oggi (o di `moment`) nel fuso del computer, "AAAA-MM-GG". toISOString userebbe
+ *  l'ora di Greenwich: in Italia, tra mezzanotte e le 2, darebbe il giorno prima. */
+export function localDay(moment: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`;
+}

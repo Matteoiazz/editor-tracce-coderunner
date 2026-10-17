@@ -5,6 +5,7 @@ import {
   type EditableQuestion,
   isValidGrade,
   questionName,
+  SOLUTION_SKELETON,
   unsupportedReason,
 } from "./exam";
 import type { ExamInfo } from "./naming";
@@ -61,27 +62,48 @@ export function normalizeCode(code: string): string {
     .trim();
 }
 
+/** Vero se la soluzione è ancora quella di partenza di un esercizio nuovo, non modificata. */
+export function isSkeletonSolution(solution: string): boolean {
+  return normalizeCode(solution) === normalizeCode(SOLUTION_SKELETON);
+}
+
+/** Problema che impedisce l'esportazione. Se riguarda un esercizio, `item` è l'esercizio e
+ *  `issue` la descrizione senza il nome (due esercizi possono avere lo stesso nome). */
+export interface ExportProblem {
+  text: string;
+  item?: EditableQuestion;
+  issue?: string;
+}
+
 /** Problemi che impediscono l'esportazione; lista vuota se si può esportare. */
 export function exportProblems(
   items: EditableQuestion[],
   exam: ExamInfo,
   common: TestRow[],
 ): string[] {
-  const problems: string[] = [];
-  if (!exam.date) problems.push("Esame: manca la data");
-  if (!exam.kind) problems.push("Esame: manca il tipo (Esame o Pretest)");
-  if (exam.track === null) problems.push("Esame: manca il numero della traccia");
-  if (items.length === 0) problems.push("Nessun esercizio da esportare");
+  return exportProblemList(items, exam, common).map((problem) => problem.text);
+}
+
+/** Come exportProblems, con l'esercizio a cui si riferisce ogni problema. */
+export function exportProblemList(
+  items: EditableQuestion[],
+  exam: ExamInfo,
+  common: TestRow[],
+): ExportProblem[] {
+  const problems: ExportProblem[] = [];
+  const general = (text: string) => problems.push({ text });
+  if (!exam.date) general("Esame: manca la data");
+  if (!exam.kind) general("Esame: manca il tipo (Esame o Pretest)");
+  if (exam.track === null) general("Esame: manca il numero della traccia");
+  if (items.length === 0) general("Nessun esercizio da esportare");
   const pretest = exam.kind === "Pretest";
   if (pretest && items.length > 1) {
-    problems.push(
-      `Il pretest ha un solo esercizio: ce ne sono ${items.length}, rimuovi quelli in più`,
-    );
+    general(`Il pretest ha un solo esercizio: ce ne sono ${items.length}, rimuovi quelli in più`);
   }
 
   const duplicates = pretest ? [] : [...duplicateNumbers(items)].sort((a, b) => a - b);
   if (duplicates.length) {
-    problems.push(`Numeri usati da più esercizi: ${duplicates.join(", ")}`);
+    general(`Numeri usati da più esercizi: ${duplicates.join(", ")}`);
   }
 
   for (const item of sortedByNumber(items)) {
@@ -91,6 +113,9 @@ export function exportProblems(
     if (!isValidGrade(question.default_grade)) issues.push("i punti devono essere maggiori di 0");
     if (!hasText(question.text_html)) issues.push("il testo della traccia è vuoto");
     if (!question.solution.trim()) issues.push("la soluzione è vuota");
+    else if (isSkeletonSolution(question.solution)) {
+      issues.push("la soluzione è ancora quella di partenza: scrivi la soluzione vera");
+    }
     if (!question.student_code.trim()) {
       issues.push("il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)");
     } else if (normalizeCode(question.student_code) === normalizeCode(question.solution)) {
@@ -111,7 +136,7 @@ export function exportProblems(
       if (message) issues.push(message);
     }
     const name = questionName(item, exam);
-    problems.push(...issues.map((issue) => `${name}: ${issue}`));
+    problems.push(...issues.map((issue) => ({ text: `${name}: ${issue}`, item, issue })));
   }
   return problems;
 }
