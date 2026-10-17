@@ -134,3 +134,8 @@ export async function backupArchive(path: string): Promise<number> {
 export async function restoreArchive(path: string): Promise<number> {
   return (await request<{ tracks: number }>("/api/archive/restore", jsonBody({ path }))).tracks;
 }
+
+/** Controlla un file di backup senza ripristinarlo; restituisce il numero di tracce. */
+export async function checkBackup(path: string): Promise<number> {
+  return (await request<{ tracks: number }>("/api/archive/check", jsonBody({ path }))).tracks;
+}

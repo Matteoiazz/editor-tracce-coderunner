@@ -133,6 +133,15 @@ def backup(request: BackupRequest, archive: Archive) -> BackupResponse:
         raise HTTPException(status_code=422, detail=f"Backup non riuscito: {exc}") from exc
 
 
+@router.post("/archive/check")
+def check_backup(request: BackupRequest, archive: Archive) -> BackupResponse:
+    """Controlla un file di backup prima del ripristino e dice quante tracce contiene."""
+    try:
+        return BackupResponse(tracks=archive.inspect_backup(Path(request.path)))
+    except InvalidBackup as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.post("/archive/restore")
 def restore_backup(request: BackupRequest, archive: Archive) -> BackupResponse:
     """Sostituisce l'archivio con un backup; l'archivio precedente viene conservato."""

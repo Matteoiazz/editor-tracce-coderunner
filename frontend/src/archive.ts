@@ -3,7 +3,9 @@
 // nell'archivio gli output dei test comuni sono salvati nello stesso ordine dei test.
 
 import { type EditableQuestion, nextNumber } from "./exam";
-import { buildName, type ExamInfo, type ExamKind } from "./naming";
+import { buildName, type ExamInfo, type ExamKind, formatDay } from "./naming";
+
+export { formatDay };
 import { sameTest, type TestRow, toRow, toTestCase } from "./testcases";
 import type { Question, TestCase } from "./types";
 
@@ -82,17 +84,6 @@ export function fromArchive(track: ArchivedTrack): OpenTrack {
       question: { ...exercise.question, testcases: [] },
     })),
   };
-}
-
-/** Data in forma estesa, es. "3 luglio 2026"; null se assente. */
-export function formatDay(day: string | null): string | null {
-  if (!day) return null;
-  const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date).toLocaleDateString("it-IT", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 /** Data e ora brevi, es. "3 ott 2026, 16:55". */

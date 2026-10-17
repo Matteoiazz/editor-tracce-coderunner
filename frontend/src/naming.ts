@@ -51,3 +51,14 @@ export function parseName(name: string): NameParts {
     kind,
   };
 }
+
+/** Data in forma estesa, es. "3 luglio 2026"; null se assente. */
+export function formatDay(day: string | null): string | null {
+  if (!day) return null;
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date).toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}

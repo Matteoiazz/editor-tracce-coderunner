@@ -8,6 +8,12 @@ const net = require("node:net");
 const path = require("node:path");
 
 const isDev = !app.isPackaged;
+
+// Nome mostrato nei titoli delle finestre di dialogo. La cartella dei dati (archivio delle
+// tracce) resta quella di sempre: senza fissarla, cambiando nome Electron ne userebbe una nuova.
+const APP_NAME = "Editor tracce CodeRunner";
+app.setPath("userData", path.join(app.getPath("appData"), "tesi-frontend"));
+app.setName(APP_NAME);
 const DEV_SERVER_URL = "http://localhost:5173";
 // Tempo massimo concesso alla pagina per completare il salvataggio alla chiusura
 const CLOSE_TIMEOUT_MS = 3000;

@@ -68,6 +68,11 @@ class TrackArchive(Protocol):
         Solleva InvalidBackup se il file è l'archivio stesso, OSError se non si può scrivere."""
         ...
 
+    def inspect_backup(self, source: Path) -> int:
+        """Numero di tracce del backup, senza ripristinarlo; solleva InvalidBackup se il file
+        non è utilizzabile (anche se è l'archivio stesso)."""
+        ...
+
     def restore_from(self, source: Path) -> int:
         """Sostituisce l'archivio con il contenuto di un backup, dopo averne conservato una
         copia; solleva InvalidBackup se il file non è utilizzabile. Restituisce il numero

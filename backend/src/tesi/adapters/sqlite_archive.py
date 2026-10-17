@@ -225,10 +225,13 @@ class SqliteTrackArchive:
         _copy_database(self.path, target)
         return count
 
-    def restore_from(self, source: Path) -> int:
+    def inspect_backup(self, source: Path) -> int:
         if _same_file(source, self.path):
             raise InvalidBackup("Il file scelto è l'archivio attuale: scegli un backup")
-        count = _check_backup(source)
+        return _check_backup(source)
+
+    def restore_from(self, source: Path) -> int:
+        count = self.inspect_backup(source)
         with self._connect():
             pass  # l'archivio esiste e ha lo schema aggiornato prima di essere copiato
         # Il backup viene prima copiato a parte: potrebbe essere proprio la copia che sta per

@@ -1,4 +1,5 @@
 import { TableKit } from "@tiptap/extension-table";
+import { Fragment, Slice } from "@tiptap/pm/model";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -40,6 +41,9 @@ export function HtmlEditor({ value, onChange }: Props) {
   // Modalità espansa: le barre restano in alto e scorre solo il testo
   const [expanded, setExpanded] = useState(false);
   const { ref: wrapperRef, layer } = useExpandedLayer(expanded, () => setExpanded(false));
+  // L'editor viene creato una sola volta: legge lo stato attuale da qui
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
 
   const editor = useEditor({
     extensions: [
@@ -51,6 +55,29 @@ export function HtmlEditor({ value, onChange }: Props) {
       TableKit.configure({ table: { resizable: false } }),
     ],
     content: value,
+    editorProps: {
+      // L'editor usa Esc per sé: nella modalità espansa deve invece chiuderla
+      handleKeyDown: (_view, event) => {
+        if (event.key !== "Escape" || !expandedRef.current) return false;
+        setExpanded(false);
+        return true;
+      },
+      // Il testo semplice incollato segue lo stato attuale di grassetto, corsivo e codice;
+      // senza questo prenderebbe la formattazione del testo che precede il cursore,
+      // anche se è appena stata disattivata.
+      clipboardTextParser: (text, $context, _plain, view) => {
+        const { schema } = view.state;
+        if ($context.parent.type.spec.code) {
+          return new Slice(Fragment.from(schema.text(text)), 0, 0);
+        }
+        const marks = view.state.storedMarks ?? $context.marks();
+        const paragraphs = text
+          .split(/(?:\r\n?|\n)+/)
+          .filter((line) => line.length > 0)
+          .map((line) => schema.nodes.paragraph.create(null, schema.text(line, marks)));
+        return new Slice(Fragment.from(paragraphs), 1, 1);
+      },
+    },
     onUpdate: ({ editor }) => {
       setEdited(true);
       onChangeRef.current(editor.getHTML());

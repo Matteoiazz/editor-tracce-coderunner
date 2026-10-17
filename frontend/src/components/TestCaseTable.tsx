@@ -43,18 +43,26 @@ export function TestCaseTable(props: Props) {
     <table className="test-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th title="Ogni valore letto dalla soluzione con input() va su una riga diversa">
+          <th className="col-number">#</th>
+          <th
+            className="col-input"
+            title="Ogni valore letto dalla soluzione con input() va su una riga diversa"
+          >
             Input (un valore per riga)
           </th>
-          {showExpected && <th>Output atteso</th>}
-          <th title="Mostrato allo studente come esempio sotto il testo">Esempio</th>
-          <th title="Se lo studente fallisce questo test, i successivi non vengono mostrati">
+          {showExpected && <th className="col-expected">Output atteso</th>}
+          <th className="col-option" title="Mostrato allo studente come esempio sotto il testo">
+            Esempio
+          </th>
+          <th
+            className="col-option"
+            title="Se lo studente fallisce questo test, i successivi non vengono mostrati"
+          >
             Nascondi succ.
           </th>
-          <th>Visibilità</th>
-          {outcomes && <th>Esito</th>}
-          {editable && <th />}
+          <th className="col-display">Visibilità</th>
+          {outcomes && <th className="col-outcome">Esito</th>}
+          {editable && <th className="col-delete" />}
         </tr>
       </thead>
       <tbody>

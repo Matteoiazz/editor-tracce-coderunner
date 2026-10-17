@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   backupArchive,
+  checkBackup,
   duplicateTrack,
   exportXml,
   getTrack,
@@ -29,6 +30,7 @@ import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
 import { type Blocker, type Selection, Sidebar } from "./components/Sidebar";
 import {
+  adaptGradesToKind,
   adoptImported,
   canAddExercise,
   createQuestion,
@@ -105,7 +107,12 @@ export function App() {
     return saver.flush();
   }
 
-  function openTrack(track: OpenTrack) {
+  // Vero se la traccia aperta è già nell'archivio: allora va salvata anche se viene svuotata
+  const inArchive = useRef(false);
+
+  /** Apre una traccia; `stored` è falso per una traccia nuova, non ancora nell'archivio. */
+  function openTrack(track: OpenTrack, stored = true) {
+    inArchive.current = stored;
     saver.markSaved(toArchive(track));
     setTrackId(track.id);
     setExam(track.exam);
@@ -168,8 +175,14 @@ export function App() {
   // per non riempire l'archivio di tracce vuote.
   useEffect(() => {
     if (!loaded) return;
-    const empty = isEmptySession({ exam, common, items });
-    if (!saver.set(empty ? null : toArchive({ id: trackId, exam, common, items }))) return;
+    // Una traccia nuova entra nell'archivio solo quando ha esercizi o test comuni: data e tipo
+    // da soli non bastano, altrimenti l'archivio si riempirebbe di tracce vuote. Una traccia
+    // già nell'archivio si salva sempre, anche quando viene svuotata.
+    const empty = items.length === 0 && common.length === 0;
+    if (!saver.set(empty && !inArchive.current ? null : toArchive({ id: trackId, exam, common, items }))) {
+      return;
+    }
+    inArchive.current = true;
     const timer = setTimeout(flushSave, 500);
     return () => clearTimeout(timer);
   }, [loaded, trackId, exam, common, items]);
@@ -178,6 +191,16 @@ export function App() {
   useEffect(() => {
     window.desktop.onBeforeClose(() => flushSave());
   }, []);
+
+  // Il messaggio "Esportazione annullata" scompare da solo quando non restano test falliti:
+  // la colonna mostra già lo stato aggiornato
+  const exportFailed = useRef(false);
+  useEffect(() => {
+    if (exportFailed.current && summary.failed === 0) {
+      exportFailed.current = false;
+      setError(null);
+    }
+  }, [summary.failed]);
 
   // ------------------------------------------------ selezione ed esiti
 
@@ -201,6 +224,7 @@ export function App() {
   // ------------------------------------------------ azioni
 
   function clearMessages() {
+    exportFailed.current = false;
     setError(null);
     setNotice(null);
   }
@@ -238,7 +262,7 @@ export function App() {
     await trashTrack(id);
     // Se era la traccia aperta, si continua su una traccia nuova vuota
     if (id === trackId) {
-      openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] });
+      openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] }, false);
       setSelection({ kind: "archive" });
     }
   }
@@ -266,9 +290,12 @@ export function App() {
     clearMessages();
     const path = await window.desktop.chooseBackupSource();
     if (!path) return;
+    // Il file si controlla prima della conferma: un file non valido viene segnalato subito
+    const found = await checkBackup(path);
     if (
       !window.confirm(
-        "Sostituire l'archivio con questo backup? L'archivio attuale viene conservato nel file " +
+        `Il backup contiene ${found === 1 ? "1 traccia" : `${found} tracce`}. ` +
+          "Sostituire l'archivio con questo backup? L'archivio attuale viene conservato nel file " +
           "archivio-prima-del-ripristino.db nella cartella dei dati dell'applicazione.",
       )
     ) {
@@ -284,6 +311,7 @@ export function App() {
       reopen
         ? fromArchive(await getTrack(reopen.id))
         : { id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] },
+      Boolean(reopen),
     );
     setSelection({ kind: "archive" });
     setNotice(`Archivio ripristinato dal backup (${count === 1 ? "1 traccia" : `${count} tracce`}).`);
@@ -310,9 +338,14 @@ export function App() {
   // La traccia corrente resta nell'archivio: se ne apre una nuova vuota
   async function handleNewExam() {
     await flushSave();
-    openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] });
+    openTrack({ id: crypto.randomUUID(), exam: EMPTY_EXAM, common: [], items: [] }, false);
     clearMessages();
     setNotice("Nuova traccia. Quella precedente è salvata nell'archivio.");
+  }
+
+  function handleExamChange(next: ExamInfo) {
+    if (next.kind !== exam.kind) setItems((current) => adaptGradesToKind(current, exam.kind, next.kind));
+    setExam(next);
   }
 
   function handleNew() {
@@ -372,6 +405,7 @@ export function App() {
         if (outcomes.some((o) => !o.passed)) failures++;
       }
       if (failures > 0) {
+        exportFailed.current = true;
         setError(
           failures === 1
             ? "Esportazione annullata: un esercizio non supera i propri test (vedi la colonna a sinistra)."
@@ -478,7 +512,7 @@ export function App() {
     <div className="app">
       <Sidebar
         exam={exam}
-        onExamChange={setExam}
+        onExamChange={handleExamChange}
         commonCount={common.length}
         exercises={sortedByNumber(items).map((it) => ({
           id: it.id,
@@ -510,15 +544,17 @@ export function App() {
         onExport={handleExport}
       />
 
+      {/* Il messaggio sta sopra l'area che scorre: non copre l'intestazione dell'esercizio */}
+      <div className="main-column">
+      {(error || notice) && (
+        <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
+          <p>{error ?? notice}</p>
+          <button type="button" className="icon" onClick={clearMessages} aria-label="Chiudi il messaggio">
+            <IconClose />
+          </button>
+        </div>
+      )}
       <main className="main" ref={mainRef}>
-        {(error || notice) && (
-          <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
-            <p>{error ?? notice}</p>
-            <button type="button" className="icon" onClick={clearMessages} aria-label="Chiudi il messaggio">
-              <IconClose />
-            </button>
-          </div>
-        )}
 
         {selection?.kind === "reuse" ? (
           <ReusePanel
@@ -585,6 +621,7 @@ export function App() {
           </section>
         )}
       </main>
+      </div>
     </div>
   );
 }

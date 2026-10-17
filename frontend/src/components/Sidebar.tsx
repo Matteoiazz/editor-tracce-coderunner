@@ -255,7 +255,7 @@ export function Sidebar(props: Props) {
           type="button"
           className="primary export-button"
           onClick={props.onExport}
-          disabled={props.exporting || blockers.length > 0}
+          disabled={props.exporting || blockers.length > 0 || summary.exercises === 0}
         >
           <IconExport /> {props.exporting ? "Verifica ed esportazione…" : "Esporta XML"}
         </button>

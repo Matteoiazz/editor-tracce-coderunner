@@ -261,8 +261,17 @@ input[type="checkbox"] {
   height: 100vh;
 }
 
+.main-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .main {
   position: relative;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 40px 72px;
 }
@@ -533,6 +542,13 @@ input[type="checkbox"] {
   padding-left: 16px;
 }
 
+/* Un pulsante non si spezza come il testo in linea: a tutta larghezza, il pallino resta
+   allineato alla prima riga della voce */
+.blockers button.link {
+  display: block;
+  width: 100%;
+}
+
 .blockers li::marker {
   color: var(--fail);
 }
@@ -546,15 +562,15 @@ input[type="checkbox"] {
 /* ------------------------------------------------------------------ messaggi */
 
 .banner {
-  position: sticky;
-  top: 0;
-  z-index: 110;
   display: flex;
+  flex: none;
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
+  /* Larghezza dell'area di contenuto, con lo stesso margine laterale */
+  width: calc(100% - 80px);
   max-width: 1040px;
-  margin: 16px auto 0;
+  margin: 12px auto 0;
   padding: 10px 10px 10px 14px;
   white-space: pre-line;
   border: 1px solid;
@@ -1016,6 +1032,9 @@ body.editor-expanded .main {
 
 .test-table {
   width: 100%;
+  /* Larghezze di colonna fisse: un output lungo non allarga la tabella oltre la pagina,
+     viene abbreviato e si apre con la freccia */
+  table-layout: fixed;
   border-collapse: collapse;
   background: var(--surface);
   border: 1px solid var(--rule);
@@ -1076,12 +1095,36 @@ body.editor-expanded .main {
 }
 
 .test-table select {
+  width: 100%;
   min-height: 30px;
   font-size: var(--text-sm);
 }
 
+.test-table th.col-number {
+  width: 40px;
+}
+
+.test-table th.col-input {
+  width: 136px;
+}
+
+.test-table th.col-option {
+  width: 76px;
+}
+
+.test-table th.col-display {
+  width: 112px;
+}
+
+.test-table th.col-outcome {
+  width: 104px;
+}
+
+.test-table th.col-delete {
+  width: 40px;
+}
+
 .test-table td.expected {
-  max-width: 440px;
   padding-top: 9px;
 }
 
@@ -1108,10 +1151,6 @@ body.editor-expanded .main {
 
 .expected-cell {
   min-width: 0;
-}
-
-.test-table td.expected {
-  width: 44%;
 }
 
 .expected-cell pre {
@@ -1156,7 +1195,7 @@ body.editor-expanded .main {
 
 .comparison {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -1416,8 +1455,12 @@ button.ghost.active {
     padding: 0 20px 56px;
   }
 
+  .banner {
+    width: calc(100% - 40px);
+  }
+
   .comparison {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

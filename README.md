@@ -95,6 +95,7 @@ Poi apri http://127.0.0.1:8000/docs per la documentazione interattiva delle API:
 | `DELETE /api/trash` | svuota il cestino |
 | `GET /api/exercises?q=parole` | cerca gli esercizi dell'archivio per riusarli (`exclude_track` esclude una traccia) |
 | `POST /api/archive/backup` | salva una copia dell'archivio nel file indicato (`{"path": ...}`) |
+| `POST /api/archive/check` | controlla un file di backup e dice quante tracce contiene |
 | `POST /api/archive/restore` | sostituisce l'archivio con un backup, conservando quello attuale |
 
 L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione

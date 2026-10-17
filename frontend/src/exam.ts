@@ -1,6 +1,6 @@
 // Regole dell'esame: creazione degli esercizi, numerazione, adattamento degli importati.
 
-import { buildName, DEFAULT_TRACK, type ExamInfo, type ExamKind, parseName } from "./naming";
+import { buildName, DEFAULT_TRACK, type ExamInfo, type ExamKind, formatDay, parseName } from "./naming";
 import { detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
 import type { Question, TestCase } from "./types";
 
@@ -36,6 +36,22 @@ export function isExamComplete(exam: ExamInfo): boolean {
 /** Punti predefiniti, come negli XML del docente. */
 export function defaultGrade(kind: ExamKind | null): number {
   return kind === "Pretest" ? 1 : 5;
+}
+
+/** Al cambio di tipo (Esame/Pretest) gli esercizi con i punti predefiniti del tipo precedente
+ *  prendono quelli del nuovo tipo; i punti scelti dal docente restano invariati. */
+export function adaptGradesToKind(
+  items: EditableQuestion[],
+  from: ExamKind | null,
+  to: ExamKind | null,
+): EditableQuestion[] {
+  if (from === null || to === null || from === to) return items;
+  const previous = defaultGrade(from);
+  return items.map((item) =>
+    item.question.default_grade === previous
+      ? { ...item, question: { ...item.question, default_grade: defaultGrade(to) } }
+      : item,
+  );
 }
 
 /** Nome dell'esercizio secondo la convenzione; se mancano dati resta il nome originale. */
@@ -170,11 +186,13 @@ export function adoptImported(
           (parts.track !== null && parts.track !== exam.track),
       )
     : [];
-  // Es. "Pretest", "Esame del 2026-07-03, traccia 2"
+  // Es. "Pretest", "Esame del 3 luglio 2026, traccia 2"
   const origins = [
     ...new Set(
       different.map(({ parts }) => {
-        const label = [parts.kind, parts.date && `del ${parts.date}`].filter(Boolean).join(" ");
+        const label = [parts.kind, parts.date && `del ${formatDay(parts.date)}`]
+          .filter(Boolean)
+          .join(" ");
         return parts.track !== null && parts.track !== exam.track
           ? `${label}, traccia ${parts.track}`
           : label;

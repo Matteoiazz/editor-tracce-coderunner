@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adaptGradesToKind,
   adoptImported,
   canAddExercise,
   createQuestion,
@@ -115,7 +116,7 @@ describe("adoptImported", () => {
       [],
     );
 
-    expect(result.notice).toContain("(Esame del 2026-07-03)");
+    expect(result.notice).toContain("(Esame del 3 luglio 2026)");
   });
 
   it("non segnala nulla se gli importati sono dello stesso esame", () => {
@@ -263,7 +264,7 @@ describe("tracce", () => {
       esame,
       [],
     );
-    expect(result.notice).toContain("(Esame del 2026-07-03, traccia 2)");
+    expect(result.notice).toContain("(Esame del 3 luglio 2026, traccia 2)");
   });
 
   it("il pretest ammette un solo esercizio", () => {
@@ -299,5 +300,24 @@ describe("duplicateQuestion", () => {
     // La copia è indipendente dall'originale
     copy.question.tags.push("altro");
     expect(source.question.tags).toEqual(["Python - easy"]);
+  });
+});
+
+describe("adaptGradesToKind", () => {
+  it("adatta solo i punti predefiniti al nuovo tipo", () => {
+    const standard = createQuestion(1, esame); // 5 punti, predefiniti per l'esame
+    const chosen = { ...createQuestion(2, esame), question: { ...createQuestion(2, esame).question, default_grade: 6 } };
+
+    const [a, b] = adaptGradesToKind([standard, chosen], "Esame", "Pretest");
+
+    expect(a.question.default_grade).toBe(1);
+    expect(b.question.default_grade).toBe(6);
+    expect(adaptGradesToKind([a], "Pretest", "Esame")[0].question.default_grade).toBe(5);
+  });
+
+  it("senza cambio di tipo non cambia nulla", () => {
+    const items = [createQuestion(1, esame)];
+    expect(adaptGradesToKind(items, "Esame", "Esame")).toBe(items);
+    expect(adaptGradesToKind(items, null, "Pretest")).toBe(items);
   });
 });
