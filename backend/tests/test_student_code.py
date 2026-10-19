@@ -46,3 +46,35 @@ def test_senza_main_svuota_tutte_le_funzioni() -> None:
 def test_segnala_un_errore_di_sintassi() -> None:
     with pytest.raises(StudentCodeError, match="riga 2"):
         generate_student_code("x = 1\ndef f(:\n    pass\n")
+
+
+def test_una_funzione_passata_come_valore_resta_da_completare() -> None:
+    solution = (
+        "def doppio(x):\n    return 2 * x\n\n"
+        "if __name__ == '__main__':\n    print(list(map(doppio, [1, 2])))\n"
+    )
+
+    generated = generate_student_code(solution)
+
+    assert "def doppio(x):" in generated
+    assert "return 2 * x" not in generated
+
+
+def test_nome_sbagliato_nel_main_con_suggerimento() -> None:
+    solution = (
+        "def coppie_dieci(lst):\n    return 0\n\n"
+        "if __name__ == '__main__':\n"
+        "    import random\n"
+        "    lst = [random.randint(1, 9)]\n"
+        "    print(coppie_die(lst))\n"
+    )
+
+    with pytest.raises(StudentCodeError, match=r"chiama coppie_die.*forse coppie_dieci\?"):
+        generate_student_code(solution)
+
+
+def test_main_che_non_usa_nessuna_funzione() -> None:
+    solution = "def calcola(lst):\n    return 0\n\nif __name__ == '__main__':\n    print(1)\n"
+
+    with pytest.raises(StudentCodeError, match=r"non usa nessuna funzione della soluzione \(calcola\)"):
+        generate_student_code(solution)
