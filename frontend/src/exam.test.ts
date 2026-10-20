@@ -13,8 +13,10 @@ import {
   nextNumber,
   parseExerciseNumber,
   parseTags,
+  plainText,
   questionName,
   SOLUTION_SKELETON,
+  textSources,
   unsupportedReason,
 } from "./exam";
 import type { ExamInfo } from "./naming";
@@ -345,5 +347,41 @@ describe("adaptQuestionToKind", () => {
 
     expect(item.question.default_grade).toBe(5);
     expect(item.question.tags).toEqual(["Esame"]);
+  });
+});
+
+describe("plainText", () => {
+  it("toglie i tag e decodifica i caratteri speciali", () => {
+    expect(plainText("<p>Se <strong>lst</strong> &lt; 3&nbsp;e</p><p>altro &amp; fine</p>")).toBe(
+      "Se lst < 3 e altro & fine",
+    );
+  });
+});
+
+describe("textSources", () => {
+  function withText(number: number | null, html: string): EditableQuestion {
+    const item = createQuestion(number ?? 1, esame);
+    return { ...item, number, question: { ...item.question, text_html: html } };
+  }
+
+  it("elenca gli altri esercizi con un testo, in ordine di numero", () => {
+    const current = withText(2, "<p>Testo del 2</p>");
+    const third = withText(3, "<p>Testo del 3</p>");
+    const first = withText(1, "<p>Implementare la funzione <strong>calcola</strong></p>");
+    const empty = withText(4, "<p></p>");
+
+    const sources = textSources([current, third, first, empty], current.id);
+
+    expect(sources.map((s) => s.label)).toEqual(["Esercizio 1", "Esercizio 3"]);
+    expect(sources[0].preview).toBe("Implementare la funzione calcola");
+    expect(sources[0].html).toBe(first.question.text_html);
+  });
+
+  it("accorcia le anteprime lunghe", () => {
+    const long = withText(1, `<p>${"parola ".repeat(30)}</p>`);
+    const [source] = textSources([long, withText(2, "")], "altro");
+
+    expect(source.preview.length).toBe(91);
+    expect(source.preview.endsWith("…")).toBe(true);
   });
 });

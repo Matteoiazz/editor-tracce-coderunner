@@ -8,7 +8,8 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
 - **Tracce d'esame e pretest** con i nomi della convenzione del docente
   (`Esame-AAAA-MM-GG-Traccia1-Esercizio1`, `Pretest-AAAA-MM-GG-Traccia1`).
 - **Esercizi** con testo in HTML (anche tabelle), soluzione nascosta, codice per gli studenti
-  generato dalla soluzione e test case; editor espandibili a tutta finestra.
+  generato dalla soluzione e test case; editor espandibili a tutta finestra. Con «Copia da…» il
+  testo della traccia si copia da un altro esercizio della stessa traccia.
 - **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente.
 - **Calcola output**: gli output attesi si ottengono eseguendo la soluzione, come CodeRunner
   (`python3_w_input`).

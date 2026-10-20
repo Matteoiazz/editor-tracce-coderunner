@@ -292,3 +292,44 @@ export function ignoredMessage(ignored: Record<string, number>): string | null {
   const verb = total === 1 ? "Ignorata" : "Ignorate";
   return `${verb} ${total} ${noun} di tipo CodeRunner (${detail}).`;
 }
+
+/** Testo senza formattazione di un frammento HTML, su una riga (per le anteprime). */
+export function plainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Esercizio da cui copiare il testo della traccia. */
+export interface TextSource {
+  id: string;
+  label: string;
+  /** Inizio del testo, per riconoscere l'esercizio. */
+  preview: string;
+  html: string;
+}
+
+const PREVIEW_LENGTH = 90;
+
+/** Altri esercizi della stessa traccia con un testo da copiare, in ordine di numero. */
+export function textSources(items: EditableQuestion[], currentId: string): TextSource[] {
+  return items
+    .filter((item) => item.id !== currentId && plainText(item.question.text_html))
+    .sort((a, b) => (a.number ?? Number.POSITIVE_INFINITY) - (b.number ?? Number.POSITIVE_INFINITY))
+    .map((item) => {
+      const text = plainText(item.question.text_html);
+      return {
+        id: item.id,
+        label: item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero",
+        preview: text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}…` : text,
+        html: item.question.text_html,
+      };
+    });
+}

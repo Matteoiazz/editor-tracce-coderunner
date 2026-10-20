@@ -41,6 +41,7 @@ import {
   isExamComplete,
   nextNumber,
   questionName,
+  textSources,
   unsupportedReason,
 } from "./exam";
 import {
@@ -608,6 +609,7 @@ export function App() {
               recordOutcomes(selectedItem.id, rows, solution, outcomes)
             }
             onRemove={() => handleRemove(selectedItem)}
+            textSources={textSources(items, selectedItem.id)}
             canDuplicate={exam.kind !== "Pretest" && isExamComplete(exam)}
             onDuplicate={() => handleDuplicate(selectedItem)}
           />

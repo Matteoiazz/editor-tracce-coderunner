@@ -1475,3 +1475,53 @@ button.ghost.active {
     transition: none !important;
   }
 }
+
+/* Menu «Copia da…» della sezione Traccia */
+.copy-menu {
+  position: relative;
+}
+
+.copy-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  /* Sopra la barra dell'editor (50), sotto l'intestazione fissa dell'esercizio (100) */
+  z-index: 60;
+  width: min(380px, 80vw);
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(28 35 33 / 0.14);
+}
+
+.copy-menu-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: auto;
+  padding: 8px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+
+.copy-menu-list button:hover,
+.copy-menu-list button:focus-visible {
+  background: var(--hover);
+}
+
+.copy-menu-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.copy-menu-preview {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
