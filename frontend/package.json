@@ -2,7 +2,7 @@
   "name": "tesi-frontend",
   "private": true,
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Interfaccia Electron per la preparazione di tracce d'esame CodeRunner",
   "main": "electron/main.cjs",
   "scripts": {
