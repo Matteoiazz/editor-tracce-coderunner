@@ -1,14 +1,12 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { generateStudentCode } from "../api";
-import { type EditableQuestion, questionName, type TextSource } from "../exam";
-import { hasText } from "../export";
+import { type CopySource, type EditableQuestion, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
 import type { ExerciseStatus, SectionStatus } from "../status";
 import type { TestRow } from "../testcases";
 import type { Question, TestOutcome } from "../types";
 import { CodeEditor } from "./CodeEditor";
-import { CopyTextMenu } from "./CopyTextMenu";
-import { HtmlEditor, type HtmlEditorHandle } from "./HtmlEditor";
+import { HtmlEditor } from "./HtmlEditor";
 import { IconExpand, IconGenerate } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
 import { SectionStateIcon } from "./SectionState";
@@ -25,11 +23,11 @@ interface Props {
   onUpdate: (change: (item: EditableQuestion) => EditableQuestion) => void;
   onVerified: (rows: TestRow[], solution: string, outcomes: TestOutcome[]) => void;
   onRemove: () => void;
-  /** Altri esercizi della traccia da cui si può copiare il testo. */
-  textSources: TextSource[];
   /** Falso nel pretest, che ha un solo esercizio. */
   canDuplicate: boolean;
   onDuplicate: () => void;
+  copySources: CopySource[];
+  onCopyFrom: (source: CopySource) => void;
 }
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
@@ -58,19 +56,6 @@ export function QuestionEditor(props: Props) {
     observer.observe(head);
     return () => observer.disconnect();
   }, []);
-
-  const htmlEditorRef = useRef<HtmlEditorHandle>(null);
-
-  /** Copia il testo di un altro esercizio della traccia; l'originale resta com'è. */
-  function handleCopyText(source: TextSource) {
-    if (
-      hasText(question.text_html) &&
-      !window.confirm(`Sostituire il testo di questo esercizio con quello di ${source.label}?`)
-    ) {
-      return;
-    }
-    htmlEditorRef.current?.replaceContent(source.html);
-  }
 
   function update(changes: Partial<Question>) {
     onUpdate((current) => ({ ...current, question: { ...current.question, ...changes } }));
@@ -137,6 +122,8 @@ export function QuestionEditor(props: Props) {
           onRemove={props.onRemove}
           canDuplicate={props.canDuplicate}
           onDuplicate={props.onDuplicate}
+          copySources={props.copySources}
+          onCopyFrom={props.onCopyFrom}
         />
         <nav className="section-index" aria-label="Sezioni dell'esercizio">
           {SECTIONS.map(({ key, title }) => (
@@ -155,16 +142,8 @@ export function QuestionEditor(props: Props) {
       </header>
 
       <section id="sezione-text" className="exercise-section">
-        {heading("text", "Traccia", status.sections.text, props.textSources.length > 0 && (
-          <div className="section-actions">
-            <CopyTextMenu sources={props.textSources} onCopy={handleCopyText} />
-          </div>
-        ))}
-        <HtmlEditor
-          ref={htmlEditorRef}
-          value={question.text_html}
-          onChange={(text_html) => update({ text_html })}
-        />
+        {heading("text", "Traccia", status.sections.text)}
+        <HtmlEditor value={question.text_html} onChange={(text_html) => update({ text_html })} />
       </section>
 
       <section id="sezione-solution" className="exercise-section">

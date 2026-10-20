@@ -4,6 +4,8 @@ import {
   adaptQuestionToKind,
   adoptImported,
   canAddExercise,
+  copyExerciseContent,
+  copySources,
   createQuestion,
   duplicateQuestion,
   duplicateNumbers,
@@ -16,7 +18,6 @@ import {
   plainText,
   questionName,
   SOLUTION_SKELETON,
-  textSources,
   unsupportedReason,
 } from "./exam";
 import type { ExamInfo } from "./naming";
@@ -358,30 +359,74 @@ describe("plainText", () => {
   });
 });
 
-describe("textSources", () => {
+describe("copySources", () => {
   function withText(number: number | null, html: string): EditableQuestion {
     const item = createQuestion(number ?? 1, esame);
     return { ...item, number, question: { ...item.question, text_html: html } };
   }
 
-  it("elenca gli altri esercizi con un testo, in ordine di numero", () => {
+  it("elenca gli altri esercizi in ordine di numero, anche senza testo", () => {
     const current = withText(2, "<p>Testo del 2</p>");
-    const third = withText(3, "<p>Testo del 3</p>");
+    const third = withText(3, "<p></p>");
     const first = withText(1, "<p>Implementare la funzione <strong>calcola</strong></p>");
-    const empty = withText(4, "<p></p>");
 
-    const sources = textSources([current, third, first, empty], current.id);
+    const sources = copySources([current, third, first], current.id);
 
     expect(sources.map((s) => s.label)).toEqual(["Esercizio 1", "Esercizio 3"]);
     expect(sources[0].preview).toBe("Implementare la funzione calcola");
-    expect(sources[0].html).toBe(first.question.text_html);
+    expect(sources[1].preview).toBe("Testo della traccia vuoto");
   });
 
   it("accorcia le anteprime lunghe", () => {
     const long = withText(1, `<p>${"parola ".repeat(30)}</p>`);
-    const [source] = textSources([long, withText(2, "")], "altro");
+    const [source] = copySources([long], "altro");
 
     expect(source.preview.length).toBe(91);
     expect(source.preview.endsWith("…")).toBe(true);
+  });
+});
+
+describe("copyExerciseContent", () => {
+  it("copia tutto il contenuto e mantiene numero e nome dell'esercizio", () => {
+    const target = createQuestion(4, esame);
+    const base = createQuestion(2, esame);
+    const source: EditableQuestion = {
+      ...base,
+      useCommon: false,
+      commonExpected: { comune: "out" },
+      specific: [{ ...newRow("9"), expected: "9" }],
+      question: {
+        ...base.question,
+        text_html: "<p>Testo</p>",
+        solution: "print(1)",
+        student_code: "print(None)",
+        default_grade: 6,
+        tags: ["liste"],
+      },
+    };
+
+    const copied = copyExerciseContent(target, source);
+
+    expect(copied.id).toBe(target.id);
+    expect(copied.number).toBe(4);
+    expect(copied.question.name).toBe(target.question.name);
+    expect(copied.question.text_html).toBe("<p>Testo</p>");
+    expect(copied.question.solution).toBe("print(1)");
+    expect(copied.question.student_code).toBe("print(None)");
+    expect(copied.question.default_grade).toBe(6);
+    expect(copied.useCommon).toBe(false);
+    expect(copied.commonExpected).toEqual({ comune: "out" });
+    expect(copied.specific.map((r) => [r.stdin, r.expected])).toEqual([["9", "9"]]);
+  });
+
+  it("la copia è indipendente dall'originale", () => {
+    const source = { ...createQuestion(1, esame), specific: [newRow("1")] };
+    const copied = copyExerciseContent(createQuestion(2, esame), source);
+
+    expect(copied.specific[0].id).not.toBe(source.specific[0].id);
+    copied.question.tags.push("nuovo");
+    copied.commonExpected.x = "y";
+    expect(source.question.tags).toEqual([]);
+    expect(source.commonExpected).toEqual({});
   });
 });

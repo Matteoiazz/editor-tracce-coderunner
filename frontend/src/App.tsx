@@ -40,8 +40,11 @@ import {
   ignoredMessage,
   isExamComplete,
   nextNumber,
+  copyExerciseContent,
+  type CopySource,
+  copySources,
+  exerciseLabel,
   questionName,
-  textSources,
   unsupportedReason,
 } from "./exam";
 import {
@@ -81,6 +84,14 @@ export function App() {
   const [revealKeys, setRevealKeys] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Copia del contenuto da un altro esercizio, annullabile finché resta il suo messaggio
+  const [copyUndo, setCopyUndo] = useState<{
+    itemId: string;
+    previous: EditableQuestion;
+    notice: string;
+  } | null>(null);
+  // Cambia a ogni copia o annullamento: gli editor ripartono dal contenuto nuovo
+  const [contentVersion, setContentVersion] = useState(0);
   const [exporting, setExporting] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
@@ -217,6 +228,7 @@ export function App() {
     // Non sparisce invece a tempo, perché la pagina salirebbe sotto il mouse del docente.
     // Gli errori restano finché non vengono chiusi.
     setNotice(null);
+    setCopyUndo(null);
     mainRef.current?.scrollTo({ top: 0 });
     // Aprire un esercizio conferma di averne visto gli esiti aggiornati
     if (next?.kind === "exercise" && records[next.id]?.unseen) {
@@ -238,6 +250,7 @@ export function App() {
     exportFailed.current = false;
     setError(null);
     setNotice(null);
+    setCopyUndo(null);
   }
 
   // ------------------------------------------------ archivio: vista e azioni
@@ -467,6 +480,37 @@ export function App() {
     }
   }
 
+  /** Copia nell'esercizio aperto tutto il contenuto di un altro esercizio della traccia. */
+  function handleCopyFrom(item: EditableQuestion, source: CopySource) {
+    const from = items.find((it) => it.id === source.id);
+    if (!from) return;
+    const target = exerciseLabel(item);
+    if (
+      !window.confirm(
+        `Sostituire testo, soluzione, codice per gli studenti e test di ${target} con quelli di ` +
+          `${source.label}? Subito dopo la copia si può annullare.`,
+      )
+    ) {
+      return;
+    }
+    updateItem(item.id, (current) => copyExerciseContent(current, from));
+    setContentVersion((v) => v + 1);
+    const message = `${target}: copiati testo, soluzione, codice per gli studenti e test da ${source.label}.`;
+    setError(null);
+    setNotice(message);
+    setCopyUndo({ itemId: item.id, previous: item, notice: message });
+  }
+
+  /** Riporta l'esercizio com'era prima dell'ultima copia. */
+  function handleUndoCopy() {
+    if (!copyUndo) return;
+    const { itemId, previous } = copyUndo;
+    updateItem(itemId, () => previous);
+    setContentVersion((v) => v + 1);
+    setCopyUndo(null);
+    setNotice("Copia annullata: l'esercizio è tornato com'era.");
+  }
+
   function handleDuplicate(item: EditableQuestion) {
     const copy = duplicateQuestion(item, items, exam);
     const index = items.findIndex((it) => it.id === item.id);
@@ -563,6 +607,11 @@ export function App() {
       {(error || notice) && (
         <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
           <p>{error ?? notice}</p>
+          {!error && copyUndo && copyUndo.notice === notice && (
+            <button type="button" className="secondary small" onClick={handleUndoCopy}>
+              Annulla la copia
+            </button>
+          )}
           <button type="button" className="icon" onClick={clearMessages} aria-label="Chiudi il messaggio">
             <IconClose />
           </button>
@@ -593,7 +642,7 @@ export function App() {
           <CommonTestsPanel rows={common} onChange={handleCommonChange} />
         ) : selectedItem ? (
           <QuestionEditor
-            key={selectedItem.id}
+            key={`${selectedItem.id}:${contentVersion}`}
             item={selectedItem}
             exam={exam}
             common={common}
@@ -609,7 +658,8 @@ export function App() {
               recordOutcomes(selectedItem.id, rows, solution, outcomes)
             }
             onRemove={() => handleRemove(selectedItem)}
-            textSources={textSources(items, selectedItem.id)}
+            copySources={exam.kind === "Pretest" ? [] : copySources(items, selectedItem.id)}
+            onCopyFrom={(source) => handleCopyFrom(selectedItem, source)}
             canDuplicate={exam.kind !== "Pretest" && isExamComplete(exam)}
             onDuplicate={() => handleDuplicate(selectedItem)}
           />

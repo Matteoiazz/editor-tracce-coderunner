@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { isValidGrade, parseExerciseNumber, parseTags } from "../exam";
+import { type CopySource, isValidGrade, parseExerciseNumber, parseTags } from "../exam";
 import type { ExamKind } from "../naming";
+import { CopyFromMenu } from "./CopyFromMenu";
 import { IconCopy, IconTrash } from "./icons";
 
 interface Props {
@@ -16,6 +17,9 @@ interface Props {
   onRemove: () => void;
   canDuplicate: boolean;
   onDuplicate: () => void;
+  /** Altri esercizi della traccia da cui copiare il contenuto (vuoto nel pretest). */
+  copySources: CopySource[];
+  onCopyFrom: (source: CopySource) => void;
 }
 
 /** Intestazione dell'esercizio: nome, numero, punti, tag e rimozione. */
@@ -31,6 +35,9 @@ export function QuestionHeader(props: Props) {
       <div className="title-row">
         <h1 className="mono">{name}</h1>
         <div className="title-actions">
+          {props.copySources.length > 0 && (
+            <CopyFromMenu sources={props.copySources} onCopy={props.onCopyFrom} />
+          )}
           {props.canDuplicate && (
             <button
               type="button"

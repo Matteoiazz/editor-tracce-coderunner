@@ -2,7 +2,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { Fragment, Slice } from "@tiptap/pm/model";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { type ReactNode, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { joinList, unsupportedElements } from "../richtext";
 import { useExpandedLayer } from "./ExpandedLayer";
 import {
@@ -16,22 +16,15 @@ import {
   IconUndo,
 } from "./icons";
 
-/** Comandi dell'editor usati dall'esterno. */
-export interface HtmlEditorHandle {
-  /** Sostituisce tutto il testo con una sola modifica, annullabile con Ctrl+Z. */
-  replaceContent(html: string): void;
-}
-
 interface Props {
   value: string;
   onChange: (html: string) => void;
-  ref?: Ref<HtmlEditorHandle>;
 }
 
 /** Editor visuale del testo della traccia; produce HTML.
  *  `value` è usato come contenuto iniziale: finché il testo non viene modificato,
  *  l'HTML originale resta invariato. */
-export function HtmlEditor({ value, onChange, ref }: Props) {
+export function HtmlEditor({ value, onChange }: Props) {
   // L'editor viene creato una sola volta: il riferimento garantisce che usi
   // sempre la versione più recente di onChange.
   const onChangeRef = useRef(onChange);
@@ -104,16 +97,6 @@ export function HtmlEditor({ value, onChange, ref }: Props) {
       canRedo: e?.can().redo() ?? false,
     }),
   });
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      replaceContent(html: string) {
-        editor?.chain().focus().setContent(html, { emitUpdate: true }).run();
-      },
-    }),
-    [editor],
-  );
 
   if (!editor || !state) return null;
   const chain = () => editor.chain().focus();

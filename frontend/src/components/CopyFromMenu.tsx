@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import type { TextSource } from "../exam";
+import type { CopySource } from "../exam";
 import { IconCopy } from "./icons";
 
 interface Props {
-  /** Altri esercizi della traccia con un testo da copiare. */
-  sources: TextSource[];
-  onCopy: (source: TextSource) => void;
+  /** Gli altri esercizi della traccia. */
+  sources: CopySource[];
+  onCopy: (source: CopySource) => void;
 }
 
-/** Pulsante «Copia da…»: elenco degli altri esercizi della traccia, di cui copiare il testo. */
-export function CopyTextMenu({ sources, onCopy }: Props) {
+/** Pulsante «Copia da…»: elenco degli altri esercizi della traccia, da cui copiare tutto il
+ *  contenuto nell'esercizio aperto. */
+export function CopyFromMenu({ sources, onCopy }: Props) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -34,16 +35,16 @@ export function CopyTextMenu({ sources, onCopy }: Props) {
     <div className="copy-menu" ref={wrapperRef}>
       <button
         type="button"
-        className="ghost small"
+        className="ghost"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Copia qui il testo della traccia di un altro esercizio"
+        title="Copia qui testo, soluzione, codice per gli studenti e test di un altro esercizio"
         onClick={() => setOpen(!open)}
       >
         <IconCopy /> Copia da…
       </button>
       {open && (
-        <ul className="copy-menu-list" role="menu" aria-label="Esercizi da cui copiare il testo">
+        <ul className="copy-menu-list" role="menu" aria-label="Esercizi da cui copiare">
           {sources.map((source) => (
             <li key={source.id}>
               <button

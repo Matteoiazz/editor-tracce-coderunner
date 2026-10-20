@@ -307,29 +307,59 @@ export function plainText(html: string): string {
     .trim();
 }
 
-/** Esercizio da cui copiare il testo della traccia. */
-export interface TextSource {
+/** Etichetta breve di un esercizio, es. "Esercizio 2". */
+export function exerciseLabel(item: EditableQuestion): string {
+  return item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero";
+}
+
+/** Esercizio della traccia da cui copiare il contenuto. */
+export interface CopySource {
   id: string;
   label: string;
   /** Inizio del testo, per riconoscere l'esercizio. */
   preview: string;
-  html: string;
 }
 
 const PREVIEW_LENGTH = 90;
 
-/** Altri esercizi della stessa traccia con un testo da copiare, in ordine di numero. */
-export function textSources(items: EditableQuestion[], currentId: string): TextSource[] {
+/** Gli altri esercizi della stessa traccia, in ordine di numero. */
+export function copySources(items: EditableQuestion[], currentId: string): CopySource[] {
   return items
-    .filter((item) => item.id !== currentId && plainText(item.question.text_html))
+    .filter((item) => item.id !== currentId)
     .sort((a, b) => (a.number ?? Number.POSITIVE_INFINITY) - (b.number ?? Number.POSITIVE_INFINITY))
     .map((item) => {
       const text = plainText(item.question.text_html);
       return {
         id: item.id,
-        label: item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero",
-        preview: text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}…` : text,
-        html: item.question.text_html,
+        label: exerciseLabel(item),
+        preview: !text
+          ? "Testo della traccia vuoto"
+          : text.length > PREVIEW_LENGTH
+            ? `${text.slice(0, PREVIEW_LENGTH)}…`
+            : text,
       };
     });
+}
+
+/** Contenuto di `source` copiato in `target`: testo, soluzione, codice per gli studenti,
+ *  test (specifici e uso dei test comuni, con i loro output), punti e tag. Restano di `target`
+ *  l'identificativo e il numero, quindi il nome. La copia è indipendente dall'originale. */
+export function copyExerciseContent(
+  target: EditableQuestion,
+  source: EditableQuestion,
+): EditableQuestion {
+  return {
+    id: target.id,
+    number: target.number,
+    useCommon: source.useCommon,
+    commonExpected: { ...source.commonExpected },
+    specific: source.specific.map((row) => ({ ...row, id: crypto.randomUUID() })),
+    question: {
+      ...source.question,
+      name: target.question.name,
+      tags: [...source.question.tags],
+      text_files: source.question.text_files?.map((file) => ({ ...file })) ?? [],
+      settings: { ...source.question.settings },
+    },
+  };
 }
