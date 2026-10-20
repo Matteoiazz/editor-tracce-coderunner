@@ -161,14 +161,22 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
         <div className="section-actions">
           <button
             type="button"
-            className="secondary"
+            className="primary"
             onClick={handleFillExpected}
             disabled={disabled}
             title="Calcola gli output attesi eseguendo la soluzione, poi li verifica"
           >
             <IconCompute /> {busy === "calcola" ? "Calcolo…" : "Calcola output"}
           </button>
-          <button type="button" className="primary" onClick={handleVerify} disabled={disabled}>
+          {/* Secondario: serve per gli esercizi importati e per controllare una soluzione
+              ritoccata, senza cambiare gli output attesi */}
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleVerify}
+            disabled={disabled}
+            title="Controlla la soluzione sugli output attesi, senza cambiarli"
+          >
             <IconRun /> {busy === "verifica" ? "Verifica…" : "Verifica"}
           </button>
         </div>
