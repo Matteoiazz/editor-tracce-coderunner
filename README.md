@@ -40,7 +40,7 @@ consenso del docente.
 ```bash
 cd backend
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -e ".[dev]"
+.venv/Scripts/python.exe -m pip install -e ".[dev]"   # su macOS e Linux: .venv/bin/python
 
 cd ../frontend
 npm install
@@ -61,29 +61,62 @@ npm run electron   # apre l'app: avvia da sola il backend Python
 Il backend non va avviato a mano: lo lancia Electron su una porta libera e lo ferma alla chiusura.
 Dimensione, posizione e finestra massimizzata vengono ricordate tra un avvio e l'altro
 (`finestra.json` nella cartella dati).
-L'app non ha menu; durante lo sviluppo F12 apre gli strumenti per sviluppatori e Ctrl+R ricarica
-la pagina dopo aver completato il salvataggio.
+L'app non ha menu (su macOS solo quello essenziale, per Cmd+Q e copia/incolla); durante lo
+sviluppo F12 apre gli strumenti per sviluppatori e Ctrl+R ricarica la pagina dopo aver completato
+il salvataggio.
 
-## Creare l'installer per Windows
+## Creare gli installer (Windows, macOS, Linux)
 
-Dentro `frontend/` (con il server Vite spento, che altrimenti blocca la cartella di uscita):
+Ogni installer si crea sul proprio sistema, perché contiene il Python di quel sistema. Dentro
+`frontend/` (con il server Vite spento, che altrimenti blocca la cartella di uscita):
 
 ```bash
 npm run prepara-python   # una volta, o dopo aver cambiato il backend o le sue dipendenze
-npm run installer        # build dell'interfaccia e installer in release/
+npm run installer        # build dell'interfaccia e installer del sistema in uso, in release/
 ```
 
-`prepara-python` scarica Python 3.13 "embeddable" da python.org (controllandone l'impronta
-SHA256), vi installa le dipendenze del backend con le stesse versioni del venv e copia il codice
-del backend in `python-runtime/`. Lo stesso `python.exe` avvia il backend ed esegue le soluzioni
-degli esercizi, come in sviluppo; per questo il backend non è trasformato in un unico `.exe`.
+`prepara-python` scarica Python 3.13 (controllandone l'impronta SHA256), vi installa le
+dipendenze del backend con le stesse versioni del venv e copia il codice del backend in
+`python-runtime/`. Su Windows usa la distribuzione "embeddable" di python.org, su macOS e Linux
+le build di [python-build-standalone](https://github.com/astral-sh/python-build-standalone).
+Lo stesso interprete avvia il backend ed esegue le soluzioni degli esercizi, come in sviluppo;
+per questo il backend non è trasformato in un unico eseguibile.
 
-L'installer (`release/Editor-tracce-CodeRunner-Setup-<versione>.exe`) installa l'app per
-l'utente corrente, senza permessi di amministratore, con collegamenti sul desktop e nel menu
-Start. La disinstallazione non cancella l'archivio delle tracce.
+| Sistema | File in `release/` |
+|---|---|
+| Windows | `Editor-tracce-CodeRunner-Setup-<versione>.exe` |
+| macOS | `Editor-tracce-CodeRunner-<versione>-arm64.dmg` (Apple Silicon) o `-x64.dmg` (Intel) |
+| Linux | `Editor-tracce-CodeRunner-<versione>-amd64.deb` e `-x86_64.AppImage` |
 
-L'installer non ha firma digitale: al primo avvio Windows può mostrare "Windows ha protetto il
-PC". Si prosegue con **Ulteriori informazioni** → **Esegui comunque**.
+### Con GitHub Actions
+
+Il workflow `.github/workflows/installer.yml` crea tutti gli installer sulle macchine di GitHub
+(Windows, Mac Apple Silicon, Mac Intel, Linux), dopo aver eseguito i test. Per una nuova versione:
+aggiornare `version` in `frontend/package.json`, fare commit e creare il tag corrispondente:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Alla fine gli installer sono allegati alla release `v1.1.0` (creata se non esiste). Dalla scheda
+**Actions** il workflow si può anche avviare a mano: gli installer restano tra gli "artifacts".
+
+### Installazione
+
+- **Windows**: l'installer installa l'app per l'utente corrente, senza permessi di
+  amministratore, con collegamenti sul desktop e nel menu Start. Non ha firma digitale: al primo
+  avvio Windows può mostrare "Windows ha protetto il PC"; si prosegue con
+  **Ulteriori informazioni** → **Esegui comunque**.
+- **macOS**: si apre il `.dmg` e si trascina l'app in Applicazioni. L'app non è firmata con un
+  certificato Apple: al primo avvio macOS la blocca. Si apre **Impostazioni di Sistema** →
+  **Privacy e sicurezza** e, in fondo, **Apri comunque** (serve una volta sola). In alternativa,
+  dal Terminale: `xattr -dr com.apple.quarantine "/Applications/Editor tracce CodeRunner.app"`.
+- **Linux**: su Ubuntu e Debian `sudo apt install ./Editor-tracce-CodeRunner-<versione>-amd64.deb`;
+  sulle altre distribuzioni l'`AppImage` (resa eseguibile con `chmod +x`), che richiede FUSE 2
+  (su Ubuntu il pacchetto `libfuse2t64`).
+
+La disinstallazione non cancella l'archivio delle tracce.
 
 ## Sicurezza
 
@@ -139,6 +172,7 @@ il backend non richiede il codice segreto (lo richiede solo se c'è la variabile
 | `POST /api/archive/restore` | sostituisce l'archivio con un backup, conservando quello attuale |
 
 L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione
-(`%APPDATA%\tesi-frontend`); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
+(`%APPDATA%\tesi-frontend` su Windows, `~/Library/Application Support/tesi-frontend` su macOS,
+`~/.config/tesi-frontend` su Linux); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
 
 Gli XML reali del docente usati nei test sono in `backend/tests/fixtures/moodle/`.

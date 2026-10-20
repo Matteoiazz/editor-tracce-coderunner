@@ -4,6 +4,7 @@ import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { joinList, unsupportedElements } from "../richtext";
+import { redoShortcut, shortcut } from "../shortcuts";
 import { useExpandedLayer } from "./ExpandedLayer";
 import {
   IconBulletList,
@@ -132,11 +133,11 @@ export function HtmlEditor({ value, onChange }: Props) {
       {/* Le barre restano visibili mentre si scorre un testo lungo */}
       <div className="html-bars">
       <div className="html-toolbar">
-        <ToolbarButton label="G" title="Grassetto (Ctrl+B)" active={state.bold}
+        <ToolbarButton label="G" title={`Grassetto (${shortcut("B")})`} active={state.bold}
           onClick={() => chain().toggleBold().run()} className="bold" />
-        <ToolbarButton label="C" title="Corsivo (Ctrl+I)" active={state.italic}
+        <ToolbarButton label="C" title={`Corsivo (${shortcut("I")})`} active={state.italic}
           onClick={() => chain().toggleItalic().run()} className="italic" />
-        <ToolbarButton label={<IconInlineCode />} title="Testo in stile codice (Ctrl+E)" active={state.code}
+        <ToolbarButton label={<IconInlineCode />} title={`Testo in stile codice (${shortcut("E")})`} active={state.code}
           onClick={() => chain().toggleCode().run()} />
         <span className="separator" />
         <ToolbarButton label={<IconBulletList />} title="Elenco puntato" active={state.bulletList}
@@ -147,9 +148,9 @@ export function HtmlEditor({ value, onChange }: Props) {
           onClick={insertTable}
           disabled={state.inTable} />
         <span className="separator" />
-        <ToolbarButton label={<IconUndo />} title="Annulla (Ctrl+Z)" disabled={!state.canUndo}
+        <ToolbarButton label={<IconUndo />} title={`Annulla (${shortcut("Z")})`} disabled={!state.canUndo}
           onClick={() => chain().undo().run()} />
-        <ToolbarButton label={<IconRedo />} title="Ripeti (Ctrl+Y)" disabled={!state.canRedo}
+        <ToolbarButton label={<IconRedo />} title={`Ripeti (${redoShortcut()})`} disabled={!state.canRedo}
           onClick={() => chain().redo().run()} />
         <ToolbarButton
           label={expanded ? <><IconCollapse /> Riduci</> : <><IconExpand /> Espandi</>}

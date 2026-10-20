@@ -10,12 +10,17 @@ const net = require("node:net");
 const path = require("node:path");
 
 const isDev = !app.isPackaged;
+const isWindows = process.platform === "win32";
+const isMac = process.platform === "darwin";
 
 // Nome mostrato nei titoli delle finestre di dialogo. La cartella dei dati (archivio delle
 // tracce) resta quella di sempre: senza fissarla, cambiando nome Electron ne userebbe una nuova.
 const APP_NAME = "Editor tracce CodeRunner";
 app.setPath("userData", path.join(app.getPath("appData"), "tesi-frontend"));
 app.setName(APP_NAME);
+// L'app è in italiano: anche i controlli di Chromium (es. il campo data, gg/mm/aaaa) lo sono,
+// qualunque sia la lingua del sistema (su macOS Chromium usa comunque quella del sistema)
+app.commandLine.appendSwitch("lang", "it");
 const DEV_SERVER_URL = "http://localhost:5173";
 // Tempo massimo concesso alla pagina per completare il salvataggio alla chiusura
 const CLOSE_TIMEOUT_MS = 3000;
@@ -49,7 +54,9 @@ function backendCommand() {
   if (isDev) {
     const backendDir = path.join(__dirname, "..", "..", "backend");
     return {
-      python: path.join(backendDir, ".venv", "Scripts", "python.exe"),
+      python: isWindows
+        ? path.join(backendDir, ".venv", "Scripts", "python.exe")
+        : path.join(backendDir, ".venv", "bin", "python"),
       flags: [],
       cwd: backendDir,
       env: { PYTHONPATH: path.join(backendDir, "src") },
@@ -58,7 +65,11 @@ function backendCommand() {
   const runtime = path.join(process.resourcesPath, "python");
   // -I: il backend ignora variabili d'ambiente e pacchetti Python installati sul computer;
   // -u: output non bufferizzato (con -I la variabile PYTHONUNBUFFERED non vale)
-  return { python: path.join(runtime, "python.exe"), flags: ["-I", "-u"], cwd: runtime, env: {} };
+  // Stesso percorso dell'interprete usato da scripts/prepara_python.py per ogni sistema
+  const python = isWindows
+    ? path.join(runtime, "python.exe")
+    : path.join(runtime, "bin", "python3");
+  return { python, flags: ["-I", "-u"], cwd: runtime, env: {} };
 }
 
 function startBackend(port) {
@@ -95,7 +106,7 @@ function startBackend(port) {
 function stopBackend() {
   if (!backendProcess) return;
   // Su Windows kill() da solo può lasciare processi figli: taskkill /T li chiude tutti.
-  if (process.platform === "win32") {
+  if (isWindows) {
     spawn("taskkill", ["/pid", String(backendProcess.pid), "/T", "/F"]);
   } else {
     backendProcess.kill();
@@ -385,8 +396,12 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   if (!isFirstInstance) return;
-  // Il menu predefinito di Electron (in inglese, con strumenti per sviluppatori) non serve
-  Menu.setApplicationMenu(null);
+  // Il menu predefinito di Electron (in inglese, con strumenti per sviluppatori) non serve.
+  // Su macOS resta il menu essenziale: senza il menu Modifica non funzionano Cmd+C, Cmd+V,
+  // Cmd+Z e gli altri comandi da tastiera, e senza il menu dell'app non c'è Cmd+Q.
+  Menu.setApplicationMenu(
+    isMac ? Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }]) : null,
+  );
   try {
     backendPort = await getFreePort();
     startBackend(backendPort);
