@@ -1116,6 +1116,20 @@ body.editor-expanded .main {
   width: 76px;
 }
 
+.test-table th.col-use {
+  width: 52px;
+  text-align: center;
+}
+
+/* Test comune che l'esercizio non usa: resta visibile per poterlo riattivare */
+.test-table tr.excluded td {
+  background: var(--ground);
+}
+
+.test-table tr.excluded td > :not(input[type="checkbox"]) {
+  opacity: 0.55;
+}
+
 .test-table th.col-display {
   width: 112px;
 }

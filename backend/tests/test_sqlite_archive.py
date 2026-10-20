@@ -103,6 +103,29 @@ def test_esercizi_salvati_prima_dei_file_incorporati(archive: SqliteTrackArchive
     assert archive.get("t1").exercises[0].question.text_files == []
 
 
+def test_test_comuni_esclusi_da_un_esercizio(archive: SqliteTrackArchive) -> None:
+    track = make_track(exercises=2)
+    track.exercises[1].excluded_common = [0]
+
+    archive.save(track)
+
+    loaded = archive.get("t1")
+    assert [e.excluded_common for e in loaded.exercises] == [[], [0]]
+
+
+def test_esercizi_salvati_prima_dell_esclusione_dei_test_comuni(
+    archive: SqliteTrackArchive,
+) -> None:
+    archive.save(make_track(exercises=1))
+    with sqlite3.connect(archive.path) as db:
+        [(data,)] = db.execute("SELECT data FROM exercises").fetchall()
+        old = json.loads(data)
+        del old["excluded_common"]
+        db.execute("UPDATE exercises SET data = ?", (json.dumps(old),))
+
+    assert archive.get("t1").exercises[0].excluded_common == []
+
+
 def test_traccia_inesistente(archive: SqliteTrackArchive) -> None:
     with pytest.raises(TrackNotFound):
         archive.get("manca")

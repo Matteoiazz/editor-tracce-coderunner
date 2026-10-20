@@ -50,6 +50,8 @@ def test_salva_elenca_e_riapre(client: TestClient, tmp_path: Path) -> None:
     track = client.get("/api/tracks/t1").json()
     assert track["exercises"][0]["question"]["tags"] == ["Python - easy"]
     assert track["exercises"][0]["common_expected"] == ["0 1 Input: []"]
+    # Senza il campo l'esercizio usa tutti i test comuni
+    assert track["exercises"][0]["excluded_common"] == []
     assert track["created_at"] is not None
 
 

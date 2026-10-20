@@ -13,6 +13,10 @@ interface Props {
   onChange?: (rows: TestRow[]) => void;
   /** Righe di input lette dalla soluzione: i test con meno righe vengono evidenziati. */
   requiredLines?: number;
+  /** Test comuni che l'esercizio non usa, per identificativo. Con `onExcludedChange` la
+   *  tabella ha la colonna «Usa» per includerli o escluderli. */
+  excluded?: string[];
+  onExcludedChange?: (id: string, excluded: boolean) => void;
 }
 
 const PREVIEW_LENGTH = 60;
@@ -20,9 +24,15 @@ const PREVIEW_LENGTH = 60;
 /** Tabella dei test case: input, opzioni di CodeRunner, output atteso ed esito. */
 export function TestCaseTable(props: Props) {
   const { rows, startNumber, showExpected, outcomes, onChange, requiredLines = 0 } = props;
+  const { excluded = [], onExcludedChange } = props;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const editable = onChange !== undefined;
-  const columns = 5 + (showExpected ? 1 : 0) + (outcomes ? 1 : 0) + (editable ? 1 : 0);
+  const selectable = onExcludedChange !== undefined;
+  const columns =
+    5 + (showExpected ? 1 : 0) + (outcomes ? 1 : 0) + (editable ? 1 : 0) + (selectable ? 1 : 0);
+  // Numeri come su Moodle: i test esclusi non vengono esportati e non hanno numero
+  let next = startNumber;
+  const numbers = rows.map((row) => (excluded.includes(row.id) ? null : next++));
 
   function update(id: string, changes: Partial<TestRow>) {
     onChange?.(rows.map((row) => (row.id === id ? { ...row, ...changes } : row)));
@@ -44,6 +54,11 @@ export function TestCaseTable(props: Props) {
       <thead>
         <tr>
           <th className="col-number">#</th>
+          {selectable && (
+            <th className="col-use" title="Togli la spunta ai test comuni che questo esercizio non deve usare">
+              Usa
+            </th>
+          )}
           <th
             className="col-input"
             title="Ogni valore letto dalla soluzione con input() va su una riga diversa"
@@ -67,11 +82,22 @@ export function TestCaseTable(props: Props) {
       </thead>
       <tbody>
         {rows.map((row, i) => {
-          const outcome = outcomes?.[row.id];
-          const missing = requiredLines - inputLineCount(row.stdin);
+          const off = excluded.includes(row.id);
+          const outcome = off ? undefined : outcomes?.[row.id];
+          const missing = off ? 0 : requiredLines - inputLineCount(row.stdin);
           return [
-            <tr key={row.id}>
-              <td className="number">{startNumber + i}</td>
+            <tr key={row.id} className={off ? "excluded" : undefined}>
+              <td className="number">{numbers[i] ?? "–"}</td>
+              {selectable && (
+                <td className="center">
+                  <input
+                    type="checkbox"
+                    checked={!off}
+                    aria-label={`Usa il test comune con input ${row.stdin.split("\n").join(" ")}`}
+                    onChange={(e) => onExcludedChange(row.id, !e.target.checked)}
+                  />
+                </td>
+              )}
               <td>
                 <textarea
                   className={missing > 0 ? "stdin incomplete" : "stdin"}
@@ -91,11 +117,15 @@ export function TestCaseTable(props: Props) {
               </td>
               {showExpected && (
                 <td className="expected">
+                  {off ? (
+                    <span className="muted">non usato da questo esercizio</span>
+                  ) : (
                   <ExpectedCell
                     text={row.expected}
                     expanded={expanded.has(row.id)}
                     onToggle={() => toggle(row.id)}
                   />
+                  )}
                 </td>
               )}
               <td className="center">
@@ -134,7 +164,7 @@ export function TestCaseTable(props: Props) {
                     type="button"
                     className="icon"
                     title="Elimina test"
-                    aria-label={`Elimina il test ${startNumber + i}`}
+                    aria-label={`Elimina il test ${numbers[i] ?? ""}`}
                     onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
                   >
                     <IconClose />

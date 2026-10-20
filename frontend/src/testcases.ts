@@ -137,15 +137,19 @@ export function detectCommonBlock(lists: TestCase[][], minLength = 3): CommonBlo
   return { block: best, members };
 }
 
-/** Lista completa dei test di un esercizio, nell'ordine di Moodle: comuni, poi specifici. */
+/** Lista completa dei test di un esercizio, nell'ordine di Moodle: comuni (tranne quelli
+ *  esclusi da questo esercizio, per identificativo), poi specifici. */
 export function composeTests(
   common: TestRow[],
   useCommon: boolean,
   commonExpected: Record<string, string>,
   specific: TestRow[],
+  excluded: string[] = [],
 ): TestRow[] {
   const commonRows = useCommon
-    ? common.map((row) => ({ ...row, expected: commonExpected[row.id] ?? "" }))
+    ? common
+        .filter((row) => !excluded.includes(row.id))
+        .map((row) => ({ ...row, expected: commonExpected[row.id] ?? "" }))
     : [];
   return [...commonRows, ...specific];
 }

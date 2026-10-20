@@ -39,6 +39,7 @@ import {
   duplicateQuestion,
   duplicateNumbers,
   type EditableQuestion,
+  exerciseTests,
   ignoredMessage,
   isExamComplete,
   nextNumber,
@@ -65,7 +66,7 @@ import {
   validOutcomes,
   type VerifyRecord,
 } from "./status";
-import { composeTests, type TestRow } from "./testcases";
+import type { TestRow } from "./testcases";
 import type { TestOutcome } from "./types";
 
 function errorText(e: unknown): string {
@@ -421,7 +422,7 @@ export function App() {
       const result = adoptImported(questions, items, exam, common);
       // Esercizi che l'applicazione non sa eseguire: vanno segnalati subito
       const unsupported = result.items.flatMap((item) => {
-        const tests = composeTests(result.common, item.useCommon, item.commonExpected, item.specific);
+        const tests = exerciseTests(item, result.common);
         const reason = unsupportedReason(item.question, tests);
         return reason
           ? [`${questionName(item, result.exam)}: ${reason}. Calcola output e Verifica non sono ` +
@@ -458,7 +459,7 @@ export function App() {
       for (const item of sortedByNumber(items)) {
         const question = prepareQuestion(item, exam, common);
         if (unsupportedReason(question, question.testcases)) continue;
-        const rows = composeTests(common, item.useCommon, item.commonExpected, item.specific);
+        const rows = exerciseTests(item, common);
         const outcomes = await verifyQuestion(question);
         recordOutcomes(item.id, rows, item.question.solution, outcomes);
         if (outcomes.some((o) => !o.passed)) failures++;

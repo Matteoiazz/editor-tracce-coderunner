@@ -56,6 +56,21 @@ describe("prepareQuestion", () => {
     expect(prepareQuestion(conTag, esame, common).tags).toEqual(["python - ricorsione"]);
   });
 
+  it("non esporta i test comuni esclusi dall'esercizio e non li conta tra i problemi", () => {
+    const item = { ...readyQuestion(1), excludedCommon: [common[0].id], commonExpected: {} };
+    const withoutFirst = {
+      ...item,
+      commonExpected: Object.fromEntries(common.slice(1).map((row, i) => [row.id, `comune-${i + 1}\n`])),
+    };
+
+    const question = prepareQuestion(withoutFirst, esame, common);
+
+    expect(question.testcases).toHaveLength(9);
+    expect(question.testcases[0]).toMatchObject({ stdin: "1\n10", expected: "comune-1\n" });
+    // L'output del test escluso non serve
+    expect(exportProblems([withoutFirst], esame, common)).toEqual([]);
+  });
+
   it("senza test comuni esporta solo gli specifici", () => {
     const item = { ...readyQuestion(1), useCommon: false };
 

@@ -374,6 +374,8 @@ def _exercise(data: dict) -> TrackExercise:
         number=data["number"],
         use_common=data["use_common"],
         common_expected=data["common_expected"],
+        # Gli esercizi salvati prima dell'esclusione dei test comuni li usano tutti
+        excluded_common=data.get("excluded_common", []),
     )
 
 

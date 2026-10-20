@@ -20,6 +20,8 @@ class TrackExercise:
     use_common: bool = True
     # Output attesi dei test comuni per questo esercizio, nello stesso ordine dei test comuni
     common_expected: list[str] = field(default_factory=list)
+    # Posizioni dei test comuni che questo esercizio non usa (es. un input senza senso per lui)
+    excluded_common: list[int] = field(default_factory=list)
 
 
 @dataclass

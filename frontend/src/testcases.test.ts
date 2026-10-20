@@ -84,6 +84,16 @@ describe("composeTests e corrispondenza dei risultati", () => {
     expect(composeTests(common, false, commonExpected, specific)).toEqual(specific);
   });
 
+  it("salta i test comuni esclusi dall'esercizio", () => {
+    const composed = composeTests(common, true, commonExpected, specific, [common[2].id, common[5].id]);
+
+    expect(composed).toHaveLength(14);
+    expect(composed.slice(0, 7).map((r) => r.id)).toEqual(
+      common.filter((_, i) => i !== 2 && i !== 5).map((r) => r.id),
+    );
+    expect(composed[7]).toEqual(specific[0]);
+  });
+
   it("un test comune senza output calcolato ha l'output vuoto", () => {
     expect(composeTests(common, true, {}, [])[0].expected).toBe("");
   });

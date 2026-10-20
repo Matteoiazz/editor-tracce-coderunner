@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { fillExpected, verifyQuestion } from "../api";
-import { type EditableQuestion, unsupportedReason } from "../exam";
+import { type EditableQuestion, exerciseTests, unsupportedReason } from "../exam";
 import type { SectionStatus } from "../status";
 import {
   byId,
-  composeTests,
   inputLineCount,
   missingInputMessage,
   newRow,
@@ -38,8 +37,21 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
   // Vero se gli esiti mostrati sono quelli della verifica fatta subito dopo il calcolo
   const [justComputed, setJustComputed] = useState(false);
 
-  const composed = composeTests(common, item.useCommon, item.commonExpected, item.specific);
-  const commonRows = composed.slice(0, item.useCommon ? common.length : 0);
+  const composed = exerciseTests(item, common);
+  // Test comuni usati dall'esercizio (all'inizio di composed) e tutti quelli della traccia,
+  // compresi gli esclusi, per la tabella con la colonna «Usa»
+  const usedCommon = item.useCommon ? common.filter((row) => !item.excludedCommon.includes(row.id)) : [];
+  const commonRows = composed.slice(0, usedCommon.length);
+  const allCommonRows = common.map((row) => ({ ...row, expected: item.commonExpected[row.id] ?? "" }));
+
+  function setExcluded(id: string, excluded: boolean) {
+    onUpdate((current) => ({
+      ...current,
+      excludedCommon: excluded
+        ? [...current.excludedCommon.filter((other) => other !== id), id]
+        : current.excludedCommon.filter((other) => other !== id),
+    }));
+  }
   const unsupported = unsupportedReason(item.question, composed);
   const requiredLines = requiredInputLines(item.question.solution);
   const incomplete = missingInputMessage(
@@ -229,20 +241,25 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
             onToggle={(e) => setCommonOpen(e.currentTarget.open)}
           >
             <summary>
-              Test comuni <span className="mono">({common.length})</span>
-              {outcomes && (
-                <span className={`mono ${passedAmong(commonRows) === common.length ? "pass" : "fail"}`}>
+              Test comuni{" "}
+              <span className="mono">
+                ({commonRows.length < common.length ? `${commonRows.length} di ${common.length}` : common.length})
+              </span>
+              {outcomes && commonRows.length > 0 && (
+                <span className={`mono ${passedAmong(commonRows) === commonRows.length ? "pass" : "fail"}`}>
                   {" "}
-                  · {passedAmong(commonRows)}/{common.length} superati
+                  · {passedAmong(commonRows)}/{commonRows.length} superati
                 </span>
               )}
             </summary>
             <TestCaseTable
-              rows={commonRows}
+              rows={allCommonRows}
               startNumber={1}
               showExpected
               outcomes={outcomes}
               requiredLines={requiredLines}
+              excluded={item.excludedCommon}
+              onExcludedChange={setExcluded}
             />
           </details>
         ))}

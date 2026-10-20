@@ -1,7 +1,7 @@
 // Regole dell'esame: creazione degli esercizi, numerazione, adattamento degli importati.
 
 import { buildName, DEFAULT_TRACK, type ExamInfo, type ExamKind, formatDay, parseName } from "./naming";
-import { detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
+import { composeTests, detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
 import type { Question, TestCase } from "./types";
 
 export interface EditableQuestion {
@@ -11,7 +11,14 @@ export interface EditableQuestion {
   useCommon: boolean;
   /** Output attesi dei test comuni per questo esercizio, per identificativo del test. */
   commonExpected: Record<string, string>;
+  /** Test comuni che questo esercizio non usa, per identificativo. */
+  excludedCommon: string[];
   specific: TestRow[];
+}
+
+/** Test dell'esercizio nell'ordine di Moodle: i test comuni che usa, poi i suoi specifici. */
+export function exerciseTests(item: EditableQuestion, common: TestRow[]): TestRow[] {
+  return composeTests(common, item.useCommon, item.commonExpected, item.specific, item.excludedCommon);
 }
 
 /** Codice di partenza della soluzione di un esercizio nuovo. */
@@ -126,6 +133,7 @@ export function duplicateQuestion(
     id: crypto.randomUUID(),
     number,
     commonExpected: { ...source.commonExpected },
+    excludedCommon: [...source.excludedCommon],
     specific: source.specific.map((row) => ({ ...row, id: crypto.randomUUID() })),
     question: {
       ...source.question,
@@ -142,6 +150,7 @@ export function createQuestion(number: number, exam: ExamInfo): EditableQuestion
     number,
     useCommon: true,
     commonExpected: {},
+    excludedCommon: [],
     specific: [],
     question: {
       name: buildName(number, exam) ?? `Esercizio${number}`,
@@ -241,6 +250,7 @@ export function adoptImported(
       commonExpected: Object.fromEntries(
         newCommon.slice(0, commonCount).map((row, i) => [row.id, question.testcases[i].expected]),
       ),
+      excludedCommon: [],
       specific: question.testcases.slice(commonCount).map(toRow),
       // Un esercizio di un altro tipo (es. dal pretest in un esame) ne prende punti e tag
       question: adaptQuestionToKind({ ...question, testcases: [] }, parts.kind, newExam.kind),
@@ -347,7 +357,7 @@ export function copySources(items: EditableQuestion[], currentId: string): CopyS
 }
 
 /** Contenuto di `source` copiato in `target`: testo, soluzione, codice per gli studenti,
- *  test (specifici e uso dei test comuni, con i loro output), punti e tag. Restano di `target`
+ *  test (specifici e uso dei test comuni, con i loro output e le esclusioni), punti e tag. Restano di `target`
  *  l'identificativo e il numero, quindi il nome. La copia è indipendente dall'originale. */
 export function copyExerciseContent(
   target: EditableQuestion,
@@ -358,6 +368,7 @@ export function copyExerciseContent(
     number: target.number,
     useCommon: source.useCommon,
     commonExpected: { ...source.commonExpected },
+    excludedCommon: [...source.excludedCommon],
     specific: source.specific.map((row) => ({ ...row, id: crypto.randomUUID() })),
     question: {
       ...source.question,

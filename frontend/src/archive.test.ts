@@ -46,6 +46,34 @@ describe("toArchive", () => {
   });
 });
 
+describe("test comuni esclusi nell'archivio", () => {
+  it("si salvano per posizione e si ritrovano dopo la riapertura", () => {
+    const track = openTrack();
+    track.items[0].excludedCommon = [track.common[1].id];
+
+    const archived = toArchive(track);
+    const reopened = fromArchive(archived);
+
+    expect(archived.exercises[0].excluded_common).toEqual([1]);
+    expect(reopened.items[0].excludedCommon).toEqual([reopened.common[1].id]);
+  });
+
+  it("una traccia salvata prima dell'esclusione usa tutti i test comuni", () => {
+    const archived = toArchive(openTrack());
+    delete archived.exercises[0].excluded_common;
+
+    expect(fromArchive(archived).items[0].excludedCommon).toEqual([]);
+  });
+
+  it("un test comune eliminato dalla traccia sparisce anche dalle esclusioni", () => {
+    const track = openTrack();
+    track.items[0].excludedCommon = [track.common[2].id];
+    track.common = track.common.slice(0, 2);
+
+    expect(toArchive(track).exercises[0].excluded_common).toEqual([]);
+  });
+});
+
 describe("fromArchive", () => {
   it("ricostruisce la traccia con nuovi identificativi dei test", () => {
     const original = openTrack();
@@ -191,6 +219,24 @@ describe("reuseExercise", () => {
     expect(common).toBeNull();
     expect(item.useCommon).toBe(false);
     expect(item.specific.map((r) => r.expected)).toEqual(["out 0", "out 1", "spec"]);
+  });
+
+  it("con gli stessi test comuni mantiene le esclusioni", () => {
+    const common = standardCommonTests().slice(0, 2);
+    const { item } = reuseExercise({ ...source(), excluded_common: [1] }, sourceCommon, [], exam, common);
+    expect(item.excludedCommon).toEqual([common[1].id]);
+  });
+
+  it("adottando i test comuni mantiene le esclusioni", () => {
+    const { item, common } = reuseExercise({ ...source(), excluded_common: [0] }, sourceCommon, [], exam, []);
+    expect(item.excludedCommon).toEqual([common![0].id]);
+  });
+
+  it("con test comuni diversi trasforma in specifici solo quelli usati", () => {
+    const other = standardCommonTests().slice(3, 6);
+    const { item } = reuseExercise({ ...source(), excluded_common: [0] }, sourceCommon, [], exam, other);
+    expect(item.excludedCommon).toEqual([]);
+    expect(item.specific.map((r) => r.expected)).toEqual(["out 1", "spec"]);
   });
 
   it("un esercizio senza test comuni resta senza", () => {

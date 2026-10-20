@@ -3,6 +3,7 @@
 import {
   duplicateNumbers,
   type EditableQuestion,
+  exerciseTests,
   isValidGrade,
   questionName,
   shortLabel,
@@ -11,7 +12,6 @@ import {
 } from "./exam";
 import type { ExamInfo } from "./naming";
 import {
-  composeTests,
   inputLineCount,
   missingInputMessage,
   requiredInputLines,
@@ -41,7 +41,7 @@ export function prepareQuestion(
   exam: ExamInfo,
   common: TestRow[],
 ): Question {
-  const tests = composeTests(common, item.useCommon, item.commonExpected, item.specific);
+  const tests = exerciseTests(item, common);
   const tags = item.question.tags.length === 0 && exam.kind ? [exam.kind] : item.question.tags;
   return {
     ...item.question,
@@ -136,7 +136,7 @@ export function exportProblemList(
         "codice studenti uguale alla soluzione",
       ]);
     }
-    const tests = composeTests(common, item.useCommon, item.commonExpected, item.specific);
+    const tests = exerciseTests(item, common);
     const missing = tests.filter((test) => !test.expected).length;
     if (tests.length === 0) issues.push(["nessun test", "nessun test"]);
     else if (missing > 0) {

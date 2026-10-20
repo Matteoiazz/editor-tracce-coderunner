@@ -419,6 +419,17 @@ describe("copyExerciseContent", () => {
     expect(copied.specific.map((r) => [r.stdin, r.expected])).toEqual([["9", "9"]]);
   });
 
+  it("copia anche i test comuni esclusi, in modo indipendente", () => {
+    const source = { ...createQuestion(1, esame), excludedCommon: ["c2"] };
+    const copied = copyExerciseContent(createQuestion(2, esame), source);
+    const duplicated = duplicateQuestion(source, [source], esame);
+
+    expect(copied.excludedCommon).toEqual(["c2"]);
+    expect(duplicated.excludedCommon).toEqual(["c2"]);
+    copied.excludedCommon.push("c3");
+    expect(source.excludedCommon).toEqual(["c2"]);
+  });
+
   it("la copia è indipendente dall'originale", () => {
     const source = { ...createQuestion(1, esame), specific: [newRow("1")] };
     const copied = copyExerciseContent(createQuestion(2, esame), source);

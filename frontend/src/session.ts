@@ -50,7 +50,11 @@ export function parseSession(text: string): SessionData | null {
       track: typeof exam.track === "number" || exam.track === null ? exam.track : DEFAULT_TRACK,
     },
     common: data.common as TestRow[],
-    items: data.items as EditableQuestion[],
+    // Il vecchio file di sessione non conosce l'esclusione dei test comuni
+    items: (data.items as EditableQuestion[]).map((item) => ({
+      ...item,
+      excludedCommon: Array.isArray(item.excludedCommon) ? item.excludedCommon : [],
+    })),
   };
 }
 

@@ -31,6 +31,15 @@ describe("vecchio file di sessione", () => {
   });
 });
 
+describe("esercizi del vecchio file di sessione", () => {
+  it("usano tutti i test comuni", () => {
+    const { excludedCommon: _excluded, ...old } = createQuestion(1, exam);
+    const text = JSON.stringify({ version: SESSION_VERSION, exam, common: [], items: [old] });
+
+    expect(parseSession(text)?.items[0].excludedCommon).toEqual([]);
+  });
+});
+
 describe("salvataggi precedenti al numero di traccia", () => {
   it("valgono come traccia 1", () => {
     const old = JSON.stringify({ version: 1, exam: { date: "2026-10-15", kind: "Esame" }, common: [], items: [] });

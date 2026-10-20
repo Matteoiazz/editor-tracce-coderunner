@@ -14,6 +14,8 @@ export interface ArchivedExercise {
   number: number | null;
   use_common: boolean;
   common_expected: string[];
+  /** Posizioni dei test comuni che l'esercizio non usa (assente nelle tracce più vecchie). */
+  excluded_common?: number[];
 }
 
 export interface ArchivedTrack {
@@ -59,6 +61,7 @@ export function toArchive({ id, exam, common, items }: OpenTrack): ArchivedTrack
       number: item.number,
       use_common: item.useCommon,
       common_expected: common.map((row) => item.commonExpected[row.id] ?? ""),
+      excluded_common: common.flatMap((row, i) => (item.excludedCommon.includes(row.id) ? [i] : [])),
       question: { ...item.question, testcases: item.specific.map(toTestCase) },
     })),
   };
@@ -80,10 +83,16 @@ export function fromArchive(track: ArchivedTrack): OpenTrack {
           exercise.common_expected[i] ? [[row.id, exercise.common_expected[i]]] : [],
         ),
       ),
+      excludedCommon: excludedIds(common, exercise.excluded_common),
       specific: exercise.question.testcases.map(toRow),
       question: { ...exercise.question, testcases: [] },
     })),
   };
+}
+
+/** Identificativi dei test comuni alle posizioni indicate (quelle fuori elenco si ignorano). */
+function excludedIds(common: TestRow[], positions: number[] = []): string[] {
+  return positions.flatMap((i) => (common[i] ? [common[i].id] : []));
 }
 
 /** Data e ora brevi, es. "3 ott 2026, 16:55". */
@@ -158,9 +167,10 @@ export interface ReusedExercise {
 /** Copia nella traccia aperta un esercizio di un'altra traccia, con il numero successivo.
  *  Da una traccia di altro tipo (es. dal pretest a un esame) prende punti e tag del tipo corrente.
  *  I test comuni dell'esercizio di provenienza:
- *  - se la traccia ha gli stessi test comuni, l'esercizio li usa con i propri output;
+ *  - se la traccia ha gli stessi test comuni, l'esercizio li usa con i propri output e le
+ *    proprie esclusioni;
  *  - se la traccia è ancora vuota (né test comuni né esercizi), li adotta;
- *  - altrimenti diventano test specifici dell'esercizio, con i loro output: adottarli
+ *  - altrimenti quelli che usava diventano test specifici, con i loro output: adottarli
  *    li aggiungerebbe anche agli altri esercizi della traccia. */
 export function reuseExercise(
   source: ArchivedExercise,
@@ -190,29 +200,51 @@ export function reuseExercise(
     );
 
   if (!source.use_common || sourceCommon.length === 0) {
-    return { item: { ...base, useCommon: false, commonExpected: {}, specific }, common: null };
+    return {
+      item: { ...base, useCommon: false, commonExpected: {}, excludedCommon: [], specific },
+      common: null,
+    };
   }
   const same =
     common.length === sourceCommon.length && common.every((row, i) => sameTest(row, sourceCommon[i]));
   if (same) {
     return {
-      item: { ...base, useCommon: true, commonExpected: expectedFor(common), specific },
+      item: {
+        ...base,
+        useCommon: true,
+        commonExpected: expectedFor(common),
+        excludedCommon: excludedIds(common, source.excluded_common),
+        specific,
+      },
       common: null,
     };
   }
   if (common.length === 0 && items.length === 0) {
     const adopted = sourceCommon.map((test) => ({ ...toRow(test), expected: "" }));
     return {
-      item: { ...base, useCommon: true, commonExpected: expectedFor(adopted), specific },
+      item: {
+        ...base,
+        useCommon: true,
+        commonExpected: expectedFor(adopted),
+        excludedCommon: excludedIds(adopted, source.excluded_common),
+        specific,
+      },
       common: adopted,
     };
   }
-  const fromCommon = sourceCommon.map((test, i) => ({
-    ...toRow(test),
-    expected: source.common_expected[i] ?? "",
-  }));
+  // Diventano specifici solo i test comuni che l'esercizio usava
+  const excluded = new Set(source.excluded_common ?? []);
+  const fromCommon = sourceCommon.flatMap((test, i) =>
+    excluded.has(i) ? [] : [{ ...toRow(test), expected: source.common_expected[i] ?? "" }],
+  );
   return {
-    item: { ...base, useCommon: false, commonExpected: {}, specific: [...fromCommon, ...specific] },
+    item: {
+      ...base,
+      useCommon: false,
+      commonExpected: {},
+      excludedCommon: [],
+      specific: [...fromCommon, ...specific],
+    },
     common: null,
   };
 }

@@ -1,10 +1,9 @@
 // Stato degli esercizi per la colonna laterale e l'indice delle sezioni:
 // esiti della verifica, puntini dei test, stato di ogni sezione, riepilogo dell'esame.
 
-import { type EditableQuestion, unsupportedReason } from "./exam";
+import { type EditableQuestion, exerciseTests, unsupportedReason } from "./exam";
 import { hasText, isSkeletonSolution, normalizeCode } from "./export";
 import {
-  composeTests,
   inputLineCount,
   outcomesById,
   requiredInputLines,
@@ -101,7 +100,7 @@ export function exerciseStatus(
   record: VerifyRecord | undefined,
 ): ExerciseStatus {
   const { question } = item;
-  const rows = composeTests(common, item.useCommon, item.commonExpected, item.specific);
+  const rows = exerciseTests(item, common);
   const tests = testStates(rows, validOutcomes(record, question.solution, rows));
   const count = (state: TestState) => tests.filter((t) => t === state).length;
   const passed = count("passed");
