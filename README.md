@@ -10,12 +10,17 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
 - **Esercizi** con testo in HTML (anche tabelle), soluzione nascosta, codice per gli studenti
   generato dalla soluzione e test case; editor espandibili a tutta finestra. Con «Copia da…»
   si copia in un esercizio tutto il contenuto di un altro della stessa traccia (testo, soluzione,
-  codice per gli studenti, test), con la possibilità di annullare la copia.
+  codice per gli studenti, test); la copia si può annullare finché l'esercizio non viene modificato.
 - **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente.
 - **Calcola output**: gli output attesi si ottengono eseguendo la soluzione, come CodeRunner
-  (`python3_w_input`).
-- **Verifica**: la soluzione viene eseguita su ogni test e confrontata con l'output atteso;
-  l'esportazione è possibile solo quando tutto è superato.
+  (`python3_w_input`), e vengono subito verificati: così si scopre anche una soluzione che dà
+  risultati diversi a ogni esecuzione.
+- **Verifica**: la soluzione viene eseguita su ogni test e confrontata con l'output atteso (utile
+  per gli esercizi importati e dopo una modifica della soluzione); l'esportazione è possibile solo
+  quando tutto è superato.
+- **Prima di esportare**: la colonna elenca cosa manca, una riga per esercizio, e segnala
+  un'altra traccia dell'archivio con lo stesso tipo, data e numero (su Moodle le domande
+  avrebbero gli stessi nomi, come capita con una traccia duplicata e non modificata).
 - **Import ed export XML Moodle**, nello stesso formato degli export di Moodle (CDATA); le
   immagini incorporate nel testo vengono riportate nel file esportato.
 - **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di

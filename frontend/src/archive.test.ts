@@ -4,6 +4,8 @@ import {
   formatDay,
   fromArchive,
   reuseExercise,
+  sameNameIds,
+  sameNameTracks,
   type OpenTrack,
   toArchive,
   trackLabel,
@@ -100,6 +102,36 @@ describe("etichette dell'archivio", () => {
   it("anni presenti, dal più recente e senza doppioni", () => {
     const tracks = [summary("2025-02-01"), summary(null), summary("2026-07-03"), summary("2026-09-30")];
     expect(trackYears(tracks)).toEqual([2026, 2025]);
+  });
+});
+
+describe("tracce con lo stesso nome", () => {
+  const track = (id: string, day: string | null, number: number | null = 1): TrackSummary => ({
+    id,
+    kind: "Esame",
+    day,
+    number,
+    exercise_count: 2,
+    updated_at: "2026-10-03T10:00:00Z",
+    exported_at: null,
+    deleted_at: null,
+  });
+  const tracks = [track("a", "2026-07-03"), track("b", "2026-07-03"), track("c", "2026-07-03", 2)];
+
+  it("trova le altre tracce con tipo, data e numero della traccia aperta", () => {
+    expect(sameNameTracks({ ...exam, track: 1 }, "a", tracks).map((t) => t.id)).toEqual(["b"]);
+    expect(sameNameTracks({ ...exam, track: 2 }, "x", tracks).map((t) => t.id)).toEqual(["c"]);
+    // La traccia aperta non conta: c è l'unica con il numero 2
+    expect(sameNameTracks({ ...exam, track: 2 }, "c", tracks)).toEqual([]);
+    expect(sameNameTracks({ ...exam, kind: "Pretest", track: 1 }, "x", tracks)).toEqual([]);
+  });
+
+  it("non segnala nulla finché la traccia aperta non ha data, tipo e numero", () => {
+    expect(sameNameTracks({ ...exam, date: "", track: 1 }, "x", [track("a", null)])).toEqual([]);
+  });
+
+  it("indica nell'elenco le tracce che hanno lo stesso nome di un'altra", () => {
+    expect(sameNameIds([...tracks, track("d", null), track("e", null)])).toEqual(new Set(["a", "b"]));
   });
 });
 

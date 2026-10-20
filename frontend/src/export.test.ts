@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createQuestion, type EditableQuestion } from "./exam";
 import {
+  exportBlockers,
   exportFileName,
   exportProblemList,
   exportProblems,
@@ -179,6 +180,65 @@ describe("exportProblems sulla soluzione di partenza", () => {
 
     expect(exportProblems([untouched], esame, common)).toContain(
       "Esame-2026-10-15-Traccia1-Esercizio1: la soluzione è ancora quella di partenza: scrivi la soluzione vera",
+    );
+  });
+});
+
+describe("exportBlockers", () => {
+  it("una riga per esercizio con i problemi in forma breve, la descrizione completa nel suggerimento", () => {
+    const fresh = createQuestion(3, esame);
+    const ready = readyQuestion(1);
+
+    const blockers = exportBlockers([fresh, ready], esame, common, {});
+
+    expect(blockers).toEqual([
+      {
+        text:
+          "Esercizio 3: testo vuoto, soluzione da scrivere, codice studenti da generare, " +
+          "9 output da calcolare",
+        title: [
+          "Esame-2026-10-15-Traccia1-Esercizio3: il testo della traccia è vuoto",
+          "Esame-2026-10-15-Traccia1-Esercizio3: la soluzione è ancora quella di partenza: scrivi la soluzione vera",
+          "Esame-2026-10-15-Traccia1-Esercizio3: il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)",
+          "Esame-2026-10-15-Traccia1-Esercizio3: 9 test senza output atteso (premi «Calcola output»)",
+        ].join("\n"),
+        exerciseId: fresh.id,
+      },
+    ]);
+  });
+
+  it("aggiunge i test falliti alla riga dell'esercizio, in ordine di numero", () => {
+    const second = readyQuestion(2);
+    const first = { ...readyQuestion(1), question: { ...readyQuestion(1).question, text_html: "" } };
+
+    const blockers = exportBlockers([second, first], esame, common, { [second.id]: 1, [first.id]: 3 });
+
+    expect(blockers.map((b) => b.text)).toEqual([
+      "Esercizio 1: testo vuoto, 3 test falliti",
+      "Esercizio 2: 1 test fallito",
+    ]);
+  });
+
+  it("mette prima i problemi della traccia, compresi quelli indicati da fuori", () => {
+    const blockers = exportBlockers(
+      [readyQuestion(1)],
+      { ...esame, track: null },
+      common,
+      {},
+      ["Nell'archivio c'è un'altra traccia con lo stesso nome"],
+    );
+
+    expect(blockers).toEqual([
+      { text: "Esame: manca il numero della traccia" },
+      { text: "Nell'archivio c'è un'altra traccia con lo stesso nome" },
+    ]);
+  });
+
+  it("nel pretest l'esercizio si chiama «Esercizio del pretest»", () => {
+    const item = { ...readyQuestion(1), question: { ...readyQuestion(1).question, student_code: "" } };
+
+    expect(exportBlockers([item], { ...esame, kind: "Pretest" }, common, {})[0].text).toBe(
+      "Esercizio del pretest: codice studenti da generare",
     );
   });
 });

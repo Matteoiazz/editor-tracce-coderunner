@@ -312,6 +312,11 @@ export function exerciseLabel(item: EditableQuestion): string {
   return item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero";
 }
 
+/** Etichetta di un esercizio nella colonna: data, tipo e traccia sono già indicati sopra. */
+export function shortLabel(item: EditableQuestion, exam: ExamInfo): string {
+  return exam.kind === "Pretest" ? "Esercizio del pretest" : exerciseLabel(item);
+}
+
 /** Esercizio della traccia da cui copiare il contenuto. */
 export interface CopySource {
   id: string;

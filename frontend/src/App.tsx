@@ -18,8 +18,10 @@ import {
   fromArchive,
   type OpenTrack,
   reuseExercise,
+  sameNameTracks,
   toArchive,
   trackLabel,
+  type TrackSummary,
 } from "./archive";
 import { importIntoArchive, importReportMessage } from "./archiveImport";
 import { createArchiveSaver } from "./archiveSaver";
@@ -28,7 +30,7 @@ import { ReusePanel } from "./components/ReusePanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
-import { type Blocker, type Selection, Sidebar } from "./components/Sidebar";
+import { type Selection, Sidebar } from "./components/Sidebar";
 import {
   adaptItemsToKind,
   adoptImported,
@@ -45,12 +47,12 @@ import {
   copySources,
   exerciseLabel,
   questionName,
+  shortLabel,
   unsupportedReason,
 } from "./exam";
 import {
+  exportBlockers,
   exportFileName,
-  exportProblemList,
-  exportProblems,
   prepareQuestion,
   sortedByNumber,
 } from "./export";
@@ -84,10 +86,12 @@ export function App() {
   const [revealKeys, setRevealKeys] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Copia del contenuto da un altro esercizio, annullabile finché resta il suo messaggio
+  // Copia del contenuto da un altro esercizio: si può annullare finché resta il suo messaggio
+  // e l'esercizio non è stato modificato (`copied` è l'esercizio subito dopo la copia)
   const [copyUndo, setCopyUndo] = useState<{
     itemId: string;
     previous: EditableQuestion;
+    copied: EditableQuestion;
     notice: string;
   } | null>(null);
   // Cambia a ogni copia o annullamento: gli editor ripartono dal contenuto nuovo
@@ -205,6 +209,25 @@ export function App() {
     return () => clearTimeout(timer);
   }, [loaded, trackId, exam, common, items]);
 
+  // Elenco delle tracce dell'archivio, per accorgersi di un'altra traccia con lo stesso nome.
+  // Si rilegge quando cambia la traccia aperta e dopo ogni azione nella vista Archivio.
+  const [archiveTracks, setArchiveTracks] = useState<TrackSummary[]>([]);
+  const [archiveVersion, setArchiveVersion] = useState(0);
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    listTracks().then(
+      (tracks) => {
+        if (!cancelled) setArchiveTracks(tracks);
+      },
+      // Serve solo per l'avviso sui nomi uguali: un errore qui non blocca il lavoro
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, trackId, archiveVersion]);
+
   // Alla chiusura della finestra Electron attende la fine del salvataggio
   useEffect(() => {
     window.desktop.onBeforeClose(() => flushSave());
@@ -265,6 +288,7 @@ export function App() {
   }
 
   async function handleOpenTrack(id: string) {
+    clearMessages();
     await flushSave();
     const track = await getTrack(id);
     openTrack(fromArchive(track));
@@ -272,6 +296,7 @@ export function App() {
   }
 
   async function handleDuplicateTrack(id: string) {
+    clearMessages();
     await flushSave();
     const copy = await duplicateTrack(id);
     openTrack(fromArchive(copy));
@@ -282,6 +307,7 @@ export function App() {
   }
 
   async function handleTrashTrack(id: string) {
+    clearMessages();
     await flushSave();
     await trashTrack(id);
     // Se era la traccia aperta, si continua su una traccia nuova vuota
@@ -341,7 +367,11 @@ export function App() {
       Boolean(reopen),
     );
     setSelection({ kind: "archive" });
-    setNotice(`Archivio ripristinato dal backup (${count === 1 ? "1 traccia" : `${count} tracce`}).`);
+    // Si dice quale traccia è aperta: la colonna a sinistra ora mostra quella
+    setNotice(
+      `Archivio ripristinato dal backup (${count === 1 ? "1 traccia" : `${count} tracce`}). ` +
+        (reopen ? `Aperta la traccia ${trackLabel(reopen)}.` : "Ora è aperta una traccia nuova."),
+    );
   }
 
   async function handleReuse(match: ExerciseMatch) {
@@ -418,7 +448,8 @@ export function App() {
 
   async function handleExport() {
     clearMessages();
-    if (exportProblems(items, exam, common).length > 0) return;
+    // Stessa condizione del pulsante Esporta, disattivato finché l'elenco non è vuoto
+    if (blockers.length > 0) return;
     setExporting(true);
     try {
       // Su Moodle una soluzione che non supera i propri test renderebbe l'esercizio inutilizzabile:
@@ -493,17 +524,25 @@ export function App() {
     ) {
       return;
     }
-    updateItem(item.id, (current) => copyExerciseContent(current, from));
+    const copied = copyExerciseContent(item, from);
+    updateItem(item.id, () => copied);
     setContentVersion((v) => v + 1);
     const message = `${target}: copiati testo, soluzione, codice per gli studenti e test da ${source.label}.`;
     setError(null);
     setNotice(message);
-    setCopyUndo({ itemId: item.id, previous: item, notice: message });
+    setCopyUndo({ itemId: item.id, previous: item, copied, notice: message });
   }
+
+  // Dopo una modifica dell'esercizio la copia non si annulla più: annullarla cancellerebbe
+  // anche le modifiche fatte dopo. Ogni modifica crea un nuovo oggetto esercizio.
+  const canUndoCopy =
+    copyUndo !== null &&
+    copyUndo.notice === notice &&
+    items.find((it) => it.id === copyUndo.itemId) === copyUndo.copied;
 
   /** Riporta l'esercizio com'era prima dell'ultima copia. */
   function handleUndoCopy() {
-    if (!copyUndo) return;
+    if (!copyUndo || !canUndoCopy) return;
     const { itemId, previous } = copyUndo;
     updateItem(itemId, () => previous);
     setContentVersion((v) => v + 1);
@@ -535,30 +574,21 @@ export function App() {
 
   // ------------------------------------------------ vista
 
-  // Etichetta breve di un esercizio nella colonna: data, tipo e traccia sono già indicati sopra
-  const shortLabel = (it: EditableQuestion) =>
-    exam.kind === "Pretest"
-      ? "Esercizio del pretest"
-      : it.number !== null
-        ? `Esercizio ${it.number}`
-        : "Esercizio senza numero";
-
-  // Cosa impedisce l'esportazione: problemi di struttura e test falliti nell'ultima verifica.
-  // Nell'elenco ogni problema inizia con l'etichetta breve; il nome completo resta nel suggerimento.
-  const blockerFor = (it: EditableQuestion, problem: string): Blocker => ({
-    text: `${shortLabel(it)}: ${problem}`,
-    title: `${questionName(it, exam)}: ${problem}`,
-    exerciseId: it.id,
-  });
-  const blockers: Blocker[] = exportProblemList(items, exam, common).map((problem) =>
-    problem.item && problem.issue ? blockerFor(problem.item, problem.issue) : { text: problem.text },
+  // Cosa impedisce l'esportazione: problemi di struttura, test falliti nell'ultima verifica e
+  // un'altra traccia dell'archivio con lo stesso nome (es. duplicata e non ancora modificata)
+  const sameName = sameNameTracks(exam, trackId, archiveTracks);
+  const blockers = exportBlockers(
+    items,
+    exam,
+    common,
+    Object.fromEntries(items.map((it) => [it.id, statuses.get(it.id)?.failed ?? 0])),
+    sameName.length > 0
+      ? [
+          `Nell'archivio c'è un'altra traccia ${trackLabel(sameName[0])}: cambia data o numero ` +
+            "di traccia, altrimenti su Moodle le domande avrebbero gli stessi nomi",
+        ]
+      : [],
   );
-  for (const it of items) {
-    const failed = statuses.get(it.id)?.failed ?? 0;
-    if (failed > 0) {
-      blockers.push(blockerFor(it, failed === 1 ? "1 test fallito" : `${failed} test falliti`));
-    }
-  }
 
   if (!loaded) {
     return <p className="loading">Caricamento del lavoro salvato…</p>;
@@ -575,7 +605,7 @@ export function App() {
         exercises={sortedByNumber(items).map((it) => ({
           id: it.id,
           name: questionName(it, exam),
-          label: shortLabel(it),
+          label: shortLabel(it, exam),
           kind: exam.kind,
           grade: it.question.default_grade,
           status: statuses.get(it.id)!,
@@ -607,7 +637,7 @@ export function App() {
       {(error || notice) && (
         <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
           <p>{error ?? notice}</p>
-          {!error && copyUndo && copyUndo.notice === notice && (
+          {!error && canUndoCopy && (
             <button type="button" className="secondary small" onClick={handleUndoCopy}>
               Annulla la copia
             </button>
@@ -636,6 +666,11 @@ export function App() {
             onImportFiles={handleImportIntoArchive}
             onBackup={handleBackup}
             onRestore={handleRestore}
+            onNotice={(message) => {
+              clearMessages();
+              setNotice(message);
+            }}
+            onChanged={() => setArchiveVersion((v) => v + 1)}
             onError={setError}
           />
         ) : selection?.kind === "common" ? (

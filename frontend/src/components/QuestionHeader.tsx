@@ -29,6 +29,13 @@ export function QuestionHeader(props: Props) {
   // Il testo del campo è tenuto a parte: altrimenti una virgola appena digitata
   // sparirebbe subito, perché un tag vuoto viene scartato.
   const [tagsText, setTagsText] = useState(tags.join(", "));
+  // Tag cambiati dall'esterno (es. passando da Esame a Pretest il tag "Esame" diventa
+  // "Pretest"): il campo li mostra. Quelli appena scritti coincidono già con il testo.
+  const [shownTags, setShownTags] = useState(tags);
+  if (tags !== shownTags) {
+    setShownTags(tags);
+    if (parseTags(tagsText).join("\n") !== tags.join("\n")) setTagsText(tags.join(", "));
+  }
 
   return (
     <div className="question-header">

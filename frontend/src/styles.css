@@ -511,8 +511,9 @@ input[type="checkbox"] {
   flex: none;
   flex-direction: column;
   gap: 10px;
-  /* L'elenco dei problemi scorre al suo interno: Esporta resta visibile */
-  max-height: 45vh;
+  /* L'elenco dei problemi scorre al suo interno: Esporta resta visibile e agli esercizi
+     resta la maggior parte della colonna */
+  max-height: 32vh;
   padding: 14px 18px 18px;
   background: var(--rail);
   border-top: 1px solid var(--rule);
@@ -1319,6 +1320,12 @@ body.editor-expanded .main {
   background: var(--surface);
   border: 1px solid var(--accent);
   border-radius: 999px;
+}
+
+.archive-badge.warning {
+  color: #5c3e00;
+  background: var(--warn-soft);
+  border-color: #e8d39c;
 }
 
 .archive-meta {

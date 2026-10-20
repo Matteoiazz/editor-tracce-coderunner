@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteTrack, emptyTrash, listTracks, restoreTrack } from "../api";
-import { formatMoment, trackLabel, trackYears, type TrackSummary } from "../archive";
+import { formatMoment, sameNameIds, trackLabel, trackYears, type TrackSummary } from "../archive";
 import type { ExamKind } from "../naming";
 import { IconCopy, IconExport, IconImport, IconRestore, IconTrash } from "./icons";
 
@@ -14,6 +14,10 @@ interface Props {
   onImportFiles: () => Promise<void>;
   onBackup: () => Promise<void>;
   onRestore: () => Promise<void>;
+  /** Messaggio sull'esito di un'azione svolta qui (ripristino, eliminazione, cestino). */
+  onNotice: (message: string) => void;
+  /** Chiamata dopo ogni azione: l'elenco delle tracce può essere cambiato. */
+  onChanged: () => void;
   onError: (message: string) => void;
 }
 
@@ -21,7 +25,7 @@ type Tab = "archive" | "trash";
 
 /** Tracce salvate: apertura, duplicazione e cestino. */
 export function ArchivePanel(props: Props) {
-  const { currentId, onOpen, onDuplicate, onTrash, onError } = props;
+  const { currentId, onOpen, onDuplicate, onTrash, onNotice, onChanged, onError } = props;
   const [tab, setTab] = useState<Tab>("archive");
   const [tracks, setTracks] = useState<TrackSummary[] | null>(null);
   const [trash, setTrash] = useState<TrackSummary[]>([]);
@@ -44,18 +48,24 @@ export function ArchivePanel(props: Props) {
     refresh();
   }, []);
 
-  /** Esegue un'azione bloccando i pulsanti, poi rilegge l'elenco. */
-  async function run(action: () => Promise<unknown>) {
+  /** Esegue un'azione bloccando i pulsanti, poi rilegge l'elenco. Se l'azione riesce e
+   *  `done` è indicato, lo mostra come messaggio (al posto di quello dell'azione precedente). */
+  async function run(action: () => Promise<unknown>, done?: string) {
     setBusy(true);
     try {
       await action();
+      if (done) onNotice(done);
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
       await refresh();
+      onChanged();
     }
   }
+
+  // Tracce con lo stesso tipo, data e numero di un'altra: su Moodle i nomi sarebbero uguali
+  const sameName = sameNameIds(tracks ?? []);
 
   const visible = (tracks ?? []).filter(
     (t) => (!kind || t.kind === kind) && (!year || t.day?.startsWith(`${year}-`)),
@@ -135,9 +145,15 @@ export function ArchivePanel(props: Props) {
               onClick={() => {
                 const n = trash.length;
                 const what = n === 1 ? "la traccia nel cestino" : `le ${n} tracce nel cestino`;
-                const message = `Eliminare definitivamente ${what}? Non si potranno recuperare.`;
+                const lost = n === 1 ? "Non si potrà recuperare." : "Non si potranno recuperare.";
+                const message = `Eliminare definitivamente ${what}? ${lost}`;
                 if (!window.confirm(message)) return;
-                run(emptyTrash);
+                run(
+                  emptyTrash,
+                  n === 1
+                    ? "Cestino svuotato: 1 traccia eliminata definitivamente."
+                    : `Cestino svuotato: ${n} tracce eliminate definitivamente.`,
+                );
               }}
             >
               <IconTrash /> Svuota cestino
@@ -165,6 +181,14 @@ export function ArchivePanel(props: Props) {
                     <span className="archive-title">
                       {trackLabel(t)}
                       {current && <span className="archive-badge">aperta</span>}
+                      {sameName.has(t.id) && (
+                        <span
+                          className="archive-badge warning"
+                          title="Un'altra traccia ha lo stesso tipo, data e numero: cambiane uno prima di esportarla"
+                        >
+                          stesso nome di un'altra
+                        </span>
+                      )}
                     </span>
                     <span className="archive-meta">
                       {t.exercise_count === 1 ? "1 esercizio" : `${t.exercise_count} esercizi`} ·
@@ -197,7 +221,15 @@ export function ArchivePanel(props: Props) {
                       className="ghost small danger"
                       disabled={busy}
                       title="Sposta nel cestino; si può recuperare"
-                      onClick={() => run(() => onTrash(t.id))}
+                      onClick={() =>
+                        run(
+                          () => onTrash(t.id),
+                          // Per la traccia aperta il messaggio lo dà l'applicazione, che ne apre una nuova
+                          current
+                            ? undefined
+                            : `Spostata nel cestino: ${trackLabel(t)}. Si può ripristinare dalla scheda Cestino.`,
+                        )
+                      }
                     >
                       <IconTrash /> Cestino
                     </button>
@@ -225,7 +257,7 @@ export function ArchivePanel(props: Props) {
                   type="button"
                   className="secondary small"
                   disabled={busy}
-                  onClick={() => run(() => restoreTrack(t.id))}
+                  onClick={() => run(() => restoreTrack(t.id), `Ripristinata dal cestino: ${trackLabel(t)}.`)}
                 >
                   <IconRestore /> Ripristina
                 </button>
@@ -236,7 +268,7 @@ export function ArchivePanel(props: Props) {
                   onClick={() => {
                     const message = `Eliminare definitivamente «${trackLabel(t)}»? Non si potrà recuperare.`;
                     if (!window.confirm(message)) return;
-                    run(() => deleteTrack(t.id));
+                    run(() => deleteTrack(t.id), `Eliminata definitivamente: ${trackLabel(t)}.`);
                   }}
                 >
                   <IconTrash /> Elimina

@@ -2,7 +2,7 @@
 // (tesi.domain.track nel backend). Gli identificativi dei test servono solo all'interfaccia:
 // nell'archivio gli output dei test comuni sono salvati nello stesso ordine dei test.
 
-import { adaptQuestionToKind, type EditableQuestion, nextNumber } from "./exam";
+import { adaptQuestionToKind, type EditableQuestion, isExamComplete, nextNumber } from "./exam";
 import { buildName, type ExamInfo, type ExamKind, formatDay } from "./naming";
 
 export { formatDay };
@@ -104,6 +104,30 @@ export function trackLabel(track: Pick<TrackSummary, "kind" | "day" | "number">)
     formatDay(track.day) ?? "senza data",
     track.number !== null ? `Traccia ${track.number}` : "traccia senza numero",
   ].join(" · ");
+}
+
+/** Altre tracce dell'archivio con tipo, data e numero della traccia aperta: su Moodle i loro
+ *  esercizi avrebbero gli stessi nomi (succede con una traccia duplicata e non modificata). */
+export function sameNameTracks(
+  exam: ExamInfo,
+  trackId: string,
+  tracks: TrackSummary[],
+): TrackSummary[] {
+  if (!isExamComplete(exam)) return [];
+  return tracks.filter(
+    (t) => t.id !== trackId && t.kind === exam.kind && t.day === exam.date && t.number === exam.track,
+  );
+}
+
+/** Tracce dell'elenco che hanno lo stesso tipo, data e numero di un'altra. */
+export function sameNameIds(tracks: TrackSummary[]): Set<string> {
+  const byName = new Map<string, string[]>();
+  for (const t of tracks) {
+    if (t.kind === null || t.day === null || t.number === null) continue;
+    const key = `${t.kind}|${t.day}|${t.number}`;
+    byName.set(key, [...(byName.get(key) ?? []), t.id]);
+  }
+  return new Set([...byName.values()].filter((ids) => ids.length > 1).flat());
 }
 
 /** Anni presenti nelle tracce, dal più recente. */

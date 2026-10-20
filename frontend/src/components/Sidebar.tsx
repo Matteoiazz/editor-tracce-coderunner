@@ -1,4 +1,5 @@
 import { parseExerciseNumber } from "../exam";
+import type { Blocker } from "../export";
 import type { ExamInfo, ExamKind } from "../naming";
 import type { ExamSummary, ExerciseStatus } from "../status";
 import { IconArchive, IconCheck, IconExport, IconImport, IconNewExam, IconPlus } from "./icons";
@@ -24,14 +25,6 @@ export interface SidebarExercise {
   /** Esiti arrivati mentre l'esercizio non era aperto. */
   unseen: boolean;
   revealKey?: string;
-}
-
-/** Problema che blocca l'esportazione; con exerciseId è cliccabile e porta all'esercizio. */
-export interface Blocker {
-  text: string;
-  /** Testo completo con il nome dell'esercizio, mostrato al passaggio del mouse. */
-  title?: string;
-  exerciseId?: string;
 }
 
 interface Props {
@@ -244,7 +237,7 @@ export function Sidebar(props: Props) {
                       {b.text}
                     </button>
                   ) : (
-                    b.text
+                    <span title={b.title}>{b.text}</span>
                   )}
                 </li>
               ))}

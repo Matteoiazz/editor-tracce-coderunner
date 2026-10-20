@@ -5,6 +5,7 @@ import {
   type EditableQuestion,
   isValidGrade,
   questionName,
+  shortLabel,
   SOLUTION_SKELETON,
   unsupportedReason,
 } from "./exam";
@@ -73,6 +74,8 @@ export interface ExportProblem {
   text: string;
   item?: EditableQuestion;
   issue?: string;
+  /** Forma breve del problema per l'elenco della colonna, es. "testo vuoto". */
+  short?: string;
 }
 
 /** Problemi che impediscono l'esportazione; lista vuota se si può esportare. */
@@ -108,35 +111,96 @@ export function exportProblemList(
 
   for (const item of sortedByNumber(items)) {
     const { question } = item;
-    const issues: string[] = [];
-    if (item.number === null && !pretest) issues.push("manca il numero");
-    if (!isValidGrade(question.default_grade)) issues.push("i punti devono essere maggiori di 0");
-    if (!hasText(question.text_html)) issues.push("il testo della traccia è vuoto");
-    if (!question.solution.trim()) issues.push("la soluzione è vuota");
+    // Per ogni problema: descrizione completa e forma breve
+    const issues: [string, string][] = [];
+    if (item.number === null && !pretest) issues.push(["manca il numero", "manca il numero"]);
+    if (!isValidGrade(question.default_grade)) {
+      issues.push(["i punti devono essere maggiori di 0", "punti non validi"]);
+    }
+    if (!hasText(question.text_html)) issues.push(["il testo della traccia è vuoto", "testo vuoto"]);
+    if (!question.solution.trim()) issues.push(["la soluzione è vuota", "soluzione vuota"]);
     else if (isSkeletonSolution(question.solution)) {
-      issues.push("la soluzione è ancora quella di partenza: scrivi la soluzione vera");
+      issues.push([
+        "la soluzione è ancora quella di partenza: scrivi la soluzione vera",
+        "soluzione da scrivere",
+      ]);
     }
     if (!question.student_code.trim()) {
-      issues.push("il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)");
+      issues.push([
+        "il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)",
+        "codice studenti da generare",
+      ]);
     } else if (normalizeCode(question.student_code) === normalizeCode(question.solution)) {
-      issues.push(
+      issues.push([
         "il codice per gli studenti è uguale alla soluzione (premi «Genera dalla soluzione»)",
-      );
+        "codice studenti uguale alla soluzione",
+      ]);
     }
     const tests = composeTests(common, item.useCommon, item.commonExpected, item.specific);
     const missing = tests.filter((test) => !test.expected).length;
-    if (tests.length === 0) issues.push("nessun test");
+    if (tests.length === 0) issues.push(["nessun test", "nessun test"]);
     else if (missing > 0) {
-      issues.push(`${missing} test senza output atteso (premi «Calcola output»)`);
+      issues.push([
+        `${missing} test senza output atteso (premi «Calcola output»)`,
+        `${missing} output da calcolare`,
+      ]);
     }
     if (!unsupportedReason(question, tests)) {
       const required = requiredInputLines(question.solution);
       const short = tests.flatMap((test, i) => (inputLineCount(test.stdin) < required ? [i + 1] : []));
       const message = missingInputMessage(short, required);
-      if (message) issues.push(message);
+      if (message) issues.push([message, "input dei test incompleti"]);
     }
     const name = questionName(item, exam);
-    problems.push(...issues.map((issue) => ({ text: `${name}: ${issue}`, item, issue })));
+    problems.push(
+      ...issues.map(([issue, short]) => ({ text: `${name}: ${issue}`, item, issue, short })),
+    );
   }
   return problems;
+}
+
+/** Problema che blocca l'esportazione come lo mostra la colonna; con exerciseId porta
+ *  all'esercizio. */
+export interface Blocker {
+  text: string;
+  /** Descrizione completa, mostrata al passaggio del mouse. */
+  title?: string;
+  exerciseId?: string;
+}
+
+/** Problemi che bloccano l'esportazione, in poche righe: prima quelli della traccia (con
+ *  `general`, es. un'altra traccia con lo stesso nome), poi una riga per esercizio con i suoi
+ *  problemi in forma breve, es. "Esercizio 3: testo vuoto, nessun test". Così l'elenco non
+ *  toglie spazio agli esercizi nella colonna. `failed`: test falliti nell'ultima verifica,
+ *  per esercizio. */
+export function exportBlockers(
+  items: EditableQuestion[],
+  exam: ExamInfo,
+  common: TestRow[],
+  failed: Record<string, number>,
+  general: string[] = [],
+): Blocker[] {
+  const problems = exportProblemList(items, exam, common);
+  const blockers: Blocker[] = [
+    ...problems.filter((p) => !p.item).map((p) => ({ text: p.text })),
+    ...general.map((text) => ({ text })),
+  ];
+  for (const item of sortedByNumber(items)) {
+    const issues = problems
+      .filter((p) => p.item?.id === item.id)
+      .map((p) => ({ issue: p.issue!, short: p.short! }));
+    const count = failed[item.id] ?? 0;
+    if (count > 0) {
+      const text = count === 1 ? "1 test fallito" : `${count} test falliti`;
+      issues.push({ issue: text, short: text });
+    }
+    if (issues.length === 0) continue;
+    const name = questionName(item, exam);
+    blockers.push({
+      text: `${shortLabel(item, exam)}: ${issues.map((i) => i.short).join(", ")}`,
+      title: issues.map((i) => `${name}: ${i.issue}`).join("\n"),
+      exerciseId: item.id,
+    });
+  }
+  return blockers;
 }

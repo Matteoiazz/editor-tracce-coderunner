@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fillExpected, verifyQuestion } from "../api";
 import { type EditableQuestion, unsupportedReason } from "../exam";
 import type { SectionStatus } from "../status";
@@ -35,6 +35,8 @@ interface Props {
 export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, onVerified }: Props) {
   const [busy, setBusy] = useState<"calcola" | "verifica" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Vero se gli esiti mostrati sono quelli della verifica fatta subito dopo il calcolo
+  const [justComputed, setJustComputed] = useState(false);
 
   const composed = composeTests(common, item.useCommon, item.commonExpected, item.specific);
   const commonRows = composed.slice(0, item.useCommon ? common.length : 0);
@@ -54,6 +56,20 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
     return { ...item.question, testcases: composed.map(toTestCase) };
   }
 
+  // Test con esito "fallito" perché l'output è diverso (non per un errore della soluzione)
+  const mismatched = (rows: TestRow[]) =>
+    rows.filter((row) => outcomes?.[row.id] && !outcomes[row.id].passed && !outcomes[row.id].error).length;
+  const failedAmong = (rows: TestRow[]) =>
+    rows.filter((row) => outcomes?.[row.id] && !outcomes[row.id].passed).length;
+
+  // I test comuni stanno in un riquadro chiuso: si apre da solo se qualcuno fallisce,
+  // altrimenti i dettagli dei fallimenti resterebbero nascosti
+  const commonFailed = failedAmong(commonRows);
+  const [commonOpen, setCommonOpen] = useState(commonFailed > 0);
+  useEffect(() => {
+    if (commonFailed > 0) setCommonOpen(true);
+  }, [outcomes, commonFailed]);
+
   async function handleFillExpected() {
     setError(null);
     if (composed.length === 0) {
@@ -66,6 +82,7 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
     }
     setBusy("calcola");
     const started = snapshot;
+    const solution = item.question.solution;
     try {
       const result = await fillExpected(questionWithTests());
       if (latest.current !== started) {
@@ -87,6 +104,13 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
           row.id in expected ? { ...row, expected: expected[row.id] } : row,
         ),
       }));
+      // Subito dopo si verificano gli output appena calcolati, così l'esercizio risulta già
+      // verificato. Scopre anche una soluzione che dà risultati diversi a ogni esecuzione.
+      // Se nel frattempo soluzione o test cambiano, gli esiti scadono da soli.
+      const rows = composed.map((row) => ({ ...row, expected: expected[row.id] }));
+      const verified = await verifyQuestion({ ...item.question, testcases: rows.map(toTestCase) });
+      onVerified(rows, solution, verified);
+      setJustComputed(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -109,6 +133,7 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
       return;
     }
     setBusy("verifica");
+    setJustComputed(false);
     // Gli esiti sono legati a soluzione e test di questo momento: se poi cambiano,
     // l'app li considera scaduti da sola.
     const rows = composed;
@@ -134,7 +159,13 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
         </h2>
         <span className="section-note">{sectionStatus.note}</span>
         <div className="section-actions">
-          <button type="button" className="secondary" onClick={handleFillExpected} disabled={disabled}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleFillExpected}
+            disabled={disabled}
+            title="Calcola gli output attesi eseguendo la soluzione, poi li verifica"
+          >
             <IconCompute /> {busy === "calcola" ? "Calcolo…" : "Calcola output"}
           </button>
           <button type="button" className="primary" onClick={handleVerify} disabled={disabled}>
@@ -150,6 +181,16 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
         </p>
       )}
       {error && <p className="inline-error">{error}</p>}
+      {mismatched(composed) > 0 && (
+        <p className="inline-notice">
+          {justComputed
+            ? "Ricalcolati subito dopo, gli output sono diversi: la soluzione dà risultati " +
+              "diversi a ogni esecuzione (es. numeri casuali senza random.seed, o l'ordine di un " +
+              "set di stringhe). Su Moodle anche gli studenti fallirebbero questi test."
+            : "Gli output attesi non corrispondono a quelli della soluzione. Se hai modificato " +
+              "la soluzione di proposito, premi «Calcola output» per aggiornarli."}
+        </p>
+      )}
 
       <div className="tests-toolbar">
         <label className="checkbox">
@@ -174,7 +215,11 @@ export function TestsSection({ item, common, outcomes, sectionStatus, onUpdate, 
         (common.length === 0 ? (
           <p className="muted small-text">Nessun test comune definito nella traccia.</p>
         ) : (
-          <details className="common-summary">
+          <details
+            className="common-summary"
+            open={commonOpen}
+            onToggle={(e) => setCommonOpen(e.currentTarget.open)}
+          >
             <summary>
               Test comuni <span className="mono">({common.length})</span>
               {outcomes && (
