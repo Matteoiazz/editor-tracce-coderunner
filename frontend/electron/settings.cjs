@@ -11,8 +11,9 @@ const SETTINGS_FILE = "impostazioni.json";
 const DAMAGED_COPY = "impostazioni-danneggiate.json";
 // Formato del file: serve a convertire i file scritti da versioni precedenti dell'app
 const SETTINGS_VERSION = 1;
-// Modello delle funzioni AI scelto con il docente (identificativo dall'elenco di OpenRouter)
-const DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
+// Modello delle funzioni AI: Nemotron 3 Ultra nella variante gratuita (identificativo
+// dall'elenco di OpenRouter)
+const DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 function defaultSettings() {
   return { version: SETTINGS_VERSION, ai: { model: DEFAULT_MODEL } };

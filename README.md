@@ -31,7 +31,8 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
 - **Impostazioni**: il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
   filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
-  NVIDIA Nemotron 3 Ultra (`nvidia/nemotron-3-ultra-550b-a55b`). Ogni scelta si salva subito.
+  NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
+  scelta si salva subito.
 
 ## Struttura
 
