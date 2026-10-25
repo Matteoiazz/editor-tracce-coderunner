@@ -5,11 +5,11 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { writeFileAtomic } = require("./atomic-write.cjs");
+const { API_URL, getJson } = require("./openrouter.cjs");
 
-const MODELS_URL = "https://openrouter.ai/api/v1/models";
+const MODELS_URL = `${API_URL}/models`;
 const CACHE_FILE = "modelli-openrouter.json";
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 15_000;
 
 /** Prezzo per milione di token, da quello per token di OpenRouter (un testo, es. "0.0000006").
  *  null se manca o è negativo: OpenRouter usa -1 per i modelli a prezzo variabile. */
@@ -49,27 +49,8 @@ function parseModels(body) {
 }
 
 async function download(fetchImpl, timeoutMs) {
-  const signal = AbortSignal.timeout(timeoutMs);
-  let response;
-  let text;
-  try {
-    response = await fetchImpl(MODELS_URL, { signal, headers: { Accept: "application/json" } });
-    if (response.ok) text = await response.text();
-  } catch {
-    // Il tipo di errore cambia da un sistema all'altro: conta se è scaduto il tempo
-    throw new Error(
-      signal.aborted
-        ? "OpenRouter non ha risposto in tempo"
-        : "OpenRouter non è raggiungibile, controlla la connessione",
-    );
-  }
-  if (!response.ok) throw new Error(`OpenRouter ha risposto con un errore (HTTP ${response.status})`);
-  let body = null;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    // non JSON: parseModels lo segnala come risposta non riconosciuta
-  }
+  const { status, ok, body } = await getJson("/models", { fetch: fetchImpl, timeoutMs });
+  if (!ok) throw new Error(`OpenRouter ha risposto con un errore (HTTP ${status})`);
   return parseModels(body);
 }
 
@@ -87,7 +68,7 @@ async function readCache(file) {
  *  da OpenRouter. Se il download non riesce si restituisce la copia (se c'è) con `error`. */
 async function listModels(
   dir,
-  { refresh = false, fetch: fetchImpl = fetch, now = Date.now, timeoutMs = FETCH_TIMEOUT_MS } = {},
+  { refresh = false, fetch: fetchImpl = fetch, now = Date.now, timeoutMs } = {},
 ) {
   const file = path.join(dir, CACHE_FILE);
   const cached = await readCache(file);

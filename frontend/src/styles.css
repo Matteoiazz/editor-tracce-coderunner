@@ -202,6 +202,7 @@ button.link {
 
 input[type="text"],
 input[type="search"],
+input[type="password"],
 input[type="number"],
 input[type="date"],
 select,
@@ -216,6 +217,7 @@ textarea {
 
 input[type="text"],
 input[type="search"],
+input[type="password"],
 input[type="number"],
 input[type="date"],
 select {
@@ -1870,4 +1872,98 @@ button.ghost.active {
 .field-error {
   font-size: var(--text-sm);
   color: var(--fail);
+}
+
+/* Chiave API */
+.key-section {
+  display: grid;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.key-section + .settings-label {
+  margin-top: 20px;
+}
+
+.key-current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.key-current-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.key-value {
+  overflow-wrap: anywhere;
+}
+
+.key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.key-form,
+.key-panel,
+.key-protect {
+  display: grid;
+  gap: 10px;
+}
+
+.key-panel {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.key-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+}
+
+.key-field {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.key-field input {
+  width: 100%;
+  font-size: var(--text-md);
+}
+
+.key-field input.mono {
+  font-family: var(--font-mono);
+}
+
+.key-field input[aria-invalid="true"] {
+  border-color: var(--fail);
+}
+
+.key-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.key-check svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--pass);
 }

@@ -29,7 +29,9 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   immagini incorporate nel testo vengono riportate nel file esportato.
 - **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di
   un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
-- **Impostazioni**: il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
+- **Impostazioni**: la chiave API di OpenRouter, nel portachiavi del sistema oppure protetta da
+  una master password, mostrata solo in forma mascherata (`sk-or-v1-••••3f9a`) e controllabile con
+  «Prova la chiave»; il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
   filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
   NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
   scelta si salva subito.
@@ -144,6 +146,20 @@ La disinstallazione non cancella l'archivio delle tracce.
 - L'elenco dei modelli di OpenRouter (pubblico, senza chiave) lo scarica il processo principale
   di Electron: la pagina resta limitata al backend locale. Le impostazioni le scrive solo il
   processo principale, e la pagina può cambiare solo i valori previsti.
+- La chiave API sta nel file `chiave-api.json`, separato dall'archivio (non finisce nei backup),
+  leggibile solo dall'utente su macOS e Linux. Senza master password è cifrata con il portachiavi
+  del sistema (`safeStorage` di Electron: DPAPI su Windows, Portachiavi su macOS, libsecret o
+  KWallet su Linux). Con la master password è cifrata con AES-256-GCM, con una chiave ricavata
+  dalla password con scrypt (N = 2^17, r = 8, p = 1); sale e vettore iniziale sono casuali a ogni
+  salvataggio e la password non viene salvata: se si dimentica, si rimuove la chiave e se ne
+  inserisce una nuova. La chiave protetta si sblocca una volta per sessione e resta solo in
+  memoria nel processo principale; la pagina riceve la chiave solo con «Mostra», e la chiave non
+  compare nei log. «Prova la chiave» chiede a OpenRouter i dati della chiave, senza consumare
+  crediti.
+- Su Linux senza portachiavi (per esempio senza GNOME o KDE) Electron cifra con una chiave fissa:
+  la vista lo segnala e consiglia la master password. Su macOS, dopo un aggiornamento dell'app,
+  il sistema può chiedere di nuovo il permesso di usare il Portachiavi, perché l'app non ha una
+  firma Apple stabile.
 - Nell'app installata il backend gira con `python -I`: non legge variabili d'ambiente né pacchetti
   Python installati sul computer, quindi si comporta allo stesso modo su ogni PC.
 
@@ -191,8 +207,8 @@ L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazio
 (`%APPDATA%\tesi-frontend` su Windows, `~/Library/Application Support/tesi-frontend` su macOS,
 `~/.config/tesi-frontend` su Linux); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
 Nella stessa cartella ci sono `impostazioni.json` (scritto in modo sicuro: prima un file temporaneo,
-poi la sostituzione; se è illeggibile se ne conserva una copia e si riparte dai valori predefiniti)
-e `modelli-openrouter.json`, la copia dell'elenco dei modelli, usata per un giorno o quando manca
-la connessione.
+poi la sostituzione; se è illeggibile se ne conserva una copia e si riparte dai valori predefiniti),
+`modelli-openrouter.json`, la copia dell'elenco dei modelli, usata per un giorno o quando manca
+la connessione, e `chiave-api.json` con la chiave API cifrata.
 
 Gli XML reali del docente usati nei test sono in `backend/tests/fixtures/moodle/`.

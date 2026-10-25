@@ -41,6 +41,34 @@ interface ModelList {
   error: string | null;
 }
 
+/** Stato della chiave API, senza la chiave: al massimo la sua forma mascherata. */
+interface ApiKeyStatus {
+  saved: boolean;
+  /** Es. "sk-or-v1-••••3f9a"; null se non c'è chiave o il file è illeggibile. */
+  mask: string | null;
+  /** Cifrata con la master password (altrimenti è nel portachiavi del sistema). */
+  protected: boolean;
+  /** Protetta e già sbloccata con la master password in questa sessione. */
+  unlocked: boolean;
+  /** Su Linux senza portachiavi: senza master password la chiave è protetta poco. */
+  weakKeychain: boolean;
+  /** Perché il file della chiave non si può leggere; resta solo da rimuoverla. */
+  problem: string | null;
+}
+
+/** Esito di "Prova la chiave". Importi in dollari; null se OpenRouter non li indica. */
+type KeyCheck =
+  | {
+      outcome: "valid";
+      usage: number | null;
+      limit: number | null;
+      limitRemaining: number | null;
+      freeRequestsRemaining: number | null;
+      freeRequestsLimit: number | null;
+      expiresAt: string | null;
+    }
+  | { outcome: "invalid" | "error"; message: string };
+
 interface Window {
   desktop: {
     getBackendConnection(): Promise<BackendConnection>;
@@ -68,6 +96,22 @@ interface Window {
       update(change: SettingsChange): Promise<SettingsView>;
       /** Elenco dei modelli: dalla copia salvata se è recente, a meno di chiederne uno aggiornato. */
       listModels(refresh?: boolean): Promise<ModelList>;
+    };
+    /** Chiave API di OpenRouter. Gli errori (es. master password errata) hanno solo il messaggio. */
+    apiKey: {
+      status(): Promise<ApiKeyStatus>;
+      /** Salva una chiave nuova; con `password` la protegge con la master password. */
+      save(key: string, password?: string | null): Promise<ApiKeyStatus>;
+      remove(): Promise<ApiKeyStatus>;
+      /** La chiave in chiaro; se è protetta serve sempre la master password. */
+      reveal(password?: string | null): Promise<string>;
+      unlock(password: string): Promise<ApiKeyStatus>;
+      lock(): Promise<ApiKeyStatus>;
+      protect(password: string): Promise<ApiKeyStatus>;
+      unprotect(password: string): Promise<ApiKeyStatus>;
+      changePassword(current: string, next: string): Promise<ApiKeyStatus>;
+      /** Controlla la chiave con OpenRouter; se è protetta e bloccata serve la master password. */
+      test(password?: string | null): Promise<KeyCheck>;
     };
     /** Funzione eseguita alla chiusura della finestra, prima che si chiuda davvero. */
     onBeforeClose(callback: () => Promise<void>): void;

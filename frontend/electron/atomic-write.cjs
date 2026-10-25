@@ -9,11 +9,12 @@ const fs = require("node:fs/promises");
 const RENAME_ATTEMPTS = 5;
 const RENAME_RETRY_MS = 50;
 
-async function writeFileAtomic(file, text) {
+/** `mode`: permessi del file su macOS e Linux (es. 0o600, leggibile solo dall'utente). */
+async function writeFileAtomic(file, text, { mode = 0o666 } = {}) {
   // Nome diverso a ogni scrittura: due scritture contemporanee non usano lo stesso temporaneo
   const temporary = `${file}.${crypto.randomBytes(4).toString("hex")}.tmp`;
   try {
-    const handle = await fs.open(temporary, "w");
+    const handle = await fs.open(temporary, "w", mode);
     try {
       await handle.writeFile(text, "utf-8");
       await handle.sync();

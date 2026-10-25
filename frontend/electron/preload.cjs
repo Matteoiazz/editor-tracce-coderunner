@@ -3,6 +3,13 @@
 
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Le operazioni sulla chiave API rispondono { ok, value } o { ok: false, error }: qui
+// diventano il valore oppure un errore con il solo messaggio
+const invokeResult = (channel, ...args) =>
+  ipcRenderer
+    .invoke(channel, ...args)
+    .then((result) => (result.ok ? result.value : Promise.reject(new Error(result.error))));
+
 contextBridge.exposeInMainWorld("desktop", {
   getBackendConnection: () => ipcRenderer.invoke("backend:get-connection"),
   openXmlFile: () => ipcRenderer.invoke("dialog:open-xml"),
@@ -19,6 +26,18 @@ contextBridge.exposeInMainWorld("desktop", {
     get: () => ipcRenderer.invoke("settings:get"),
     update: (change) => ipcRenderer.invoke("settings:update", change),
     listModels: (refresh) => ipcRenderer.invoke("settings:models", refresh === true),
+  },
+  apiKey: {
+    status: () => invokeResult("apikey:status"),
+    save: (key, password) => invokeResult("apikey:save", key, password ?? null),
+    remove: () => invokeResult("apikey:remove"),
+    reveal: (password) => invokeResult("apikey:reveal", password ?? null),
+    unlock: (password) => invokeResult("apikey:unlock", password),
+    lock: () => invokeResult("apikey:lock"),
+    protect: (password) => invokeResult("apikey:protect", password),
+    unprotect: (password) => invokeResult("apikey:unprotect", password),
+    changePassword: (current, next) => invokeResult("apikey:change-password", current, next),
+    test: (password) => invokeResult("apikey:test", password ?? null),
   },
   // Alla chiusura della finestra la pagina completa il salvataggio, poi conferma
   onBeforeClose: (callback) => {

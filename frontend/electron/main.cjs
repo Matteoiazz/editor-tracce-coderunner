@@ -1,5 +1,6 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
-// Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
+// Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura;
+// dare alla pagina impostazioni e chiave API, gestite nei moduli settings.cjs e api-key.cjs.
 
 const {
   app,
@@ -8,6 +9,7 @@ const {
   ipcMain,
   Menu,
   net: chromiumNet,
+  safeStorage,
   screen,
   shell,
 } = require("electron");
@@ -17,6 +19,7 @@ const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
+const { createApiKeyStore } = require("./api-key.cjs");
 const { listModels } = require("./models.cjs");
 const { createSettingsStore } = require("./settings.cjs");
 
@@ -358,14 +361,76 @@ const settings = createSettingsStore(app.getPath("userData"));
 ipcMain.handle("settings:get", () => settings.get());
 ipcMain.handle("settings:update", (_event, change) => settings.update(change));
 
-// L'elenco dei modelli lo scarica il processo principale: la pagina può collegarsi solo al
+// Le richieste a OpenRouter le fa il processo principale: la pagina può collegarsi solo al
 // backend locale. Con la rete di Chromium vale anche il proxy configurato nel sistema.
+const openRouterFetch = (url, init) => chromiumNet.fetch(url, init);
+
 ipcMain.handle("settings:models", (_event, refresh) =>
-  listModels(app.getPath("userData"), {
-    refresh: refresh === true,
-    fetch: (url, init) => chromiumNet.fetch(url, init),
-  }),
+  listModels(app.getPath("userData"), { refresh: refresh === true, fetch: openRouterFetch }),
 );
+
+// ---------------------------------------------------------------- chiave API
+
+// Su Linux senza portachiavi (es. senza GNOME o KDE) Electron cifra con una chiave fissa:
+// la chiave API resta leggibile da chi ha accesso ai file, e la vista lo segnala
+let plainTextKeychain = false;
+
+function ensureKeychain() {
+  if (safeStorage.isEncryptionAvailable()) return;
+  if (process.platform !== "linux") {
+    throw new Error(
+      "Il portachiavi del sistema non è disponibile: proteggi la chiave con una master password",
+    );
+  }
+  safeStorage.setUsePlainTextEncryption(true);
+  plainTextKeychain = true;
+}
+
+const systemKeychain = {
+  // Si capisce senza accedere al portachiavi, che su macOS chiederebbe il permesso
+  get weak() {
+    return (
+      process.platform === "linux" &&
+      (plainTextKeychain || safeStorage.getSelectedStorageBackend() === "basic_text")
+    );
+  },
+  encrypt(text) {
+    ensureKeychain();
+    return safeStorage.encryptString(text);
+  },
+  decrypt(data) {
+    ensureKeychain();
+    return safeStorage.decryptString(data);
+  },
+};
+
+const apiKey = createApiKeyStore(app.getPath("userData"), {
+  keychain: systemKeychain,
+  fetch: openRouterFetch,
+});
+
+/** Gestore che restituisce { ok, value } oppure { ok: false, error }: gli errori previsti,
+ *  come una master password errata, arrivano alla pagina come messaggi senza finire nel log. */
+function handleWithResult(channel, handler) {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try {
+      return { ok: true, value: await handler(...args) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+}
+
+handleWithResult("apikey:status", () => apiKey.status());
+handleWithResult("apikey:save", (key, password) => apiKey.save(key, password ?? null));
+handleWithResult("apikey:remove", () => apiKey.remove());
+handleWithResult("apikey:reveal", (password) => apiKey.reveal(password ?? null));
+handleWithResult("apikey:unlock", (password) => apiKey.unlock(password));
+handleWithResult("apikey:lock", () => apiKey.lock());
+handleWithResult("apikey:protect", (password) => apiKey.protect(password));
+handleWithResult("apikey:unprotect", (password) => apiKey.unprotect(password));
+handleWithResult("apikey:change-password", (current, next) => apiKey.changePassword(current, next));
+handleWithResult("apikey:test", (password) => apiKey.test(password ?? null));
 
 ipcMain.handle("app:version", () => app.getVersion());
 

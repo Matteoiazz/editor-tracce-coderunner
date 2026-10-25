@@ -1,14 +1,15 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { formatMoment } from "../archive";
 import { contextText, filterModels, ipcErrorText, isModelId, priceText } from "../settings";
+import { ApiKeySection } from "./ApiKeySection";
 import { IconRestore } from "./icons";
 
 interface Props {
   onError: (message: string) => void;
 }
 
-/** Impostazioni dell'applicazione, valide per tutte le tracce: modello delle funzioni AI e
- *  versione installata. Ogni scelta si salva subito. */
+/** Impostazioni dell'applicazione, valide per tutte le tracce: chiave API e modello delle
+ *  funzioni AI, versione installata. Ogni scelta si salva subito. */
 export function SettingsPanel({ onError }: Props) {
   const [view, setView] = useState<SettingsView | null>(null);
   const [version, setVersion] = useState<string | null>(null);
@@ -123,8 +124,10 @@ export function SettingsPanel({ onError }: Props) {
       <section className="settings-section" aria-labelledby="impostazioni-ai">
         <h2 id="impostazioni-ai">Intelligenza artificiale</h2>
         <p className="settings-lede">
-          Modello usato dalle funzioni di intelligenza artificiale, tramite OpenRouter.
+          Chiave e modello usati dalle funzioni di intelligenza artificiale, tramite OpenRouter.
         </p>
+
+        <ApiKeySection />
 
         <h3 className="settings-label">Modello</h3>
         <div className="model-current">

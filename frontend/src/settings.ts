@@ -17,7 +17,7 @@ export function filterModels(models: ModelInfo[], query: string, onlyFree: boole
 }
 
 /** Importo in dollari: due decimali, tre per i prezzi sotto i 10 centesimi. */
-function dollars(amount: number): string {
+export function dollars(amount: number): string {
   const digits = amount > 0 && amount < 0.1 ? 3 : 2;
   return `${amount.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: digits })} $`;
 }
