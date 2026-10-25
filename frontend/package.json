@@ -47,6 +47,14 @@
       "output": "release",
       "buildResources": "build"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Matteoiazz",
+        "repo": "editor-tracce-coderunner",
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "dist/**",
       "electron/**",
@@ -90,7 +98,8 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.education",
@@ -113,5 +122,8 @@
       "artifactName": "Editor-tracce-CodeRunner-${version}-${arch}.${ext}",
       "syncDesktopName": true
     }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.10"
   }
 }

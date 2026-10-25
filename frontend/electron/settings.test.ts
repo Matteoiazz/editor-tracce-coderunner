@@ -28,7 +28,12 @@ describe("impostazioni", () => {
   it("senza file valgono i predefiniti, e il file non viene creato", async () => {
     const view = await createSettingsStore(dir).get();
 
-    expect(view).toEqual({ ai: { model: DEFAULT_MODEL }, defaultModel: DEFAULT_MODEL, damagedCopy: null });
+    expect(view).toEqual({
+      ai: { model: DEFAULT_MODEL },
+      updates: { auto: true },
+      defaultModel: DEFAULT_MODEL,
+      damagedCopy: null,
+    });
     expect(await readdir(dir)).toEqual([]);
   });
 
@@ -36,7 +41,11 @@ describe("impostazioni", () => {
     const view = await createSettingsStore(dir).update({ ai: { model: "openai/gpt-5:free" } });
 
     expect(view.ai.model).toBe("openai/gpt-5:free");
-    expect(await readJson(SETTINGS_FILE)).toEqual({ version: 1, ai: { model: "openai/gpt-5:free" } });
+    expect(await readJson(SETTINGS_FILE)).toEqual({
+      version: 1,
+      ai: { model: "openai/gpt-5:free" },
+      updates: { auto: true },
+    });
     expect((await createSettingsStore(dir).get()).ai.model).toBe("openai/gpt-5:free");
   });
 
@@ -51,9 +60,24 @@ describe("impostazioni", () => {
   });
 
   it("accettano dalla pagina solo i valori previsti", async () => {
-    await createSettingsStore(dir).update({ ai: { model: "a/b", altro: 1 }, version: 99, segreto: "x" });
+    await createSettingsStore(dir).update({
+      ai: { model: "a/b", altro: 1 },
+      updates: { auto: false, canale: "beta" },
+      version: 99,
+      segreto: "x",
+    });
 
-    expect(await readJson(SETTINGS_FILE)).toEqual({ version: 1, ai: { model: "a/b" } });
+    expect(await readJson(SETTINGS_FILE)).toEqual({ version: 1, ai: { model: "a/b" }, updates: { auto: false } });
+  });
+
+  it("salvano la scelta sull'aggiornamento automatico senza toccare il modello", async () => {
+    const store = createSettingsStore(dir);
+    await store.update({ ai: { model: "a/b" } });
+
+    expect((await store.update({ updates: { auto: false } })).updates.auto).toBe(false);
+    expect((await createSettingsStore(dir).get()).ai.model).toBe("a/b");
+    await expect(store.update({ updates: { auto: "no" } })).rejects.toThrow("non valido");
+    expect((await readJson(SETTINGS_FILE)).updates.auto).toBe(false);
   });
 
   it("applicano le modifiche nell'ordine in cui arrivano, senza lasciare file temporanei", async () => {
@@ -69,7 +93,12 @@ describe("impostazioni", () => {
 
     await createSettingsStore(dir).update({ ai: { model: "x/z" } });
 
-    expect(await readJson(SETTINGS_FILE)).toEqual({ version: 3, ai: { model: "x/z", temp: 1 }, nuovo: true });
+    expect(await readJson(SETTINGS_FILE)).toEqual({
+      version: 3,
+      ai: { model: "x/z", temp: 1 },
+      updates: { auto: true },
+      nuovo: true,
+    });
   });
 
   it("sostituiscono con il predefinito un modello non valido nel file", async () => {
@@ -77,7 +106,7 @@ describe("impostazioni", () => {
 
     const { settings, damagedCopy } = await readSettings(dir);
 
-    expect(settings).toEqual({ version: 1, ai: { model: DEFAULT_MODEL } });
+    expect(settings).toEqual({ version: 1, ai: { model: DEFAULT_MODEL }, updates: { auto: true } });
     expect(damagedCopy).toBeNull();
   });
 });
@@ -96,7 +125,11 @@ describe("file delle impostazioni rovinato", () => {
     expect(view.damagedCopy).toBe(join(dir, DAMAGED_COPY));
     expect(await readFile(join(dir, DAMAGED_COPY), "utf-8")).toBe(content);
     // Il file viene riscritto subito: al prossimo avvio non risulta più rovinato
-    expect(await readJson(SETTINGS_FILE)).toEqual({ version: 1, ai: { model: DEFAULT_MODEL } });
+    expect(await readJson(SETTINGS_FILE)).toEqual({
+      version: 1,
+      ai: { model: DEFAULT_MODEL },
+      updates: { auto: true },
+    });
     expect((await createSettingsStore(dir).get()).damagedCopy).toBeNull();
   });
 });

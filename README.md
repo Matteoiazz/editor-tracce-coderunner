@@ -35,6 +35,11 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
   NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
   scelta si salva subito.
+- **Aggiornamento automatico** su Windows e con l'AppImage su Linux: l'app controlla le release
+  su GitHub poco dopo l'avvio e ogni 6 ore, scarica in silenzio la versione nuova e la installa
+  alla chiusura, oppure subito con «Riavvia ora» dopo aver salvato il lavoro. Con il pacchetto
+  `.deb` la versione nuova viene segnalata, con il link per scaricarla. Si può disattivare nelle
+  impostazioni, dove c'è anche «Controlla ora».
 
 ## Struttura
 
@@ -116,6 +121,10 @@ git push origin v1.1.0
 
 Alla fine gli installer sono allegati alla release `v1.1.0` (creata se non esiste). Dalla scheda
 **Actions** il workflow si può anche avviare a mano: gli installer restano tra gli "artifacts".
+Con gli installer il workflow allega i file per l'aggiornamento automatico: `latest.yml`
+(Windows), `latest-linux.yml` (AppImage), `latest-mac-arm64.yml` e `latest-mac-x64.yml` con lo
+`.zip` dell'app (macOS; i due Mac creano un file con lo stesso nome, che viene rinominato) e i
+`.blockmap`, con cui si scaricano solo le parti cambiate.
 
 ### Installazione
 
@@ -132,6 +141,35 @@ Alla fine gli installer sono allegati alla release `v1.1.0` (creata se non esist
   (su Ubuntu il pacchetto `libfuse2t64`).
 
 La disinstallazione non cancella l'archivio delle tracce.
+
+### Aggiornamento automatico
+
+L'app usa [electron-updater](https://www.electron.build/auto-update): legge il file della
+versione dalla release più recente su GitHub, scarica il nuovo installer controllandone
+l'impronta SHA-512 e lo installa alla chiusura dell'app, oppure subito con «Riavvia ora». Prima di
+installare, l'app completa il salvataggio dell'archivio e aspetta che il backend sia chiuso: su
+Windows i file del Python incluso, finché è in esecuzione, non si possono sostituire. Una
+versione installata a mano prima della 1.2.0 non ha l'aggiornamento: la 1.2.0 va installata a
+mano una volta.
+
+- **Windows**: l'installer nuovo viene eseguito senza finestre e, con «Riavvia ora», riapre l'app.
+- **Linux**: l'AppImage viene sostituita dalla nuova. Il pacchetto `.deb` per installarsi
+  chiederebbe i permessi di amministratore: la versione nuova viene solo segnalata.
+- **macOS**: l'aggiornamento standard richiede una firma Apple a pagamento; per ora le nuove
+  versioni si scaricano dalla pagina delle release.
+
+Per provarlo senza pubblicare una release si costruiscono due versioni di prova con un altro nome
+di pacchetto, di app e di eseguibile, così hanno una cartella di installazione e una cartella dati
+loro e non toccano l'app vera, per esempio su Windows:
+
+```bash
+npx electron-builder --win --publish never -c.extraMetadata.version=1.1.90 -c.extraMetadata.name=prova-aggiornamento -c.appId=it.unical.prova-aggiornamento -c.productName=ProvaAggiornamento -c.executableName=prova-aggiornamento '-c.nsis.artifactName=Prova-aggiornamento-Setup-${version}.${ext}'
+```
+
+Si installa la versione meno recente, si mettono installer, `.blockmap` e `latest.yml` della più
+recente in una cartella servita in locale (es. `python -m http.server 8766`) e si avvia l'app con
+la variabile d'ambiente `TESI_UPDATE_URL=http://127.0.0.1:8766`, che sostituisce le release di
+GitHub solo se è impostata.
 
 ## Sicurezza
 
@@ -206,6 +244,8 @@ il backend non richiede il codice segreto (lo richiede solo se c'è la variabile
 L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione
 (`%APPDATA%\tesi-frontend` su Windows, `~/Library/Application Support/tesi-frontend` su macOS,
 `~/.config/tesi-frontend` su Linux); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
+La cartella prende il nome del pacchetto (`name` in `frontend/package.json`), che quindi non va
+cambiato; le versioni di prova costruite con un altro nome usano una cartella loro.
 Nella stessa cartella ci sono `impostazioni.json` (scritto in modo sicuro: prima un file temporaneo,
 poi la sostituzione; se è illeggibile se ne conserva una copia e si riparte dai valori predefiniti),
 `modelli-openrouter.json`, la copia dell'elenco dei modelli, usata per un giorno o quando manca

@@ -13,6 +13,7 @@ interface BackendConnection {
 /** Impostazioni come le riceve la pagina dal processo principale. */
 interface SettingsView {
   ai: { model: string };
+  updates: { auto: boolean };
   defaultModel: string;
   /** Copia del file delle impostazioni, se era illeggibile e si è ripartiti dai predefiniti. */
   damagedCopy: string | null;
@@ -21,7 +22,28 @@ interface SettingsView {
 /** Modifiche che la pagina può chiedere. */
 interface SettingsChange {
   ai?: { model?: string };
+  updates?: { auto?: boolean };
 }
+
+/** Stato dell'aggiornamento dell'app. "none": non si aggiorna da qui (es. in sviluppo), con il
+ *  motivo; "auto": scarica e installa; "manual" (pacchetto .deb): segnala la versione nuova. */
+type UpdateStatus =
+  | { mode: "none"; reason: string; downloadUrl: string }
+  | {
+      mode: "auto" | "manual";
+      /** Controlli automatici attivi. */
+      automatic: boolean;
+      /** Pagina della release più recente, per scaricarla a mano. */
+      downloadUrl: string;
+      phase: "idle" | "checking" | "current" | "available" | "downloading" | "ready" | "error";
+      /** Versione nuova trovata, scaricata o in download. */
+      version: string | null;
+      /** Avanzamento del download, in percentuale. */
+      progress: number | null;
+      /** Ultimo controllo (ISO). */
+      checkedAt: string | null;
+      error: string | null;
+    };
 
 /** Un modello di OpenRouter. Prezzi in dollari per milione di token, null se variabili. */
 interface ModelInfo {
@@ -112,6 +134,13 @@ interface Window {
       changePassword(current: string, next: string): Promise<ApiKeyStatus>;
       /** Controlla la chiave con OpenRouter; se è protetta e bloccata serve la master password. */
       test(password?: string | null): Promise<KeyCheck>;
+    };
+    updates: {
+      status(): Promise<UpdateStatus>;
+      check(): Promise<UpdateStatus>;
+      /** Completa il salvataggio, chiude l'app, installa la versione pronta e riapre l'app. */
+      install(): Promise<boolean>;
+      onChange(callback: (status: UpdateStatus) => void): void;
     };
     /** Funzione eseguita alla chiusura della finestra, prima che si chiuda davvero. */
     onBeforeClose(callback: () => Promise<void>): void;

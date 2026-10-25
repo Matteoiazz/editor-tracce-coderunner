@@ -1,6 +1,7 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura;
-// dare alla pagina impostazioni e chiave API, gestite nei moduli settings.cjs e api-key.cjs.
+// dare alla pagina impostazioni e chiave API, gestite nei moduli settings.cjs e api-key.cjs;
+// aggiornare l'app (updater.cjs).
 
 const {
   app,
@@ -22,15 +23,19 @@ const path = require("node:path");
 const { createApiKeyStore } = require("./api-key.cjs");
 const { listModels } = require("./models.cjs");
 const { createSettingsStore } = require("./settings.cjs");
+const { createUpdateController } = require("./updater.cjs");
+const { homepage, name: packageName } = require("../package.json");
 
 const isDev = !app.isPackaged;
 const isWindows = process.platform === "win32";
 const isMac = process.platform === "darwin";
 
 // Nome mostrato nei titoli delle finestre di dialogo. La cartella dei dati (archivio delle
-// tracce) resta quella di sempre: senza fissarla, cambiando nome Electron ne userebbe una nuova.
+// tracce) porta il nome del pacchetto, "tesi-frontend", che non cambia: senza fissarla,
+// cambiando nome all'app Electron ne userebbe una nuova. Una versione di prova costruita con
+// un altro nome di pacchetto usa quindi una cartella sua e non tocca l'archivio vero.
 const APP_NAME = "Editor tracce CodeRunner";
-app.setPath("userData", path.join(app.getPath("appData"), "tesi-frontend"));
+app.setPath("userData", path.join(app.getPath("appData"), packageName));
 app.setName(APP_NAME);
 // L'app è in italiano: anche i controlli di Chromium (es. il campo data, gg/mm/aaaa) lo sono,
 // qualunque sia la lingua del sistema (su macOS Chromium usa comunque quella del sistema)
@@ -114,6 +119,20 @@ function startBackend(port) {
     console.log(`[backend] terminato (codice ${code})`);
     backendExitCode = code;
     backendProcess = null;
+  });
+}
+
+/** Ferma il backend e aspetta che sia chiuso (al massimo qualche secondo). */
+function stopBackendAndWait(timeoutMs = 5000) {
+  const running = backendProcess;
+  if (!running) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    running.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    stopBackend();
   });
 }
 
@@ -260,11 +279,12 @@ function afterSave(win, action) {
   win.webContents.send("app:before-close");
 }
 
-/** Alla chiusura la pagina completa il salvataggio prima che la finestra si chiuda. */
+/** Alla chiusura la pagina completa il salvataggio prima che la finestra si chiuda.
+ *  Per installare un aggiornamento il salvataggio è già stato completato. */
 function completeSaveOnClose(win) {
   let closing = false;
   win.on("close", (event) => {
-    if (closing) return;
+    if (closing || installingUpdate) return;
     event.preventDefault();
     afterSave(win, () => {
       closing = true;
@@ -359,7 +379,13 @@ ipcMain.handle("dialog:open-xml", async (event) => {
 const settings = createSettingsStore(app.getPath("userData"));
 
 ipcMain.handle("settings:get", () => settings.get());
-ipcMain.handle("settings:update", (_event, change) => settings.update(change));
+ipcMain.handle("settings:update", async (_event, change) => {
+  const view = await settings.update(change);
+  if (updates && view.updates.auto !== updates.status().automatic) {
+    updates.setAutomatic(view.updates.auto);
+  }
+  return view;
+});
 
 // Le richieste a OpenRouter le fa il processo principale: la pagina può collegarsi solo al
 // backend locale. Con la rete di Chromium vale anche il proxy configurato nel sistema.
@@ -433,6 +459,75 @@ handleWithResult("apikey:change-password", (current, next) => apiKey.changePassw
 handleWithResult("apikey:test", (password) => apiKey.test(password ?? null));
 
 ipcMain.handle("app:version", () => app.getVersion());
+
+// ---------------------------------------------------------------- aggiornamenti
+
+const RELEASES_URL = `${homepage}/releases/latest`;
+// Stato dell'aggiornamento, se su questo sistema si può aggiornare (vedi updateSupport)
+let updates = null;
+// Vero mentre l'app si chiude per installare un aggiornamento
+let installingUpdate = false;
+
+/** Come si aggiorna questa installazione: "auto" (Windows, AppImage), "manual" (pacchetto
+ *  .deb: la versione nuova viene solo segnalata) o "none", con il motivo. */
+function updateSupport() {
+  if (!app.isPackaged) {
+    return { mode: "none", reason: "Gli aggiornamenti funzionano solo nell'app installata." };
+  }
+  if (isMac) {
+    return {
+      mode: "none",
+      reason:
+        "Su macOS l'aggiornamento automatico non è ancora disponibile: le nuove versioni si " +
+        "scaricano dalla pagina delle release.",
+    };
+  }
+  if (process.platform === "linux" && !process.env.APPIMAGE) return { mode: "manual" };
+  return { mode: "auto" };
+}
+
+function updateStatus() {
+  return updates ? updates.status() : { ...updateSupport(), downloadUrl: RELEASES_URL };
+}
+
+function sendUpdateStatus(status) {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send("update:changed", status);
+}
+
+async function startUpdates() {
+  const support = updateSupport();
+  if (support.mode === "none") return;
+  // Caricato solo qui: in sviluppo e su macOS electron-updater non serve
+  const { autoUpdater } = require("electron-updater");
+  // Per le prove: le versioni da un server locale al posto delle release su GitHub
+  if (process.env.TESI_UPDATE_URL) {
+    autoUpdater.setFeedURL({ provider: "generic", url: process.env.TESI_UPDATE_URL });
+  }
+  updates = createUpdateController({
+    updater: autoUpdater,
+    mode: support.mode,
+    downloadUrl: RELEASES_URL,
+    onChange: sendUpdateStatus,
+  });
+  updates.setAutomatic((await settings.get()).updates.auto);
+}
+
+ipcMain.handle("update:status", () => updateStatus());
+ipcMain.handle("update:check", () => (updates ? updates.check() : updateStatus()));
+
+// "Riavvia ora": prima la pagina completa il salvataggio, come alla chiusura, poi l'app si
+// chiude e si installa la versione nuova
+ipcMain.handle("update:install", (event) => {
+  if (updates?.status().phase !== "ready") return false;
+  afterSave(BrowserWindow.fromWebContents(event.sender), () => {
+    installingUpdate = true;
+    // Su Linux la versione nuova parte prima che questa sia chiusa: senza liberare il blocco
+    // dell'istanza unica si chiuderebbe subito, credendo che l'app sia già aperta
+    app.releaseSingleInstanceLock();
+    updates.install();
+  });
+  return true;
+});
 
 // ---------------------------------------------------------------- vecchio file di sessione
 // Prima dell'archivio il lavoro in corso era salvato in sessione.json nella cartella dati.
@@ -513,8 +608,20 @@ app.whenReady().then(async () => {
     return;
   }
   createWindow();
+  startUpdates().catch((err) => console.error(`Aggiornamenti non avviati: ${err.message}`));
 });
 
 app.on("window-all-closed", () => app.quit());
-// Il backend si ferma solo dopo la chiusura delle finestre, che completano il salvataggio
-app.on("will-quit", stopBackend);
+
+// Il backend si ferma solo dopo la chiusura delle finestre, che completano il salvataggio.
+// L'app esce quando il backend è davvero chiuso: su Windows un aggiornamento da installare
+// deve poter sostituire anche i file del Python incluso, bloccati finché è in esecuzione.
+let backendStopped = false;
+app.on("will-quit", (event) => {
+  if (backendStopped || !backendProcess) return;
+  event.preventDefault();
+  stopBackendAndWait().then(() => {
+    backendStopped = true;
+    app.quit();
+  });
+});

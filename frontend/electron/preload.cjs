@@ -39,6 +39,16 @@ contextBridge.exposeInMainWorld("desktop", {
     changePassword: (current, next) => invokeResult("apikey:change-password", current, next),
     test: (password) => invokeResult("apikey:test", password ?? null),
   },
+  updates: {
+    status: () => ipcRenderer.invoke("update:status"),
+    check: () => ipcRenderer.invoke("update:check"),
+    install: () => ipcRenderer.invoke("update:install"),
+    // Lo stato arriva a ogni cambiamento: controllo, avanzamento del download, versione pronta
+    onChange: (callback) => {
+      ipcRenderer.removeAllListeners("update:changed");
+      ipcRenderer.on("update:changed", (_event, status) => callback(status));
+    },
+  },
   // Alla chiusura della finestra la pagina completa il salvataggio, poi conferma
   onBeforeClose: (callback) => {
     ipcRenderer.removeAllListeners("app:before-close");

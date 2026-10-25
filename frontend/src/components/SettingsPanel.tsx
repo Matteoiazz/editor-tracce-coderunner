@@ -1,16 +1,21 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { formatMoment } from "../archive";
 import { contextText, filterModels, ipcErrorText, isModelId, priceText } from "../settings";
+import { updateStatusText } from "../updates";
 import { ApiKeySection } from "./ApiKeySection";
 import { IconRestore } from "./icons";
 
 interface Props {
   onError: (message: string) => void;
+  /** Stato dell'aggiornamento dell'app, tenuto aggiornato da App. */
+  update: UpdateStatus | null;
+  installingUpdate: boolean;
+  onInstallUpdate: () => void;
 }
 
 /** Impostazioni dell'applicazione, valide per tutte le tracce: chiave API e modello delle
- *  funzioni AI, versione installata. Ogni scelta si salva subito. */
-export function SettingsPanel({ onError }: Props) {
+ *  funzioni AI, aggiornamento dell'app. Ogni scelta si salva subito. */
+export function SettingsPanel({ onError, update, installingUpdate, onInstallUpdate }: Props) {
   const [view, setView] = useState<SettingsView | null>(null);
   const [version, setVersion] = useState<string | null>(null);
   const [list, setList] = useState<ModelList | null>(null);
@@ -67,6 +72,18 @@ export function SettingsPanel({ onError }: Props) {
     } catch (e) {
       if (choice === lastChoice.current) setView(previous);
       onError(`Modello non salvato: ${ipcErrorText(e)}`);
+    }
+  }
+
+  async function setAutoUpdate(auto: boolean) {
+    if (!view) return;
+    const previous = view;
+    setView({ ...view, updates: { auto } });
+    try {
+      setView(await window.desktop.settings.update({ updates: { auto } }));
+    } catch (e) {
+      setView(previous);
+      onError(`Impostazione non salvata: ${ipcErrorText(e)}`);
     }
   }
 
@@ -263,6 +280,60 @@ export function SettingsPanel({ onError }: Props) {
         <p>
           Versione installata: <span className="mono">{version ?? "…"}</span>
         </p>
+        {update?.mode === "none" ? (
+          <p className="settings-lede">{update.reason}</p>
+        ) : (
+          update && (
+            <>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={view.updates.auto}
+                  onChange={(e) => setAutoUpdate(e.target.checked)}
+                />
+                Aggiorna automaticamente
+              </label>
+              <p className="small-text muted settings-note">
+                {update.mode === "auto"
+                  ? "Controlla poco dopo l'avvio e poi ogni 6 ore; la versione nuova si scarica in " +
+                    "silenzio e si installa alla chiusura dell'app."
+                  : "Controlla poco dopo l'avvio e poi ogni 6 ore e segnala le versioni nuove: con il " +
+                    "pacchetto .deb si installano scaricandole dalla pagina delle release."}
+              </p>
+              <div className="update-row">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => window.desktop.updates.check()}
+                  disabled={["checking", "downloading", "ready"].includes(update.phase)}
+                >
+                  Controlla ora
+                </button>
+                <span aria-live="polite">{updateStatusText(update)}</span>
+              </div>
+              {update.phase === "ready" && (
+                <div className="update-row">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={onInstallUpdate}
+                    disabled={installingUpdate}
+                  >
+                    {installingUpdate ? "Riavvio…" : "Riavvia ora"}
+                  </button>
+                  <span className="small-text muted">Il lavoro viene salvato prima di chiudere.</span>
+                </div>
+              )}
+              {update.phase === "available" && (
+                <div className="update-row">
+                  <button type="button" className="secondary" onClick={() => window.open(update.downloadUrl)}>
+                    Scarica la versione {update.version}
+                  </button>
+                </div>
+              )}
+            </>
+          )
+        )}
       </section>
     </article>
   );

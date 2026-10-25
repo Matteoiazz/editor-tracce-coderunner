@@ -3,6 +3,9 @@
 # Si avvia creando un tag "v..." (es. v1.1.0): gli installer vengono allegati alla release
 # con lo stesso nome. Dalla scheda Actions si può anche avviare a mano, per provarlo senza
 # release: gli installer restano scaricabili tra gli "artifacts" dell'esecuzione.
+# Con gli installer si allegano i file per l'aggiornamento automatico: latest.yml (Windows),
+# latest-linux.yml (AppImage), latest-mac-<processore>.yml con lo .zip dell'app (macOS) e i
+# .blockmap, che permettono di scaricare solo le parti cambiate.
 
 name: Installer
 
@@ -22,18 +25,32 @@ jobs:
         include:
           - os: windows-latest
             target: --win
-            files: frontend/release/*.exe
+            files: |
+              frontend/release/*.exe
+              frontend/release/*.exe.blockmap
+              frontend/release/latest.yml
           - os: macos-latest # Apple Silicon (M1 e successivi)
             target: --mac --arm64
-            files: frontend/release/*.dmg
+            mac-arch: arm64
+            files: |
+              frontend/release/*.dmg
+              frontend/release/*.zip
+              frontend/release/*.blockmap
+              frontend/release/latest-mac-*.yml
           - os: macos-15-intel # Mac con processore Intel
             target: --mac --x64
-            files: frontend/release/*.dmg
+            mac-arch: x64
+            files: |
+              frontend/release/*.dmg
+              frontend/release/*.zip
+              frontend/release/*.blockmap
+              frontend/release/latest-mac-*.yml
           - os: ubuntu-22.04 # versione meno recente: l'app funziona anche sulle distribuzioni più vecchie
             target: --linux
             files: |
               frontend/release/*.AppImage
               frontend/release/*.deb
+              frontend/release/latest-linux.yml
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -74,6 +91,12 @@ jobs:
         run: |
           npm run build
           npx electron-builder ${{ matrix.target }} --publish never
+
+      # I due Mac creano entrambi latest-mac.yml: nella release uno sovrascriverebbe l'altro
+      - name: File dell'aggiornamento per il processore del Mac
+        if: matrix.mac-arch
+        working-directory: frontend/release
+        run: mv latest-mac.yml "latest-mac-${{ matrix.mac-arch }}.yml"
 
       - uses: actions/upload-artifact@v5
         with:

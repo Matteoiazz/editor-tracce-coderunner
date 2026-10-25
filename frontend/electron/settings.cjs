@@ -1,4 +1,5 @@
-// Impostazioni dell'applicazione, nel file impostazioni.json della cartella dati.
+// Impostazioni dell'applicazione, nel file impostazioni.json della cartella dati: modello
+// delle funzioni AI e aggiornamento automatico.
 // Le legge e le scrive solo il processo principale: la pagina riceve i valori che mostra e
 // può cambiare solo quelli previsti.
 
@@ -16,7 +17,7 @@ const SETTINGS_VERSION = 1;
 const DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 function defaultSettings() {
-  return { version: SETTINGS_VERSION, ai: { model: DEFAULT_MODEL } };
+  return { version: SETTINGS_VERSION, ai: { model: DEFAULT_MODEL }, updates: { auto: true } };
 }
 
 function isPlainObject(value) {
@@ -33,11 +34,13 @@ function isModelId(value) {
  *  sconosciute restano: possono essere di una versione più recente dell'app. */
 function normalize(data) {
   const ai = isPlainObject(data.ai) ? data.ai : {};
+  const updates = isPlainObject(data.updates) ? data.updates : {};
   const version = Number.isInteger(data.version) ? data.version : 0;
   return {
     ...data,
     version: Math.max(version, SETTINGS_VERSION),
     ai: { ...ai, model: isModelId(ai.model) ? ai.model : DEFAULT_MODEL },
+    updates: { ...updates, auto: typeof updates.auto === "boolean" ? updates.auto : true },
   };
 }
 
@@ -74,7 +77,12 @@ async function readSettings(dir) {
 /** Ciò che la pagina riceve: i valori da mostrare, il modello predefinito e l'eventuale
  *  copia di un file illeggibile. */
 function pageView({ settings, damagedCopy }) {
-  return { ai: { model: settings.ai.model }, defaultModel: DEFAULT_MODEL, damagedCopy };
+  return {
+    ai: { model: settings.ai.model },
+    updates: { auto: settings.updates.auto },
+    defaultModel: DEFAULT_MODEL,
+    damagedCopy,
+  };
 }
 
 /** Impostazioni di una cartella dati: lette alla prima richiesta, poi tenute in memoria.
@@ -100,17 +108,22 @@ function createSettingsStore(dir) {
     /** Valori per la pagina. */
     get: () => enqueue(async () => pageView(await load())),
 
-    /** Applica le modifiche consentite alla pagina (per ora il modello) e le salva. */
+    /** Applica le modifiche consentite alla pagina (modello, aggiornamento automatico) e le salva. */
     update: (change) =>
       enqueue(async () => {
         const model = isPlainObject(change) && isPlainObject(change.ai) ? change.ai.model : undefined;
         if (model !== undefined && !isModelId(model)) {
           throw new Error("Identificativo del modello non valido");
         }
+        const auto = isPlainObject(change) && isPlainObject(change.updates) ? change.updates.auto : undefined;
+        if (auto !== undefined && typeof auto !== "boolean") {
+          throw new Error("Valore dell'aggiornamento automatico non valido");
+        }
         const current = await load();
         const settings = normalize({
           ...current.settings,
           ai: { ...current.settings.ai, ...(model !== undefined && { model }) },
+          updates: { ...current.settings.updates, ...(auto !== undefined && { auto }) },
         });
         await writeFileAtomic(file, serialize(settings));
         state = { ...current, settings };

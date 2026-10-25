@@ -69,6 +69,7 @@ import {
 } from "./status";
 import type { TestRow } from "./testcases";
 import type { TestOutcome } from "./types";
+import { updateBanner } from "./updates";
 
 function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -99,6 +100,22 @@ export function App() {
   // Cambia a ogni copia o annullamento: gli editor ripartono dal contenuto nuovo
   const [contentVersion, setContentVersion] = useState(0);
   const [exporting, setExporting] = useState(false);
+  // Aggiornamento dell'app: stato inviato dal processo principale a ogni cambiamento
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  // Versione per cui si è scelto "Più tardi": il messaggio non si ripete
+  const [postponedUpdate, setPostponedUpdate] = useState<string | null>(null);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+
+  useEffect(() => {
+    window.desktop.updates.status().then(setUpdate, () => {});
+    window.desktop.updates.onChange(setUpdate);
+  }, []);
+
+  async function handleInstallUpdate() {
+    setInstallingUpdate(true);
+    // Se non parte (versione non più pronta) i pulsanti tornano attivi
+    if (!(await window.desktop.updates.install())) setInstallingUpdate(false);
+  }
 
   const mainRef = useRef<HTMLElement>(null);
   const selectedId = selection?.kind === "exercise" ? selection.id : null;
@@ -597,6 +614,7 @@ export function App() {
   }
 
   const selectedItem = items.find((it) => it.id === selectedId);
+  const pendingUpdate = updateBanner(update, postponedUpdate);
 
   return (
     <div className="app">
@@ -640,6 +658,42 @@ export function App() {
 
       {/* Il messaggio sta sopra l'area che scorre: non copre l'intestazione dell'esercizio */}
       <div className="main-column">
+      {pendingUpdate && (
+        <div className="banner banner-info" role="status">
+          <p>
+            {pendingUpdate.phase === "ready"
+              ? `È pronta la versione ${pendingUpdate.version}: si installa alla chiusura dell'app, ` +
+                "oppure subito con «Riavvia ora» (il lavoro viene salvato prima)."
+              : `È disponibile la versione ${pendingUpdate.version}: si scarica dalla pagina delle release.`}
+          </p>
+          {pendingUpdate.phase === "ready" ? (
+            <button
+              type="button"
+              className="primary small"
+              onClick={handleInstallUpdate}
+              disabled={installingUpdate}
+            >
+              {installingUpdate ? "Riavvio…" : "Riavvia ora"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="secondary small"
+              onClick={() => window.open(pendingUpdate.downloadUrl)}
+            >
+              Scarica
+            </button>
+          )}
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => setPostponedUpdate(pendingUpdate.version)}
+            disabled={installingUpdate}
+          >
+            Più tardi
+          </button>
+        </div>
+      )}
       {(error || notice) && (
         <div className={`banner ${error ? "banner-error" : "banner-info"}`} role="status">
           <p>{error ?? notice}</p>
@@ -656,7 +710,12 @@ export function App() {
       <main className="main" ref={mainRef}>
 
         {selection?.kind === "settings" ? (
-          <SettingsPanel onError={setError} />
+          <SettingsPanel
+            onError={setError}
+            update={update}
+            installingUpdate={installingUpdate}
+            onInstallUpdate={handleInstallUpdate}
+          />
         ) : selection?.kind === "reuse" ? (
           <ReusePanel
             currentTrackId={trackId}

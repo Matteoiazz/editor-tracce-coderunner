@@ -585,6 +585,15 @@ input[type="checkbox"] {
   border-radius: var(--radius);
 }
 
+.banner p {
+  flex: 1;
+}
+
+.banner button {
+  flex: none;
+  white-space: nowrap;
+}
+
 .banner-info {
   color: var(--ink);
   background: var(--accent-soft);
@@ -1872,6 +1881,15 @@ button.ghost.active {
 .field-error {
   font-size: var(--text-sm);
   color: var(--fail);
+}
+
+/* Aggiornamenti */
+.update-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  max-width: 720px;
 }
 
 /* Chiave API */
