@@ -11,7 +11,9 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   generato dalla soluzione e test case; editor espandibili a tutta finestra. Con «Copia da…»
   si copia in un esercizio tutto il contenuto di un altro della stessa traccia (testo, soluzione,
   codice per gli studenti, test); la copia si può annullare finché l'esercizio non viene modificato.
-- **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente. Un
+- **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente o creati
+  con «Genera test…»: dimensioni da un valore a un altro con un passo, un numero di test per ogni
+  passo o in totale (distribuiti in modo uniforme), seed consecutivi, visibili, nascosti o a caso. Un
   esercizio può escluderne alcuni (colonna «Usa» nei suoi test comuni), per esempio un input che
   per lui non ha senso; i test esclusi non vengono calcolati, verificati né esportati.
 - **Calcola output**: gli output attesi si ottengono eseguendo la soluzione, come CodeRunner

@@ -59,13 +59,95 @@ export function standardCommonTests(): TestRow[] {
 /** Dimensione proposta per un nuovo test, da modificare secondo l'esercizio. */
 export const DEFAULT_TEST_SIZE = 10;
 
-/** Input iniziale di un nuovo test, già completo: il seed successivo al più alto già
- *  usato e una dimensione predefinita, uno per riga. */
-export function nextSeedInput(rows: TestCase[]): string {
+/** Il seed successivo al più alto già usato (prima riga dell'input), 0 se non ce ne sono. */
+export function nextSeed(rows: TestCase[]): number {
   const seeds = rows
     .map((row) => Number.parseInt(row.stdin.split("\n")[0], 10))
     .filter((seed) => Number.isFinite(seed));
-  return `${seeds.length ? Math.max(...seeds) + 1 : 0}\n${DEFAULT_TEST_SIZE}`;
+  return seeds.length ? Math.max(...seeds) + 1 : 0;
+}
+
+/** Input iniziale di un nuovo test, già completo: il seed successivo al più alto già
+ *  usato e una dimensione predefinita, uno per riga. */
+export function nextSeedInput(rows: TestCase[]): string {
+  return `${nextSeed(rows)}\n${DEFAULT_TEST_SIZE}`;
+}
+
+// ---------------------------------------------------------------- generatore di test comuni
+
+/** Parametri del generatore: dimensioni da `start` a `end` a passi di `step`; `count` test
+ *  per ogni dimensione ("perStep") oppure in tutto, distribuiti sull'intervallo ("total"). */
+export interface GeneratorParams {
+  start: number;
+  end: number;
+  step: number;
+  count: number;
+  mode: "perStep" | "total";
+  visibility: "visible" | "hidden" | "random";
+}
+
+/** Oltre questo numero di test si tratta quasi certamente di un errore di battitura. */
+export const MAX_GENERATED_TESTS = 200;
+
+/** Dimensioni del range: start, start + step, … fino a end compreso (se ci si arriva). */
+export function generatorSizes({ start, end, step }: GeneratorParams): number[] {
+  const sizes: number[] = [];
+  for (let size = start; size <= end; size += step) sizes.push(size);
+  return sizes;
+}
+
+/** Quanti test verrebbero creati con questi parametri. */
+export function generatedCount(params: GeneratorParams): number {
+  return params.mode === "perStep" ? generatorSizes(params).length * params.count : params.count;
+}
+
+export type GeneratorErrors = Partial<Record<"start" | "end" | "step" | "count", string>>;
+
+/** Problemi dei parametri, per campo; nessuna voce se si può generare. */
+export function generatorErrors(params: GeneratorParams): GeneratorErrors {
+  const errors: GeneratorErrors = {};
+  const whole = (n: number) => Number.isInteger(n);
+  if (!whole(params.start) || params.start < 0) errors.start = "Un numero intero da 0 in su";
+  if (!whole(params.end) || params.end < 0) errors.end = "Un numero intero da 0 in su";
+  else if (!errors.start && params.end < params.start) errors.end = "Deve essere almeno uguale a «da»";
+  if (!whole(params.step) || params.step < 1) errors.step = "Un numero intero da 1 in su";
+  if (!whole(params.count) || params.count < 1) errors.count = "Un numero intero da 1 in su";
+  if (Object.keys(errors).length === 0) {
+    const total = generatedCount(params);
+    if (total > MAX_GENERATED_TESTS) {
+      errors.count = `Verrebbero creati ${total} test: il massimo è ${MAX_GENERATED_TESTS}`;
+    }
+  }
+  return errors;
+}
+
+/** Dimensioni dei test generati, in ordine. "In totale": `count` valori presi a distanza
+ *  uniforme tra quelli del range (primo e ultimo compresi), ripetuti se sono più dei passi. */
+export function generatedSizes(params: GeneratorParams): number[] {
+  const sizes = generatorSizes(params);
+  if (params.mode === "perStep") return sizes.flatMap((size) => Array(params.count).fill(size));
+  if (params.count === 1) return [sizes[0]];
+  return Array.from(
+    { length: params.count },
+    (_, i) => sizes[Math.round((i * (sizes.length - 1)) / (params.count - 1))],
+  );
+}
+
+/** Test comuni generati: input "seed / dimensione" come i test standard, seed consecutivi
+ *  da `firstSeed`, visibilità scelta (casuale: visibile o nascosto con uguale probabilità). */
+export function generateCommonTests(
+  params: GeneratorParams,
+  firstSeed: number,
+  random: () => number = Math.random,
+): TestRow[] {
+  return generatedSizes(params).map((size, i) => ({
+    ...newRow(`${firstSeed + i}\n${size}`),
+    display:
+      params.visibility === "hidden" ||
+      (params.visibility === "random" && random() < 0.5)
+        ? HIDDEN
+        : VISIBLE,
+  }));
 }
 
 /** Quante volte la soluzione chiama input(), escludendo i commenti: è il numero minimo di

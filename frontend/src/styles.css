@@ -1546,3 +1546,128 @@ button.ghost.active {
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/* Finestra del generatore di test comuni */
+.generator-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow-y: auto;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.generator-dialog::backdrop {
+  background: rgb(28 35 33 / 0.35);
+}
+
+.generator-dialog form {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px;
+}
+
+.generator-dialog h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.generator-dialog p {
+  margin: 0;
+}
+
+.generator-dialog fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.generator-dialog legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.generator-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-start;
+}
+
+.generator-field {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.generator-field input {
+  width: 96px;
+}
+
+.generator-field input[aria-invalid="true"] {
+  border-color: var(--fail);
+}
+
+.generator-field .error {
+  max-width: 200px;
+  font-size: var(--text-xs);
+  color: var(--fail);
+}
+
+.generator-choices {
+  display: grid;
+  gap: 6px;
+  padding-top: 22px;
+}
+
+.generator-choices.horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding-top: 0;
+}
+
+.generator-preview {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.generator-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-xs);
+  list-style: none;
+}
+
+.generator-samples li {
+  padding: 1px 6px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.generator-samples li.muted {
+  border-color: transparent;
+  background: none;
+}
+
+.generator-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

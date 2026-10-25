@@ -4,9 +4,16 @@ import {
   byId,
   composeTests,
   detectCommonBlock,
+  type GeneratorParams,
+  generateCommonTests,
+  generatedCount,
+  generatedSizes,
+  generatorErrors,
+  generatorSizes,
   inputLineCount,
   missingInputMessage,
   newRow,
+  nextSeed,
   nextSeedInput,
   outcomesById,
   requiredInputLines,
@@ -142,5 +149,87 @@ describe("righe di input richieste dalla soluzione", () => {
       "Test 1, 2: mancano valori di input. La soluzione ne legge 2 con input(), " +
         "uno per riga (es. seed e dimensione su due righe).",
     );
+  });
+});
+
+describe("generatore di test comuni", () => {
+  const base: GeneratorParams = {
+    start: 0,
+    end: 100,
+    step: 5,
+    count: 1,
+    mode: "perStep",
+    visibility: "visible",
+  };
+  const inputs = (params: GeneratorParams, firstSeed = 0) =>
+    generateCommonTests(params, firstSeed).map((row) => row.stdin);
+
+  it("da 0 a 100 a passi di 5: una dimensione per passo, estremi compresi", () => {
+    expect(generatorSizes(base)).toHaveLength(21);
+    expect(generatorSizes(base).slice(0, 3)).toEqual([0, 5, 10]);
+    expect(generatorSizes(base).at(-1)).toBe(100);
+  });
+
+  it("per ogni passo: N test per dimensione, con seed consecutivi", () => {
+    const params = { ...base, end: 10, count: 2 };
+    expect(generatedCount(params)).toBe(6);
+    expect(inputs(params)).toEqual(["0\n0", "1\n0", "2\n5", "3\n5", "4\n10", "5\n10"]);
+  });
+
+  it("in totale: dimensioni distribuite in modo uniforme sul range", () => {
+    expect(generatedSizes({ ...base, count: 5, mode: "total" })).toEqual([0, 25, 50, 75, 100]);
+    expect(generatedSizes({ ...base, count: 1, mode: "total" })).toEqual([0]);
+  });
+
+  it("in totale con più test che passi: le dimensioni si ripetono in modo regolare", () => {
+    expect(generatedSizes({ ...base, end: 10, count: 5, mode: "total" })).toEqual([0, 5, 5, 10, 10]);
+  });
+
+  it("un passo più grande del range e start uguale a end", () => {
+    expect(generatorSizes({ ...base, end: 3, step: 10 })).toEqual([0]);
+    expect(generatorSizes({ ...base, start: 7, end: 7 })).toEqual([7]);
+  });
+
+  it("i seed partono da quello indicato: in coda ai test esistenti si continua la numerazione", () => {
+    const existing = standardCommonTests();
+    expect(nextSeed(existing)).toBe(9);
+    expect(nextSeed([])).toBe(0);
+    expect(inputs({ ...base, end: 5 }, nextSeed(existing))).toEqual(["9\n0", "10\n5"]);
+  });
+
+  it("visibili, nascosti o a caso", () => {
+    const params = { ...base, end: 15 };
+    const shown = (visibility: GeneratorParams["visibility"], random?: () => number) =>
+      generateCommonTests({ ...params, visibility }, 0, random).map((row) => row.display);
+    expect(shown("visible")).toEqual(["SHOW", "SHOW", "SHOW", "SHOW"]);
+    expect(shown("hidden")).toEqual(["HIDE", "HIDE", "HIDE", "HIDE"]);
+    const sequence = [0.1, 0.9, 0.4, 0.6];
+    expect(shown("random", () => sequence.shift()!)).toEqual(["HIDE", "SHOW", "HIDE", "SHOW"]);
+  });
+
+  it("i test generati hanno le stesse opzioni dei test standard, senza esempi", () => {
+    const [row] = generateCommonTests({ ...base, end: 0 }, 0);
+    expect(row).toMatchObject({ expected: "", use_as_example: false, hide_rest_if_fail: false, mark: 1 });
+  });
+
+  it("segnala i valori non validi campo per campo", () => {
+    expect(generatorErrors(base)).toEqual({});
+    expect(generatorErrors({ ...base, start: -1, step: 0, count: 1.5 })).toEqual({
+      start: "Un numero intero da 0 in su",
+      step: "Un numero intero da 1 in su",
+      count: "Un numero intero da 1 in su",
+    });
+    expect(generatorErrors({ ...base, start: 50, end: 10 })).toEqual({
+      end: "Deve essere almeno uguale a «da»",
+    });
+    expect(generatorErrors({ ...base, end: Number.NaN })).toEqual({ end: "Un numero intero da 0 in su" });
+  });
+
+  it("blocca più di 200 test", () => {
+    expect(generatorErrors({ ...base, count: 10 })).toEqual({
+      count: "Verrebbero creati 210 test: il massimo è 200",
+    });
+    expect(generatorErrors({ ...base, count: 200, mode: "total" })).toEqual({});
+    expect(generatorErrors({ ...base, count: 201, mode: "total" }).count).toContain("201");
   });
 });
