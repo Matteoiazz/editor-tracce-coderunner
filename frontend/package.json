@@ -50,6 +50,7 @@
     "files": [
       "dist/**",
       "electron/**",
+      "!electron/**/*.test.*",
       "package.json"
     ],
     "extraResources": [

@@ -29,6 +29,9 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   immagini incorporate nel testo vengono riportate nel file esportato.
 - **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di
   un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
+- **Impostazioni**: il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
+  filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
+  NVIDIA Nemotron 3 Ultra (`nvidia/nemotron-3-ultra-550b-a55b`). Ogni scelta si salva subito.
 
 ## Struttura
 
@@ -137,6 +140,9 @@ La disinstallazione non cancella l'archivio delle tracce.
   connessioni solo verso il backend locale. Un eventuale script dentro il testo HTML di un
   esercizio importato non viene eseguito.
 - La pagina non ha accesso a Node.js (`contextIsolation`), solo alle funzioni del preload.
+- L'elenco dei modelli di OpenRouter (pubblico, senza chiave) lo scarica il processo principale
+  di Electron: la pagina resta limitata al backend locale. Le impostazioni le scrive solo il
+  processo principale, e la pagina può cambiare solo i valori previsti.
 - Nell'app installata il backend gira con `python -I`: non legge variabili d'ambiente né pacchetti
   Python installati sul computer, quindi si comporta allo stesso modo su ogni PC.
 
@@ -148,7 +154,7 @@ cd backend
 .venv/Scripts/python.exe -m ruff check src tests
 
 cd ../frontend
-npm test           # test automatici (Vitest)
+npm test           # test automatici (Vitest), anche dei moduli del processo principale di Electron
 npm run build      # controllo dei tipi (TypeScript) e build
 ```
 
@@ -183,5 +189,9 @@ il backend non richiede il codice segreto (lo richiede solo se c'è la variabile
 L'archivio è il file `archivio.db` (SQLite) nella cartella dati dell'applicazione
 (`%APPDATA%\tesi-frontend` su Windows, `~/Library/Application Support/tesi-frontend` su macOS,
 `~/.config/tesi-frontend` su Linux); con `--data-dir CARTELLA` se ne usa un'altra, utile per le prove.
+Nella stessa cartella ci sono `impostazioni.json` (scritto in modo sicuro: prima un file temporaneo,
+poi la sostituzione; se è illeggibile se ne conserva una copia e si riparte dai valori predefiniti)
+e `modelli-openrouter.json`, la copia dell'elenco dei modelli, usata per un giorno o quando manca
+la connessione.
 
 Gli XML reali del docente usati nei test sono in `backend/tests/fixtures/moodle/`.

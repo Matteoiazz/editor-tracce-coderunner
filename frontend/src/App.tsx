@@ -27,6 +27,7 @@ import { importIntoArchive, importReportMessage } from "./archiveImport";
 import { createArchiveSaver } from "./archiveSaver";
 import { ArchivePanel } from "./components/ArchivePanel";
 import { ReusePanel } from "./components/ReusePanel";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
@@ -623,6 +624,10 @@ export function App() {
         canClearExam={!isEmptySession({ exam, common, items })}
         onNewExam={handleNewExam}
         onArchive={handleShowArchive}
+        onSettings={() => {
+          clearMessages();
+          select({ kind: "settings" });
+        }}
         onReuse={() => {
           clearMessages();
           select({ kind: "reuse" });
@@ -650,7 +655,9 @@ export function App() {
       )}
       <main className="main" ref={mainRef}>
 
-        {selection?.kind === "reuse" ? (
+        {selection?.kind === "settings" ? (
+          <SettingsPanel onError={setError} />
+        ) : selection?.kind === "reuse" ? (
           <ReusePanel
             currentTrackId={trackId}
             blockedReason={pretestFull ? "Il pretest ha un solo esercizio" : null}

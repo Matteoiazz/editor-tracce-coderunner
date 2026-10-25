@@ -1,13 +1,24 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura.
 
-const { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net: chromiumNet,
+  screen,
+  shell,
+} = require("electron");
 const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
+const { listModels } = require("./models.cjs");
+const { createSettingsStore } = require("./settings.cjs");
 
 const isDev = !app.isPackaged;
 const isWindows = process.platform === "win32";
@@ -339,6 +350,24 @@ ipcMain.handle("dialog:open-xml", async (event) => {
   const filePath = result.filePaths[0];
   return { path: filePath, content: await fs.readFile(filePath, "utf-8") };
 });
+
+// ---------------------------------------------------------------- impostazioni
+
+const settings = createSettingsStore(app.getPath("userData"));
+
+ipcMain.handle("settings:get", () => settings.get());
+ipcMain.handle("settings:update", (_event, change) => settings.update(change));
+
+// L'elenco dei modelli lo scarica il processo principale: la pagina può collegarsi solo al
+// backend locale. Con la rete di Chromium vale anche il proxy configurato nel sistema.
+ipcMain.handle("settings:models", (_event, refresh) =>
+  listModels(app.getPath("userData"), {
+    refresh: refresh === true,
+    fetch: (url, init) => chromiumNet.fetch(url, init),
+  }),
+);
+
+ipcMain.handle("app:version", () => app.getVersion());
 
 // ---------------------------------------------------------------- vecchio file di sessione
 // Prima dell'archivio il lavoro in corso era salvato in sessione.json nella cartella dati.

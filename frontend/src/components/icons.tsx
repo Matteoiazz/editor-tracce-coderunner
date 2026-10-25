@@ -141,6 +141,15 @@ export const IconArchive = (p: IconProps) => (
   </Icon>
 );
 
+/** Impostazioni: due cursori su due guide. */
+export const IconSettings = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 5h5.5M12 5h1.5M2.5 11h1.5M8 11h5.5" />
+    <circle cx="10" cy="5" r="2" />
+    <circle cx="6" cy="11" r="2" />
+  </Icon>
+);
+
 export const IconRestore = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.5h2.5" />

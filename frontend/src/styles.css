@@ -201,6 +201,7 @@ button.link {
 }
 
 input[type="text"],
+input[type="search"],
 input[type="number"],
 input[type="date"],
 select,
@@ -214,6 +215,7 @@ textarea {
 }
 
 input[type="text"],
+input[type="search"],
 input[type="number"],
 input[type="date"],
 select {
@@ -623,6 +625,7 @@ input[type="checkbox"] {
 .common-view,
 .archive-view,
 .reuse-view,
+.settings-view,
 .start {
   max-width: 1040px;
   margin: 0 auto;
@@ -1670,4 +1673,201 @@ button.ghost.active {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------------ impostazioni */
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.settings-section h2 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.settings-lede,
+.settings-note {
+  max-width: 70ch;
+}
+
+.settings-lede {
+  color: var(--ink-2);
+}
+
+.settings-label {
+  margin-top: 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.model-current,
+.model-toolbar,
+.model-list-meta,
+.model-list,
+.model-custom,
+.settings-view .inline-notice {
+  max-width: 720px;
+}
+
+.settings-section .inline-notice {
+  margin: 0;
+}
+
+.model-current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.model-current-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.model-current-info .mono {
+  overflow-wrap: anywhere;
+}
+
+.model-current-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-tag {
+  padding: 0 6px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--rail);
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+}
+
+.model-missing {
+  color: var(--warn);
+}
+
+.model-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.model-search {
+  flex: 1 1 320px;
+  min-height: 36px;
+}
+
+.model-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* L'elenco scorre al suo interno; position serve a calcolare dove sta il modello scelto */
+.model-list {
+  position: relative;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.model-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.model-option + .model-option {
+  border-top: 1px solid var(--rule);
+}
+
+.model-option:hover {
+  background: var(--ground);
+}
+
+.model-option.selected {
+  background: var(--accent-soft);
+}
+
+.model-option input {
+  flex: none;
+  margin: 3px 0 0;
+}
+
+.model-option-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.model-option-name {
+  font-weight: 500;
+}
+
+.model-option-meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.model-option-meta .mono {
+  color: var(--ink-2);
+}
+
+.model-empty {
+  padding: 12px;
+  color: var(--muted);
+}
+
+.model-custom {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.model-custom .settings-label {
+  margin-top: 0;
+}
+
+.model-custom-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.model-custom-row input {
+  flex: 1 1 320px;
+  font-family: var(--font-mono);
+}
+
+.model-custom input[aria-invalid="true"] {
+  border-color: var(--fail);
+}
+
+.field-error {
+  font-size: var(--text-sm);
+  color: var(--fail);
 }

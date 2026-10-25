@@ -10,6 +10,37 @@ interface BackendConnection {
   token: string;
 }
 
+/** Impostazioni come le riceve la pagina dal processo principale. */
+interface SettingsView {
+  ai: { model: string };
+  defaultModel: string;
+  /** Copia del file delle impostazioni, se era illeggibile e si è ripartiti dai predefiniti. */
+  damagedCopy: string | null;
+}
+
+/** Modifiche che la pagina può chiedere. */
+interface SettingsChange {
+  ai?: { model?: string };
+}
+
+/** Un modello di OpenRouter. Prezzi in dollari per milione di token, null se variabili. */
+interface ModelInfo {
+  id: string;
+  name: string;
+  free: boolean;
+  context: number | null;
+  promptPrice: number | null;
+  completionPrice: number | null;
+}
+
+interface ModelList {
+  models: ModelInfo[];
+  /** Quando l'elenco è stato scaricato (ISO), null se non è mai stato scaricato. */
+  fetchedAt: string | null;
+  /** Perché non si è potuto aggiornare l'elenco; i modelli sono quelli della copia salvata. */
+  error: string | null;
+}
+
 interface Window {
   desktop: {
     getBackendConnection(): Promise<BackendConnection>;
@@ -29,6 +60,15 @@ interface Window {
     markSessionTransferred(): Promise<void>;
     /** Copia da parte un salvataggio illeggibile; restituisce il percorso della copia. */
     backupCorruptSession(): Promise<string>;
+    /** Versione dell'applicazione installata. */
+    getAppVersion(): Promise<string>;
+    settings: {
+      get(): Promise<SettingsView>;
+      /** Salva le modifiche e restituisce le impostazioni aggiornate. */
+      update(change: SettingsChange): Promise<SettingsView>;
+      /** Elenco dei modelli: dalla copia salvata se è recente, a meno di chiederne uno aggiornato. */
+      listModels(refresh?: boolean): Promise<ModelList>;
+    };
     /** Funzione eseguita alla chiusura della finestra, prima che si chiuda davvero. */
     onBeforeClose(callback: () => Promise<void>): void;
   };

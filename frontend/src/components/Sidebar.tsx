@@ -2,13 +2,22 @@ import { parseExerciseNumber } from "../exam";
 import type { Blocker } from "../export";
 import type { ExamInfo, ExamKind } from "../naming";
 import type { ExamSummary, ExerciseStatus } from "../status";
-import { IconArchive, IconCheck, IconExport, IconImport, IconNewExam, IconPlus } from "./icons";
+import {
+  IconArchive,
+  IconCheck,
+  IconExport,
+  IconImport,
+  IconNewExam,
+  IconPlus,
+  IconSettings,
+} from "./icons";
 import { StatusDots } from "./StatusDots";
 
 export type Selection =
   | { kind: "common" }
   | { kind: "archive" }
   | { kind: "reuse" }
+  | { kind: "settings" }
   | { kind: "exercise"; id: string }
   | null;
 
@@ -42,6 +51,7 @@ interface Props {
   canClearExam: boolean;
   onNewExam: () => void;
   onArchive: () => void;
+  onSettings: () => void;
   onReuse: () => void;
   summary: ExamSummary;
   blockers: Blocker[];
@@ -84,6 +94,15 @@ export function Sidebar(props: Props) {
               title="Tracce salvate e cestino"
             >
               <IconArchive /> Archivio
+            </button>
+            <button
+              type="button"
+              className={`ghost small${selection?.kind === "settings" ? " active" : ""}`}
+              onClick={props.onSettings}
+              aria-pressed={selection?.kind === "settings"}
+              title="Modello dell'intelligenza artificiale e aggiornamenti"
+            >
+              <IconSettings /> Impostazioni
             </button>
           </div>
         </div>

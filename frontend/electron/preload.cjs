@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld("desktop", {
   loadSession: () => ipcRenderer.invoke("session:load"),
   markSessionTransferred: () => ipcRenderer.invoke("session:mark-transferred"),
   backupCorruptSession: () => ipcRenderer.invoke("session:backup-corrupt"),
+  getAppVersion: () => ipcRenderer.invoke("app:version"),
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    update: (change) => ipcRenderer.invoke("settings:update", change),
+    listModels: (refresh) => ipcRenderer.invoke("settings:models", refresh === true),
+  },
   // Alla chiusura della finestra la pagina completa il salvataggio, poi conferma
   onBeforeClose: (callback) => {
     ipcRenderer.removeAllListeners("app:before-close");
