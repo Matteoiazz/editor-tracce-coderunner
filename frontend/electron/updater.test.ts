@@ -67,6 +67,7 @@ describe("controllo degli aggiornamenti", () => {
 
     expect(await updates.check()).toEqual({
       mode: "auto",
+      note: null,
       automatic: false,
       downloadUrl: RELEASES,
       phase: "current",
@@ -175,6 +176,36 @@ describe("errori", () => {
     ["Qualcos'altro\nseconda riga", "Aggiornamento non riuscito: Qualcos'altro"],
   ])("%s", (message, expected) => {
     expect(updateErrorMessage(new Error(message))).toBe(expected);
+  });
+});
+
+describe("aggiornamento precedente non riuscito", () => {
+  it("si vede all'avvio e un nuovo controllo lo sostituisce", async () => {
+    const updater = new FakeUpdater();
+    const updates = createUpdateController({
+      updater,
+      mode: "auto",
+      initialError: "L'ultimo aggiornamento non è riuscito",
+      downloadUrl: RELEASES,
+      onChange: () => {},
+      timers: fakeTimers(),
+      now: () => NOW,
+    });
+
+    expect(updates.status()).toMatchObject({ phase: "error", error: "L'ultimo aggiornamento non è riuscito" });
+    expect((await updates.check()).phase).toBe("current");
+  });
+
+  it("la nota spiega perché la versione nuova viene solo segnalata", () => {
+    const updates = createUpdateController({
+      updater: new FakeUpdater(),
+      mode: "manual",
+      note: "L'app è aperta dal disco del .dmg.",
+      downloadUrl: RELEASES,
+      onChange: () => {},
+    });
+
+    expect(updates.status()).toMatchObject({ mode: "manual", note: "L'app è aperta dal disco del .dmg." });
   });
 });
 

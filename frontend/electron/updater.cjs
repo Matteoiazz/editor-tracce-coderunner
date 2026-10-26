@@ -1,7 +1,8 @@
-// Aggiornamento automatico con electron-updater, su Windows (installer NSIS) e Linux (AppImage).
-// Si controllano le release su GitHub poco dopo l'avvio e poi ogni 6 ore; la versione nuova si
-// scarica in silenzio e si installa alla chiusura dell'app, oppure subito con "Riavvia ora".
-// Con il pacchetto .deb (che per installarsi chiederebbe i permessi di amministratore) la
+// Aggiornamento automatico: con electron-updater su Windows (installer NSIS) e Linux (AppImage),
+// con mac-updater.cjs su macOS, che si comporta allo stesso modo. Si controllano le release su
+// GitHub poco dopo l'avvio e poi ogni 6 ore; la versione nuova si scarica in silenzio e si
+// installa alla chiusura dell'app, oppure subito con "Riavvia ora". Quando l'app non può
+// installarla da sola (pacchetto .deb, app su macOS fuori dalla cartella Applicazioni) la
 // versione nuova viene solo segnalata, con il link per scaricarla.
 
 const FIRST_CHECK_DELAY_MS = 10_000;
@@ -22,11 +23,14 @@ function updateErrorMessage(err) {
 }
 
 /** Stato dell'aggiornamento e operazioni, attorno a `updater` (l'autoUpdater di
- *  electron-updater, o un sostituto nei test). `mode`: "auto" scarica e installa, "manual"
- *  segnala soltanto. `onChange` riceve lo stato a ogni cambiamento. */
+ *  electron-updater, il MacUpdater o un sostituto nei test). `mode`: "auto" scarica e installa,
+ *  "manual" segnala soltanto, e `note` spiega perché. `initialError`: motivo del fallimento
+ *  dell'ultimo aggiornamento, se è fallito. `onChange` riceve lo stato a ogni cambiamento. */
 function createUpdateController({
   updater,
   mode,
+  note = null,
+  initialError = null,
   downloadUrl,
   onChange,
   timers = globalThis,
@@ -35,12 +39,18 @@ function createUpdateController({
   let automatic = false;
   let firstCheck = null;
   let periodicCheck = null;
-  let state = { phase: "idle", version: null, progress: null, checkedAt: null, error: null };
+  let state = {
+    phase: initialError ? "error" : "idle",
+    version: null,
+    progress: null,
+    checkedAt: null,
+    error: initialError,
+  };
 
   updater.autoDownload = mode === "auto";
   updater.autoInstallOnAppQuit = mode === "auto";
 
-  const snapshot = () => ({ mode, automatic, downloadUrl, ...state });
+  const snapshot = () => ({ mode, note, automatic, downloadUrl, ...state });
 
   function set(change) {
     state = { ...state, ...change };

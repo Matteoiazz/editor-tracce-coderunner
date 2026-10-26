@@ -297,8 +297,7 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
                 {update.mode === "auto"
                   ? "Controlla poco dopo l'avvio e poi ogni 6 ore; la versione nuova si scarica in " +
                     "silenzio e si installa alla chiusura dell'app."
-                  : "Controlla poco dopo l'avvio e poi ogni 6 ore e segnala le versioni nuove: con il " +
-                    "pacchetto .deb si installano scaricandole dalla pagina delle release."}
+                  : `Controlla poco dopo l'avvio e poi ogni 6 ore e segnala le versioni nuove. ${update.note ?? ""}`}
               </p>
               <div className="update-row">
                 <button

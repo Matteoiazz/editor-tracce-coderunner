@@ -5,6 +5,7 @@ type Active = Exclude<UpdateStatus, { mode: "none" }>;
 
 const status = (change: Partial<Active> = {}): Active => ({
   mode: "auto",
+  note: null,
   automatic: true,
   downloadUrl: "https://github.com/Matteoiazz/editor-tracce-coderunner/releases/latest",
   phase: "idle",

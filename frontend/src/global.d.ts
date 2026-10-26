@@ -31,6 +31,8 @@ type UpdateStatus =
   | { mode: "none"; reason: string; downloadUrl: string }
   | {
       mode: "auto" | "manual";
+      /** Perché la versione nuova viene solo segnalata (modo "manual"). */
+      note: string | null;
       /** Controlli automatici attivi. */
       automatic: boolean;
       /** Pagina della release più recente, per scaricarla a mano. */

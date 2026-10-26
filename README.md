@@ -35,11 +35,12 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
   NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
   scelta si salva subito.
-- **Aggiornamento automatico** su Windows e con l'AppImage su Linux: l'app controlla le release
-  su GitHub poco dopo l'avvio e ogni 6 ore, scarica in silenzio la versione nuova e la installa
-  alla chiusura, oppure subito con «Riavvia ora» dopo aver salvato il lavoro. Con il pacchetto
-  `.deb` la versione nuova viene segnalata, con il link per scaricarla. Si può disattivare nelle
-  impostazioni, dove c'è anche «Controlla ora».
+- **Aggiornamento automatico** su Windows, macOS e con l'AppImage su Linux: l'app controlla le
+  release su GitHub poco dopo l'avvio e ogni 6 ore, scarica in silenzio la versione nuova e la
+  installa alla chiusura, oppure subito con «Riavvia ora» dopo aver salvato il lavoro. Con il
+  pacchetto `.deb`, o con l'app su macOS fuori dalla cartella Applicazioni, la versione nuova viene
+  segnalata, con il link per scaricarla. Si può disattivare nelle impostazioni, dove c'è anche
+  «Controlla ora».
 
 ## Struttura
 
@@ -136,6 +137,7 @@ Con gli installer il workflow allega i file per l'aggiornamento automatico: `lat
   certificato Apple: al primo avvio macOS la blocca. Si apre **Impostazioni di Sistema** →
   **Privacy e sicurezza** e, in fondo, **Apri comunque** (serve una volta sola). In alternativa,
   dal Terminale: `xattr -dr com.apple.quarantine "/Applications/Editor tracce CodeRunner.app"`.
+  Per aggiornarsi da sola l'app deve stare in Applicazioni (non aperta dal disco del `.dmg`).
 - **Linux**: su Ubuntu e Debian `sudo apt install ./Editor-tracce-CodeRunner-<versione>-amd64.deb`;
   sulle altre distribuzioni l'`AppImage` (resa eseguibile con `chmod +x`), che richiede FUSE 2
   (su Ubuntu il pacchetto `libfuse2t64`).
@@ -144,19 +146,30 @@ La disinstallazione non cancella l'archivio delle tracce.
 
 ### Aggiornamento automatico
 
-L'app usa [electron-updater](https://www.electron.build/auto-update): legge il file della
-versione dalla release più recente su GitHub, scarica il nuovo installer controllandone
-l'impronta SHA-512 e lo installa alla chiusura dell'app, oppure subito con «Riavvia ora». Prima di
-installare, l'app completa il salvataggio dell'archivio e aspetta che il backend sia chiuso: su
-Windows i file del Python incluso, finché è in esecuzione, non si possono sostituire. Una
-versione installata a mano prima della 1.2.0 non ha l'aggiornamento: la 1.2.0 va installata a
-mano una volta.
+L'app legge il file della versione dalla release più recente su GitHub, scarica la versione
+nuova controllandone l'impronta SHA-512 e la installa alla chiusura dell'app, oppure subito con
+«Riavvia ora». Prima di installare, l'app completa il salvataggio dell'archivio e aspetta che il
+backend sia chiuso: su Windows i file del Python incluso, finché è in esecuzione, non si possono
+sostituire. Una versione installata a mano prima della 1.2.0 non ha l'aggiornamento: la 1.2.0 va
+installata a mano una volta.
 
-- **Windows**: l'installer nuovo viene eseguito senza finestre e, con «Riavvia ora», riapre l'app.
-- **Linux**: l'AppImage viene sostituita dalla nuova. Il pacchetto `.deb` per installarsi
-  chiederebbe i permessi di amministratore: la versione nuova viene solo segnalata.
-- **macOS**: l'aggiornamento standard richiede una firma Apple a pagamento; per ora le nuove
-  versioni si scaricano dalla pagina delle release.
+- **Windows** ([electron-updater](https://www.electron.build/auto-update)): l'installer nuovo
+  viene eseguito senza finestre e, con «Riavvia ora», riapre l'app.
+- **Linux** (electron-updater): l'AppImage viene sostituita dalla nuova. Il pacchetto `.deb` per
+  installarsi chiederebbe i permessi di amministratore: la versione nuova viene solo segnalata.
+- **macOS**: l'aggiornamento standard di Electron richiede una firma Apple a pagamento, quindi
+  l'app ha un aggiornatore suo (`electron/mac-updater.cjs`). Legge `latest-mac-arm64.yml` o
+  `latest-mac-x64.yml` dalla release, scarica lo `.zip` dell'app controllandone l'impronta, lo
+  estrae con `ditto` e controlla versione, identificativo e firma dell'app estratta. Alla
+  chiusura, o con «Riavvia ora», lo script `electron/mac-swap.sh` aspetta che l'app sia chiusa,
+  sposta da parte la versione attuale (`.Editor tracce CodeRunner.app-precedente`, nascosta
+  accanto all'app), mette al suo posto la nuova e, con «Riavvia ora», la riapre: se non parte
+  entro 20 secondi rimette la precedente. I passi sono annotati in `aggiornamento.log` nella
+  cartella dati, e un aggiornamento non riuscito viene segnalato al successivo avvio. L'app deve
+  stare in una cartella in cui l'utente può scrivere (di solito Applicazioni) e non essere aperta
+  dal `.dmg`, altrimenti la versione nuova viene solo segnalata. macOS potrebbe chiedere il
+  permesso «Gestione app» (Impostazioni di Sistema → Privacy e sicurezza) per lasciare che l'app
+  si sostituisca.
 
 Per provarlo senza pubblicare una release si costruiscono due versioni di prova con un altro nome
 di pacchetto, di app e di eseguibile, così hanno una cartella di installazione e una cartella dati
@@ -169,7 +182,11 @@ npx electron-builder --win --publish never -c.extraMetadata.version=1.1.90 -c.ex
 Si installa la versione meno recente, si mettono installer, `.blockmap` e `latest.yml` della più
 recente in una cartella servita in locale (es. `python -m http.server 8766`) e si avvia l'app con
 la variabile d'ambiente `TESI_UPDATE_URL=http://127.0.0.1:8766`, che sostituisce le release di
-GitHub solo se è impostata.
+GitHub solo se è impostata. Su macOS si servono lo `.zip` e `latest-mac-<processore>.yml`.
+
+Lo scambio di `mac-swap.sh` è provato con app finte dai test automatici, che girano su Linux e
+sui due Mac di GitHub Actions; sui Mac i test usano anche `ditto`, `PlistBuddy` e `codesign` veri
+su una copia della Calcolatrice di sistema.
 
 ## Sicurezza
 

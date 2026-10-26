@@ -1,0 +1,2 @@
+# Gli script per bash devono avere le righe in formato Unix anche in una copia su Windows
+*.sh text eol=lf

@@ -1,7 +1,7 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura;
 // dare alla pagina impostazioni e chiave API, gestite nei moduli settings.cjs e api-key.cjs;
-// aggiornare l'app (updater.cjs).
+// aggiornare l'app (updater.cjs, con mac-updater.cjs su macOS).
 
 const {
   app,
@@ -387,12 +387,13 @@ ipcMain.handle("settings:update", async (_event, change) => {
   return view;
 });
 
-// Le richieste a OpenRouter le fa il processo principale: la pagina può collegarsi solo al
-// backend locale. Con la rete di Chromium vale anche il proxy configurato nel sistema.
-const openRouterFetch = (url, init) => chromiumNet.fetch(url, init);
+// Le richieste a Internet (OpenRouter, aggiornamenti su macOS) le fa il processo principale: la
+// pagina può collegarsi solo al backend locale. Con la rete di Chromium vale anche il proxy
+// configurato nel sistema.
+const networkFetch = (url, init) => chromiumNet.fetch(url, init);
 
 ipcMain.handle("settings:models", (_event, refresh) =>
-  listModels(app.getPath("userData"), { refresh: refresh === true, fetch: openRouterFetch }),
+  listModels(app.getPath("userData"), { refresh: refresh === true, fetch: networkFetch }),
 );
 
 // ---------------------------------------------------------------- chiave API
@@ -432,7 +433,7 @@ const systemKeychain = {
 
 const apiKey = createApiKeyStore(app.getPath("userData"), {
   keychain: systemKeychain,
-  fetch: openRouterFetch,
+  fetch: networkFetch,
 });
 
 /** Gestore che restituisce { ok, value } oppure { ok: false, error }: gli errori previsti,
@@ -468,22 +469,79 @@ let updates = null;
 // Vero mentre l'app si chiude per installare un aggiornamento
 let installingUpdate = false;
 
-/** Come si aggiorna questa installazione: "auto" (Windows, AppImage), "manual" (pacchetto
- *  .deb: la versione nuova viene solo segnalata) o "none", con il motivo. */
+/** Pacchetto .app in esecuzione su macOS, es. "/Applications/Editor tracce CodeRunner.app". */
+function macBundle() {
+  return path.resolve(process.execPath, "..", "..", "..");
+}
+
+function canWrite(dir) {
+  try {
+    fsSync.accessSync(dir, fsSync.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Come si aggiorna questa installazione: "auto" (Windows, AppImage, macOS), "manual" (la
+ *  versione nuova viene solo segnalata, `note` spiega perché) o "none", con il motivo. */
 function updateSupport() {
   if (!app.isPackaged) {
     return { mode: "none", reason: "Gli aggiornamenti funzionano solo nell'app installata." };
   }
   if (isMac) {
+    const { bundleLocationProblem } = require("./mac-updater.cjs");
+    const problem = bundleLocationProblem(macBundle(), canWrite);
+    return problem ? { mode: "manual", note: problem } : { mode: "auto" };
+  }
+  if (process.platform === "linux" && !process.env.APPIMAGE) {
     return {
-      mode: "none",
-      reason:
-        "Su macOS l'aggiornamento automatico non è ancora disponibile: le nuove versioni si " +
-        "scaricano dalla pagina delle release.",
+      mode: "manual",
+      note: "Con il pacchetto .deb le versioni nuove si installano scaricandole dalla pagina delle release.",
     };
   }
-  if (process.platform === "linux" && !process.env.APPIMAGE) return { mode: "manual" };
   return { mode: "auto" };
+}
+
+/** Da dove l'aggiornatore per macOS legge le versioni: il file per il processore di questo Mac
+ *  nella release più recente, lo .zip in quella della sua versione (o un server di prova). */
+function macFeed() {
+  const metadata = `latest-mac-${process.arch === "arm64" ? "arm64" : "x64"}.yml`;
+  const testServer = process.env.TESI_UPDATE_URL;
+  if (testServer) {
+    return {
+      metadataUrl: `${testServer}/${metadata}`,
+      fileUrl: (_version, name) => `${testServer}/${encodeURIComponent(name)}`,
+    };
+  }
+  return {
+    metadataUrl: `${homepage}/releases/latest/download/${metadata}`,
+    fileUrl: (version, name) => `${homepage}/releases/download/v${version}/${encodeURIComponent(name)}`,
+  };
+}
+
+/** L'aggiornatore per macOS e l'esito dell'ultimo aggiornamento, se non è riuscito. */
+async function createMacUpdater() {
+  const { MacUpdater, previousUpdateOutcome } = require("./mac-updater.cjs");
+  const bundle = macBundle();
+  const dataDir = app.getPath("userData");
+  const cacheDir = path.join(app.getPath("home"), "Library", "Caches", `${packageName}-updater`);
+  const failure = await previousUpdateOutcome({ bundle, dataDir, cacheDir });
+  const updater = new MacUpdater({
+    bundle,
+    currentVersion: app.getVersion(),
+    feed: macFeed(),
+    cacheDir,
+    dataDir,
+    fetch: networkFetch,
+    quit: () => app.quit(),
+    onQuit: (listener) => app.once("quit", listener),
+  });
+  const initialError = failure
+    ? `L'ultimo aggiornamento non è riuscito: ${failure}. La versione nuova si può scaricare ` +
+      "dalla pagina delle release"
+    : null;
+  return { updater, initialError };
 }
 
 function updateStatus() {
@@ -497,15 +555,23 @@ function sendUpdateStatus(status) {
 async function startUpdates() {
   const support = updateSupport();
   if (support.mode === "none") return;
-  // Caricato solo qui: in sviluppo e su macOS electron-updater non serve
-  const { autoUpdater } = require("electron-updater");
-  // Per le prove: le versioni da un server locale al posto delle release su GitHub
-  if (process.env.TESI_UPDATE_URL) {
-    autoUpdater.setFeedURL({ provider: "generic", url: process.env.TESI_UPDATE_URL });
+  let updater;
+  let initialError = null;
+  if (isMac) {
+    ({ updater, initialError } = await createMacUpdater());
+  } else {
+    // Caricato solo qui: in sviluppo e su macOS electron-updater non serve
+    updater = require("electron-updater").autoUpdater;
+    // Per le prove: le versioni da un server locale al posto delle release su GitHub
+    if (process.env.TESI_UPDATE_URL) {
+      updater.setFeedURL({ provider: "generic", url: process.env.TESI_UPDATE_URL });
+    }
   }
   updates = createUpdateController({
-    updater: autoUpdater,
+    updater,
     mode: support.mode,
+    note: support.note ?? null,
+    initialError,
     downloadUrl: RELEASES_URL,
     onChange: sendUpdateStatus,
   });
