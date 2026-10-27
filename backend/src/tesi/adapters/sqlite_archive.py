@@ -219,9 +219,7 @@ class SqliteTrackArchive:
     def backup_to(self, target: Path) -> int:
         # Copiare un database su se stesso bloccherebbe SQLite senza mai terminare
         if _same_file(target, self.path):
-            raise InvalidBackup(
-                "Il backup non può sostituire l'archivio stesso: scegli un altro file"
-            )
+            raise InvalidBackup("Il backup non può sostituire l'archivio stesso: scegli un altro file")
         # L'API di backup di SQLite produce una copia coerente anche a database aperto
         with self._connect() as db:
             count = db.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
@@ -276,9 +274,7 @@ class SqliteTrackArchive:
                 "dell'applicazione"
             )
 
-    def _update(
-        self, db: sqlite3.Connection, track_id: str, assignment: str, value: object
-    ) -> None:
+    def _update(self, db: sqlite3.Connection, track_id: str, assignment: str, value: object) -> None:
         cursor = db.execute(f"UPDATE tracks SET {assignment} WHERE id = ?", (value, track_id))
         if cursor.rowcount == 0:
             raise TrackNotFound(track_id)

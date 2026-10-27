@@ -49,15 +49,13 @@ def verify_solution(question: Question, runner: CodeRunner) -> list[TestOutcome]
         result = runner.run(question.solution, tc.stdin)
         interrupted = result.timed_out or result.output_limit_exceeded
         error = run_error(result)
-        outcomes.append(
-            TestOutcome(
-                index=i,
-                passed=not error and outputs_match(tc.expected, result.stdout),
-                expected=tc.expected,
-                got=result.stdout,
-                error=error,
-            )
-        )
+        outcomes.append(TestOutcome(
+            index=i,
+            passed=not error and outputs_match(tc.expected, result.stdout),
+            expected=tc.expected,
+            got=result.stdout,
+            error=error,
+        ))
     return outcomes
 
 
