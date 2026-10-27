@@ -12,7 +12,7 @@ from typing import ClassVar, Literal
 
 from tesi.application.ai import ask_json
 from tesi.application.verification import run_error
-from tesi.domain import Question
+from tesi.domain import Question, TestCase
 from tesi.ports import CodeRunner, LanguageModel, Message
 
 FindingKind = Literal["errore", "caso_limite", "testo", "test_mancante"]
@@ -25,6 +25,8 @@ MAX_EXISTING_TESTS = 40
 MAX_TITLE = 200
 MAX_EXPLANATION = 1500
 MAX_INPUT_LINES = 20
+# Output dei test mostrati al modello: inizio e fine, dove di solito c'è il risultato
+MAX_OUTPUT_CHARS = 300
 
 
 @dataclass(frozen=True)
@@ -57,24 +59,35 @@ pubblicazione su Moodle (domande CodeRunner di tipo python3_w_input).
 
 Come sono fatti gli esercizi:
 - Il testo chiede allo studente di scrivere una funzione.
-- La soluzione del docente contiene la funzione risolta e un main che legge l'input con \
-input(), una riga per valore (di solito un seed per il generatore casuale e una dimensione), \
-costruisce i dati, chiama la funzione e stampa il risultato.
+- Lo studente riceve un codice di partenza con il main già scritto: completa solo la funzione. \
+Input, output e struttura del programma non sono compito suo, quindi il testo non deve \
+descriverli.
+- La soluzione del docente contiene la funzione risolta e lo stesso main, che legge l'input \
+con input(), una riga per valore (di solito un seed per il generatore casuale e una \
+dimensione), costruisce i dati, chiama la funzione e stampa il risultato.
 - Ogni test è un input (le righe lette dal main); l'output atteso si ottiene eseguendo la \
-soluzione del docente.
+soluzione del docente. Ti vengono mostrati gli output già calcolati, senza le righe di input \
+che il programma ristampa: guardali per sapere quali dati generano davvero i test.
 
 Il tuo compito: trovare problemi concreti, non dare consigli di stile.
-- "errore": la soluzione non fa ciò che chiede il testo, oppure va in errore per alcuni input \
+- "errore": la funzione non fa ciò che chiede il testo, oppure va in errore per alcuni input \
 ammessi.
 - "caso_limite": un input ammesso dal testo (es. dimensione 0 o 1, valori tutti uguali, \
-nessun elemento che soddisfa la condizione) su cui il comportamento è dubbio o non specificato.
-- "testo": il testo è ambiguo, incompleto o in contrasto con la soluzione, così uno studente \
-potrebbe risolvere correttamente in un altro modo.
-- "test_mancante": una situazione importante che nessun test esistente copre.
+nessun elemento che soddisfa la condizione) su cui il comportamento della funzione è sbagliato \
+o non deducibile dal testo. Se la funzione lo gestisce bene e il testo permette di capire cosa \
+fare, non segnalarlo.
+- "testo": il testo della funzione è ambiguo, incompleto o in contrasto con la soluzione, così \
+uno studente potrebbe scrivere una funzione diversa ma ragionevole che non passa i test.
+- "test_mancante": una situazione importante che, dagli output mostrati, nessun test copre. \
+Basati sugli output, non su ipotesi: se un test la copre già, non segnalarla.
 
-Per i test suggeriti scrivi solo l'input, nello stesso formato dei test esistenti (stesso \
-numero di righe, stesso significato). Non scrivere l'output: lo calcola l'applicazione. Non \
-ripetere input già presenti.
+Test suggeriti: solo se verificano un caso preciso che i test esistenti non coprono, e solo \
+se quel caso si ottiene con certezza dall'input (per esempio una dimensione limite come 0, 1 \
+o 2, o molto grande). Non sai quali dati produce un seed nuovo, quindi non suggerire seed \
+nuovi "per aumentare la copertura" né per ottenere dati di un certo tipo. Scrivi solo \
+l'input, nello stesso formato dei test esistenti (stesso numero di righe, stesso \
+significato), e non l'output: lo calcola l'applicazione. Non ripetere input già presenti. \
+Meglio nessun test che un test senza un motivo preciso.
 
 Se non trovi problemi, restituisci liste vuote: è un risultato valido. Scrivi in italiano.
 
@@ -112,17 +125,40 @@ def review_messages(question: Question) -> list[Message]:
         f"{i:>3} | {line}" for i, line in enumerate(question.solution.splitlines(), start=1)
     )
     existing = question.testcases[:MAX_EXISTING_TESTS]
-    tests = "\n".join(
-        f"- test {i}: " + " | ".join(tc.stdin.splitlines()) for i, tc in enumerate(existing, 1)
-    )
+    tests = "\n".join(_test_line(i, tc) for i, tc in enumerate(existing, 1))
     if len(question.testcases) > len(existing):
         tests += f"\n- … e altri {len(question.testcases) - len(existing)} test"
-    user = (
-        f"TESTO DELL'ESERCIZIO\n{plain_text(question.text_html) or '(vuoto)'}\n\n"
-        f"SOLUZIONE DEL DOCENTE (numeri di riga a sinistra)\n{numbered or '(vuota)'}\n\n"
-        f"INPUT DEI TEST ESISTENTI (righe separate da |)\n{tests or '(nessun test)'}"
+    parts = [
+        f"TESTO DELL'ESERCIZIO\n{plain_text(question.text_html) or '(vuoto)'}",
+        f"SOLUZIONE DEL DOCENTE (numeri di riga a sinistra)\n{numbered or '(vuota)'}",
+    ]
+    if question.student_code.strip():
+        parts.append(f"CODICE DI PARTENZA DELLO STUDENTE\n{question.student_code.strip()}")
+    parts.append(
+        "TEST ESISTENTI (righe dell'input separate da |, output senza le righe di input)\n"
+        + (tests or "(nessun test)")
     )
-    return [Message("system", SYSTEM_PROMPT), Message("user", user)]
+    return [Message("system", SYSTEM_PROMPT), Message("user", "\n\n".join(parts))]
+
+
+def _test_line(number: int, test: TestCase) -> str:
+    line = f"- test {number}: input " + " | ".join(test.stdin.splitlines())
+    output = _output_summary(test)
+    return f"{line} → output {output}" if output else line
+
+
+def _output_summary(test: TestCase) -> str:
+    """L'output atteso senza le righe di input ristampate (python3_w_input), su una riga e
+    accorciato al centro; vuoto se non è stato calcolato."""
+    lines = test.expected.splitlines()
+    for given in test.stdin.splitlines():
+        if lines and lines[0].strip() == given.strip():
+            lines.pop(0)
+    text = " | ".join(line.rstrip() for line in lines if line.strip())
+    if len(text) > MAX_OUTPUT_CHARS:
+        head = MAX_OUTPUT_CHARS * 2 // 3
+        text = f"{text[:head]} … {text[-(MAX_OUTPUT_CHARS - head) :]}"
+    return text
 
 
 def _findings(raw: object, solution_lines: int) -> list[Finding]:

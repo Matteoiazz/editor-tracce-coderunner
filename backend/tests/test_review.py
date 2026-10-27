@@ -62,7 +62,24 @@ def test_la_richiesta_contiene_testo_soluzione_numerata_e_input_dei_test() -> No
     assert "Scrivere la funzione media." in user.content
     assert "- lst: lista di interi" in user.content
     assert "  4 |     return sum(lst) / len(lst)" in user.content
-    assert "- test 1: 1 | 10" in user.content
+    assert "- test 1: input 1 | 10\n" in user.content
+    # Senza codice per gli studenti la sezione non c'è
+    assert "CODICE DI PARTENZA" not in user.content
+
+
+def test_la_richiesta_contiene_codice_di_partenza_e_output_dei_test() -> None:
+    tests = [
+        TestCase(stdin="1\n10", expected="1\n10\nInput: [3, 5] - Risultato: 0\n"),
+        TestCase(stdin="2\n94", expected="2\n94\nInput: [" + "7, " * 200 + "7] - Risultato: 0\n"),
+    ]
+    _, user = review_messages(question(student_code="def media(lst):\n    pass\n", testcases=tests))
+    assert "CODICE DI PARTENZA DELLO STUDENTE\ndef media(lst):" in user.content
+    # L'output senza le righe di input ristampate
+    assert "- test 1: input 1 | 10 → output Input: [3, 5] - Risultato: 0\n" in user.content
+    long_line = user.content.split("- test 2: ")[1]
+    assert " … " in long_line
+    assert long_line.endswith("- Risultato: 0")
+    assert len(long_line) < 400
     assert "<p>" not in user.content
 
 
