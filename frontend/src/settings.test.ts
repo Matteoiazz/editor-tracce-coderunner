@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contextText, filterModels, ipcErrorText, isModelId, priceText } from "./settings";
+import { contextText, filterModels, ipcErrorText, isModelId, modelCheckText, priceText } from "./settings";
 
 function model(id: string, name: string, extra: Partial<ModelInfo> = {}): ModelInfo {
   return { id, name, free: false, context: null, promptPrice: 1, completionPrice: 2, ...extra };
@@ -67,5 +67,17 @@ describe("errori del processo principale", () => {
     const e = new Error("Error invoking remote method 'settings:update': Error: Identificativo del modello non valido");
     expect(ipcErrorText(e)).toBe("Identificativo del modello non valido");
     expect(ipcErrorText(new Error("ENOSPC: no space left on device"))).toBe("ENOSPC: no space left on device");
+  });
+});
+
+describe("esito della prova del modello", () => {
+  it("risposta giusta, con il tempo in secondi", () => {
+    expect(modelCheckText({ correct: true, seconds: 3.4 })).toBe(
+      "Il modello risponde nel formato richiesto, in 3,4 s.",
+    );
+  });
+
+  it("risposta sbagliata: consiglia un altro modello", () => {
+    expect(modelCheckText({ correct: false, seconds: 12 })).toContain("conviene sceglierne un altro");
   });
 });

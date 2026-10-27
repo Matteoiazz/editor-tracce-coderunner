@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld("desktop", {
     changePassword: (current, next) => invokeResult("apikey:change-password", current, next),
     test: (password) => invokeResult("apikey:test", password ?? null),
   },
+  ai: {
+    check: () => invokeResult("ai:check"),
+  },
   updates: {
     status: () => ipcRenderer.invoke("update:status"),
     check: () => ipcRenderer.invoke("update:check"),

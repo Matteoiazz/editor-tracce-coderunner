@@ -93,6 +93,13 @@ type KeyCheck =
     }
   | { outcome: "invalid" | "error"; message: string };
 
+/** Esito di "Prova il modello": risposta nel formato richiesto e con il risultato giusto. */
+interface ModelCheck {
+  correct: boolean;
+  /** Secondi impiegati dal modello per rispondere. */
+  seconds: number;
+}
+
 interface Window {
   desktop: {
     getBackendConnection(): Promise<BackendConnection>;
@@ -136,6 +143,11 @@ interface Window {
       changePassword(current: string, next: string): Promise<ApiKeyStatus>;
       /** Controlla la chiave con OpenRouter; se è protetta e bloccata serve la master password. */
       test(password?: string | null): Promise<KeyCheck>;
+    };
+    /** Funzioni AI, con la chiave e il modello delle Impostazioni (la pagina non vede la chiave). */
+    ai: {
+      /** Prova chiave e modello con una richiesta breve. */
+      check(): Promise<ModelCheck>;
     };
     updates: {
       status(): Promise<UpdateStatus>;

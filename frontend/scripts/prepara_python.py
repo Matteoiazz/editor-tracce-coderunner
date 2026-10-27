@@ -34,7 +34,7 @@ STANDALONE_URL = (
     "-install_only_stripped.tar.gz"
 )
 # Dipendenze del backend usate in produzione (pyproject.toml, senza quelle di sviluppo)
-REQUIREMENTS = ["fastapi", "uvicorn[standard]", "python-multipart"]
+REQUIREMENTS = ["fastapi", "uvicorn[standard]", "python-multipart", "certifi"]
 
 FRONTEND = Path(__file__).resolve().parent.parent
 BACKEND = FRONTEND.parent / "backend"

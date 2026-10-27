@@ -1,9 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { formatMoment } from "../archive";
-import { contextText, filterModels, ipcErrorText, isModelId, priceText } from "../settings";
+import { contextText, filterModels, ipcErrorText, isModelId, modelCheckText, priceText } from "../settings";
 import { updateStatusText } from "../updates";
 import { ApiKeySection } from "./ApiKeySection";
-import { IconRestore } from "./icons";
+import { IconCheck, IconRestore } from "./icons";
 
 interface Props {
   onError: (message: string) => void;
@@ -27,6 +27,11 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
   const listRef = useRef<HTMLDivElement>(null);
   // Con le frecce si cambia modello rapidamente: vale la risposta dell'ultima scelta
   const lastChoice = useRef(0);
+  // Prova del modello: esito o errore valgono per il modello con cui è stata fatta
+  const [modelCheck, setModelCheck] = useState<{ model: string; check?: ModelCheck; error?: string } | null>(
+    null,
+  );
+  const [checkingModel, setCheckingModel] = useState(false);
   const scrolledToCurrent = useRef(false);
 
   useEffect(() => {
@@ -72,6 +77,20 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
     } catch (e) {
       if (choice === lastChoice.current) setView(previous);
       onError(`Modello non salvato: ${ipcErrorText(e)}`);
+    }
+  }
+
+  async function checkModel() {
+    if (!view) return;
+    const model = view.ai.model;
+    setCheckingModel(true);
+    setModelCheck(null);
+    try {
+      setModelCheck({ model, check: await window.desktop.ai.check() });
+    } catch (e) {
+      setModelCheck({ model, error: ipcErrorText(e) });
+    } finally {
+      setCheckingModel(false);
     }
   }
 
@@ -174,6 +193,26 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
             </button>
           )}
         </div>
+
+        <div className="key-actions">
+          <button type="button" className="secondary" disabled={checkingModel} onClick={checkModel}>
+            {checkingModel ? "Prova in corso…" : "Prova il modello"}
+          </button>
+          {checkingModel && (
+            <span className="small-text muted">I modelli gratuiti possono impiegare fino a un minuto.</span>
+          )}
+        </div>
+        {modelCheck?.model === view.ai.model &&
+          (modelCheck.check?.correct ? (
+            <div className="key-check" role="status">
+              <IconCheck />
+              <p>{modelCheckText(modelCheck.check)}</p>
+            </div>
+          ) : (
+            <p className="inline-notice" role="status">
+              {modelCheck.check ? modelCheckText(modelCheck.check) : `${modelCheck.error}.`}
+            </p>
+          ))}
 
         {models.length > 0 && (
           <div className="model-toolbar">

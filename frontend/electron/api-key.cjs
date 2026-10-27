@@ -22,6 +22,8 @@ const FILE_VERSION = 1;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 1024;
 const UNREADABLE_FILE = "Il file della chiave è illeggibile: rimuovi la chiave e inseriscila di nuovo";
+const NO_KEY_FOR_AI = "Per le funzioni AI serve una chiave di OpenRouter: inseriscila nelle Impostazioni";
+const LOCKED_FOR_AI = "La chiave è protetta da master password: sbloccala nelle Impostazioni";
 
 /** Forma visibile della chiave: inizio e ultimi quattro caratteri, es. "sk-or-v1-••••3f9a". */
 function maskKey(key) {
@@ -226,6 +228,16 @@ function createApiKeyStore(dir, { keychain, fetch, scryptParams = SCRYPT_PARAMS,
         const key = await readKey(record, current, { askPassword: true });
         await write(await passwordRecord(key, next));
         unlockedKey = key;
+      }),
+
+    /** La chiave in chiaro per una richiesta AI, senza chiedere la master password: se manca
+     *  o è bloccata, un errore che dice cosa fare. */
+    use: () =>
+      enqueue(async () => {
+        const record = await readRecord();
+        if (!record) throw new Error(NO_KEY_FOR_AI);
+        if (record.protection === "password" && unlockedKey === null) throw new Error(LOCKED_FOR_AI);
+        return readKey(record, null);
       }),
 
     /** Controlla la chiave con OpenRouter. La richiesta si fa fuori dalla coda: mentre si

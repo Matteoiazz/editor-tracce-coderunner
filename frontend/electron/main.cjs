@@ -1,6 +1,7 @@
 // Processo principale di Electron: gira in Node.js, senza interfaccia.
 // Responsabilità: avviare il backend Python, aprire la finestra, fermare il backend alla chiusura;
 // dare alla pagina impostazioni e chiave API, gestite nei moduli settings.cjs e api-key.cjs;
+// inoltrare al backend le richieste AI con chiave e modello (ai-client.cjs);
 // aggiornare l'app (updater.cjs, con mac-updater.cjs su macOS).
 
 const {
@@ -20,6 +21,7 @@ const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const net = require("node:net");
 const path = require("node:path");
+const { createAiClient } = require("./ai-client.cjs");
 const { createApiKeyStore } = require("./api-key.cjs");
 const { listModels } = require("./models.cjs");
 const { createSettingsStore } = require("./settings.cjs");
@@ -458,6 +460,15 @@ handleWithResult("apikey:protect", (password) => apiKey.protect(password));
 handleWithResult("apikey:unprotect", (password) => apiKey.unprotect(password));
 handleWithResult("apikey:change-password", (current, next) => apiKey.changePassword(current, next));
 handleWithResult("apikey:test", (password) => apiKey.test(password ?? null));
+
+const ai = createAiClient({
+  connection: () => ({ url: `http://127.0.0.1:${backendPort}`, token: backendToken }),
+  key: () => apiKey.use(),
+  model: async () => (await settings.get()).ai.model,
+  fetch: (url, init) => fetch(url, init),
+});
+
+handleWithResult("ai:check", () => ai.check());
 
 ipcMain.handle("app:version", () => app.getVersion());
 

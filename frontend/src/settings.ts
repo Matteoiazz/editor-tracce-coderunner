@@ -39,3 +39,11 @@ export function ipcErrorText(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e);
   return message.replace(/^Error invoking remote method '[^']*': (\w*Error: )?/, "");
 }
+
+/** Esito di "Prova il modello": se va bene per le funzioni AI e quanto ha impiegato. */
+export function modelCheckText(check: ModelCheck): string {
+  const time = `${check.seconds.toLocaleString("it-IT", { maximumFractionDigits: 1 })} s`;
+  return check.correct
+    ? `Il modello risponde nel formato richiesto, in ${time}.`
+    : `Il modello risponde (in ${time}), ma ha sbagliato una domanda semplice: per le funzioni AI conviene sceglierne un altro.`;
+}

@@ -34,7 +34,8 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
   «Prova la chiave»; il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
   filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
   NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
-  scelta si salva subito.
+  scelta si salva subito. «Prova il modello» fa una richiesta breve con chiave e modello scelti e
+  dice se il modello risponde nel formato che serve alle funzioni AI, e in quanto tempo.
 - **Aggiornamento automatico** su Windows, macOS e con l'AppImage su Linux: l'app controlla le
   release su GitHub poco dopo l'avvio e ogni 6 ore, scarica in silenzio la versione nuova e la
   installa alla chiusura, oppure subito con «Riavvia ora» dopo aver salvato il lavoro. Con il
@@ -211,6 +212,11 @@ su un'app costruita dal test e firmata "ad hoc", come l'app vera.
   memoria nel processo principale; la pagina riceve la chiave solo con «Mostra», e la chiave non
   compare nei log. «Prova la chiave» chiede a OpenRouter i dati della chiave, senza consumare
   crediti.
+- Le richieste AI le fa il backend (porta `LanguageModel`, adapter `OpenRouterModel` con la sola
+  libreria standard e i certificati di `certifi`, perché il Python incluso su macOS e Linux non
+  trova quelli del sistema). La pagina le chiede al processo principale, che aggiunge la chiave
+  nell'intestazione `X-OpenRouter-Key` e il modello delle Impostazioni: la pagina non riceve la
+  chiave e il backend non la salva. Una chiave protetta e bloccata va prima sbloccata.
 - Su Linux senza portachiavi (per esempio senza GNOME o KDE) Electron cifra con una chiave fissa:
   la vista lo segnala e consiglia la master password. Su macOS, dopo un aggiornamento dell'app,
   il sistema può chiedere di nuovo il permesso di usare il Portachiavi, perché l'app non ha una

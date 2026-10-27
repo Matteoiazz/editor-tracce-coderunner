@@ -12,7 +12,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from tesi.adapters.openrouter import OpenRouterModel
 from tesi.adapters.sqlite_archive import SqliteTrackArchive
+from tesi.api.ai import router as ai_router
 from tesi.api.questions import router as questions_router
 from tesi.api.tracks import router as tracks_router
 
@@ -33,6 +35,8 @@ def create_app(data_dir: Path | None = None, token: str | None = None) -> FastAP
     ``X-App-Token``. Electron lo genera a ogni avvio e lo comunica solo alla propria pagina."""
     app = FastAPI(title="Tesi backend", version="0.1.0")
     app.state.archive = SqliteTrackArchive((data_dir or default_data_dir()) / ARCHIVE_FILE)
+    # Modello linguistico per chiave e identificativo, creato a ogni richiesta AI
+    app.state.model_factory = OpenRouterModel
 
     if token:
 
@@ -65,4 +69,5 @@ def create_app(data_dir: Path | None = None, token: str | None = None) -> FastAP
 
     app.include_router(questions_router)
     app.include_router(tracks_router)
+    app.include_router(ai_router)
     return app

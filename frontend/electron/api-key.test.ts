@@ -204,6 +204,29 @@ describe("prova della chiave", () => {
   });
 });
 
+describe("chiave per le richieste AI", () => {
+  it("senza chiave salvata dice di inserirla", async () => {
+    await expect(store().use()).rejects.toThrow("inseriscila nelle Impostazioni");
+  });
+
+  it("dal portachiavi, senza password", async () => {
+    const keys = store();
+    await keys.save(KEY);
+    expect(await keys.use()).toBe(KEY);
+  });
+
+  it("protetta: solo se sbloccata, senza mai chiedere la password", async () => {
+    await store().save(KEY, "password lunga");
+    const keys = store();
+
+    await expect(keys.use()).rejects.toThrow("sbloccala nelle Impostazioni");
+    await keys.unlock("password lunga");
+    expect(await keys.use()).toBe(KEY);
+    await keys.lock();
+    await expect(keys.use()).rejects.toThrow("sbloccala nelle Impostazioni");
+  });
+});
+
 describe("file della chiave illeggibile", () => {
   it("viene segnalato e si può rimuovere", async () => {
     await writeFile(join(dir, KEY_FILE), "{rovinato");
