@@ -194,3 +194,10 @@ export const IconInlineCode = (p: IconProps) => (
     <path d="M5.5 5L2.5 8l3 3M10.5 5l3 3-3 3" />
   </Icon>
 );
+
+export const IconReview = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="7" cy="7" r="4.25" />
+    <path d="M10.25 10.25l3.25 3.25" />
+  </Icon>
+);

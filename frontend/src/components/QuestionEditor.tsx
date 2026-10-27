@@ -1,14 +1,24 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { generateStudentCode } from "../api";
-import { type CopySource, type EditableQuestion, questionName } from "../exam";
+import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
 import type { ExerciseStatus, SectionStatus } from "../status";
-import type { TestRow } from "../testcases";
+import {
+  closeReview,
+  dismissFinding,
+  markTestsAdded,
+  reviewSnapshot,
+  startReview,
+  suggestionRow,
+  useReview,
+} from "../review";
+import { type TestRow, toTestCase } from "../testcases";
 import type { Question, TestOutcome } from "../types";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
-import { IconExpand, IconGenerate } from "./icons";
+import { IconExpand, IconGenerate, IconReview } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
+import { ReviewPanel } from "./ReviewPanel";
 import { SectionStateIcon } from "./SectionState";
 import { TestsSection } from "./TestsSection";
 
@@ -74,6 +84,21 @@ export function QuestionEditor(props: Props) {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  const review = useReview(item.id);
+
+  function handleReview() {
+    // Il modello vede tutti i test dell'esercizio, comuni compresi
+    const withTests = { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
+    startReview(item.id, withTests, window.desktop.ai.review);
+  }
+
+  function addSuggestedTests(indexes: number[]) {
+    if (review?.state !== "done") return;
+    const rows = indexes.map((i) => suggestionRow(review.review.tests[i]));
+    onUpdate((current) => ({ ...current, specific: [...current.specific, ...rows] }));
+    markTestsAdded(item.id, indexes);
   }
 
   function goTo(key: SectionKey) {
@@ -150,7 +175,18 @@ export function QuestionEditor(props: Props) {
         {heading("solution", "Soluzione", status.sections.solution, (
           <>
             <span className="section-aside">nascosta agli studenti</span>
-            <div className="section-actions">{expandButton("solution")}</div>
+            <div className="section-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleReview}
+                disabled={review?.state === "pending"}
+                title="Il modello cerca errori, casi limite, punti ambigui del testo e test mancanti"
+              >
+                <IconReview /> {review?.state === "pending" ? "Revisione in corso…" : "Rivedi con l'AI"}
+              </button>
+              {expandButton("solution")}
+            </div>
           </>
         ))}
         <CodeEditor
@@ -160,6 +196,16 @@ export function QuestionEditor(props: Props) {
           onExpandedChange={(open) => setExpandedCode(open ? "solution" : null)}
           title={`Soluzione · ${questionName(item, exam)}`}
         />
+        {review && (
+          <ReviewPanel
+            entry={review}
+            stale={review.snapshot !== reviewSnapshot(question)}
+            onRetry={handleReview}
+            onClose={() => closeReview(item.id)}
+            onDismiss={(index) => dismissFinding(item.id, index)}
+            onAddTests={addSuggestedTests}
+          />
+        )}
       </section>
 
       <section id="sezione-studentCode" className="exercise-section">

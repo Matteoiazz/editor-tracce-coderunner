@@ -76,3 +76,49 @@ def test_serve_il_codice_dell_app(tmp_path: Path) -> None:
         "/api/ai/check", json={"model": "fornitore/modello"}, headers={"X-OpenRouter-Key": KEY}
     )
     assert response.status_code == 401
+
+
+QUESTION = {
+    "name": "q",
+    "text_html": "<p>Stampa 1</p>",
+    "solution": "x = input()\nprint(1)",
+    "student_code": "",
+    "testcases": [{"stdin": "a", "expected": "a\n1\n"}],
+    "tags": [],
+}
+
+
+def test_review(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    FakeModel.reply = (
+        '{"segnalazioni": [{"tipo": "testo", "titolo": "Ambiguo", "spiegazione": "...",'
+        ' "riga": 2}], "test_suggeriti": [{"input": "b", "motivo": "altro input"}]}'
+    )
+    try:
+        response = c.post(
+            "/api/ai/review",
+            json={"model": "fornitore/modello", "question": QUESTION},
+            headers={"X-OpenRouter-Key": KEY},
+        )
+    finally:
+        FakeModel.reply = '{"stato": "pronto", "somma": 5}'
+    assert response.status_code == 200
+    body = response.json()
+    assert body["findings"] == [
+        {"kind": "testo", "title": "Ambiguo", "explanation": "...", "line": 2}
+    ]
+    assert body["tests"] == [
+        {"stdin": "b", "reason": "altro input", "output": "b\n1\n", "error": ""}
+    ]
+
+
+def test_review_errore_del_modello(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    FakeModel.error = ModelError("credit", "Crediti esauriti")
+    response = c.post(
+        "/api/ai/review",
+        json={"model": "fornitore/modello", "question": QUESTION},
+        headers={"X-OpenRouter-Key": KEY},
+    )
+    assert response.status_code == 502
+    assert response.json()["detail"]["kind"] == "credit"

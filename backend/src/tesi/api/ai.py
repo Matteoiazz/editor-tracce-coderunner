@@ -8,7 +8,10 @@ from dataclasses import dataclass
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from tesi.api.questions import runner
 from tesi.application.ai import ModelCheck, check_model
+from tesi.application.review import Review, review_solution
+from tesi.domain import Question
 from tesi.ports import LanguageModel, ModelError
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -45,5 +48,26 @@ def check(
     model = language_model(request, key, body.model)
     try:
         return check_model(model)
+    except ModelError as exc:
+        raise model_failed(exc) from exc
+
+
+@dataclass
+class ReviewRequest:
+    model: str
+    # L'esercizio con tutti i suoi test, comuni compresi
+    question: Question
+
+
+@router.post("/review")
+def review(
+    body: ReviewRequest,
+    request: Request,
+    key: str | None = Header(default=None, alias=KEY_HEADER),
+) -> Review:
+    """Revisione della soluzione: segnalazioni del modello e test suggeriti già eseguiti."""
+    model = language_model(request, key, body.model)
+    try:
+        return review_solution(body.question, model, runner)
     except ModelError as exc:
         raise model_failed(exc) from exc

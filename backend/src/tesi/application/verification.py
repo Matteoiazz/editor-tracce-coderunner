@@ -48,7 +48,7 @@ def verify_solution(question: Question, runner: CodeRunner) -> list[TestOutcome]
             continue
         result = runner.run(question.solution, tc.stdin)
         interrupted = result.timed_out or result.output_limit_exceeded
-        error = _error_of(result)
+        error = run_error(result)
         outcomes.append(TestOutcome(
             index=i,
             passed=not error and outputs_match(tc.expected, result.stdout),
@@ -68,7 +68,7 @@ def fill_expected_outputs(question: Question, runner: CodeRunner) -> Question:
     testcases = []
     for i, tc in enumerate(question.testcases):
         result = runner.run(question.solution, tc.stdin)
-        if error := _error_of(result):
+        if error := run_error(result):
             raise SolutionFailed(i, error)
         testcases.append(replace(tc, expected=result.stdout))
     return replace(question, testcases=testcases)
@@ -87,7 +87,8 @@ def _normalize(text: str) -> str:
     return "\n".join(lines)
 
 
-def _error_of(result: RunResult) -> str:
+def run_error(result: RunResult) -> str:
+    """Perché un'esecuzione non è riuscita, in parole per il docente; vuoto se è riuscita."""
     if result.timed_out:
         return "tempo limite superato (possibile ciclo infinito)"
     if result.output_limit_exceeded:

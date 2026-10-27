@@ -52,6 +52,8 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
   return {
     /** Prova chiave e modello: { correct, seconds }. */
     check: () => post("check", {}),
+    /** Revisione della soluzione dell'esercizio: { findings, tests }. */
+    review: (question) => post("review", { question }),
   };
 }
 

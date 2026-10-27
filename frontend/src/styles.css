@@ -1985,3 +1985,155 @@ button.ghost.active {
   margin-top: 3px;
   color: var(--pass);
 }
+
+/* ------------------------------------------------------------------ revisione dell'AI */
+
+.review {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.review > p,
+.review .inline-notice {
+  margin: 0;
+}
+
+.review-head,
+.review-tests-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.review-head h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.review-head .section-actions {
+  margin-left: auto;
+}
+
+.review-tests-head {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-tests-head .settings-label {
+  margin: 0;
+}
+
+.review-findings,
+.review-tests {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Il colore del bordo sinistro dice il tipo: correttezza in rosso, casi limite in giallo */
+.finding {
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+}
+
+.finding-errore {
+  border-left-color: var(--fail);
+}
+
+.finding-caso_limite {
+  border-left-color: var(--warn);
+}
+
+.finding-testo,
+.finding-test_mancante {
+  border-left-color: var(--accent);
+}
+
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+
+.finding-kind {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finding-dismiss {
+  margin-left: auto;
+}
+
+.finding-text {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.suggested-test {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.suggested-test.failed {
+  border-color: #efbdb5;
+}
+
+.suggested-test .inline-error {
+  margin: 0;
+}
+
+.suggested-test-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+}
+
+.suggested-test-head > :last-child:is(button, .suggested-added) {
+  margin-left: auto;
+}
+
+.suggested-added {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--pass);
+}
+
+.suggested-output summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.suggested-output pre {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  max-height: 160px;
+  overflow: auto;
+  font-size: var(--text-xs);
+  background: var(--ground);
+  border-radius: var(--radius);
+}
+
+.review-note {
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}

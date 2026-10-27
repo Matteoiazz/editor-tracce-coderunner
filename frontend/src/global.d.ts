@@ -148,6 +148,8 @@ interface Window {
     ai: {
       /** Prova chiave e modello con una richiesta breve. */
       check(): Promise<ModelCheck>;
+      /** Revisione della soluzione: segnalazioni e test suggeriti, già eseguiti. */
+      review(question: import("./types").Question): Promise<import("./review").Review>;
     };
     updates: {
       status(): Promise<UpdateStatus>;
