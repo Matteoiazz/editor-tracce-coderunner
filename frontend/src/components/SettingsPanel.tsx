@@ -70,7 +70,7 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
     if (!view) return;
     const previous = view;
     const choice = ++lastChoice.current;
-    setView({ ...view, ai: { model } });
+    setView({ ...view, ai: { ...view.ai, model } });
     try {
       const saved = await window.desktop.settings.update({ ai: { model } });
       if (choice === lastChoice.current) setView(saved);
@@ -91,6 +91,18 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
       setModelCheck({ model, error: ipcErrorText(e) });
     } finally {
       setCheckingModel(false);
+    }
+  }
+
+  async function setShowRequest(showRequest: boolean) {
+    if (!view) return;
+    const previous = view;
+    setView({ ...view, ai: { ...view.ai, showRequest } });
+    try {
+      setView(await window.desktop.settings.update({ ai: { showRequest } }));
+    } catch (e) {
+      setView(previous);
+      onError(`Impostazione non salvata: ${ipcErrorText(e)}`);
     }
   }
 
@@ -312,6 +324,21 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
             </p>
           )}
         </form>
+
+        <h3 className="settings-label">Richiesta all'AI</h3>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={view.ai.showRequest}
+            onChange={(e) => setShowRequest(e.target.checked)}
+          />
+          Mostra la richiesta prima di inviarla
+        </label>
+        <p className="small-text muted settings-note">
+          Prima di ogni funzione AI si vede cosa verrà inviato al modello e si possono aggiungere
+          indicazioni. Se è disattivata, la richiesta parte subito con le ultime indicazioni scritte
+          per l'esercizio.
+        </p>
       </section>
 
       <section className="settings-section" aria-labelledby="impostazioni-aggiornamenti">

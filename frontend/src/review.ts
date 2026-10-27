@@ -164,3 +164,20 @@ export function markTestsAdded(id: string, indexes: number[]) {
 export function closeReview(id: string) {
   set(id, null);
 }
+
+// ---------------------------------------------------------------- indicazioni aggiuntive
+
+/** Lunghezza massima delle indicazioni aggiuntive, come nel backend. */
+export const MAX_NOTES = 4000;
+
+// Ultime indicazioni scritte per ogni esercizio, riproposte alla richiesta successiva
+const notesByItem = new Map<string, string>();
+
+export function reviewNotes(id: string): string {
+  return notesByItem.get(id) ?? "";
+}
+
+export function rememberReviewNotes(id: string, notes: string) {
+  if (notes) notesByItem.set(id, notes);
+  else notesByItem.delete(id);
+}

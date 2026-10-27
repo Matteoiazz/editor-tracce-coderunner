@@ -132,3 +132,45 @@ def test_review_senza_testo(tmp_path: Path) -> None:
     )
     assert response.status_code == 422
     assert response.json()["detail"].startswith("Scrivi prima la traccia")
+
+
+def test_anteprima_della_revisione_senza_chiave(tmp_path: Path) -> None:
+    response = client(tmp_path).post(
+        "/api/ai/review/preview", json={"question": QUESTION, "notes": "controlla gli spazi"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "JSON" in body["system"]
+    assert "Stampa 1" in body["user"]
+    assert body["user"].endswith("controlla gli spazi")
+    # Nessun modello creato: l'anteprima non contatta OpenRouter
+    assert created == []
+
+
+def test_anteprima_senza_soluzione(tmp_path: Path) -> None:
+    response = client(tmp_path).post(
+        "/api/ai/review/preview", json={"question": {**QUESTION, "solution": ""}}
+    )
+    assert response.status_code == 422
+
+
+def test_review_con_indicazioni(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    received: list[list[Message]] = []
+    original = FakeModel.complete
+
+    def spy(self, messages: list[Message]) -> str:
+        received.append(messages)
+        return '{"segnalazioni": [], "test_suggeriti": []}'
+
+    FakeModel.complete = spy
+    try:
+        response = c.post(
+            "/api/ai/review",
+            json={"model": "fornitore/modello", "question": QUESTION, "notes": "solo errori"},
+            headers={"X-OpenRouter-Key": KEY},
+        )
+    finally:
+        FakeModel.complete = original
+    assert response.status_code == 200
+    assert received[0][-1].content.endswith("solo errori")

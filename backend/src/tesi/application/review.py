@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import ClassVar, Literal
 
-from tesi.application.ai import ask_json
+from tesi.application.ai import ask_json, with_notes
 from tesi.application.verification import run_error
 from tesi.domain import Question, TestCase
 from tesi.ports import CodeRunner, LanguageModel, Message
@@ -102,7 +102,9 @@ class NothingToReview(ValueError):
     """Manca il testo o la soluzione: la richiesta al modello sarebbe inutile."""
 
 
-def review_solution(question: Question, model: LanguageModel, runner: CodeRunner) -> Review:
+def review_request(question: Question, notes: str = "") -> list[Message]:
+    """I messaggi per il modello, con le indicazioni aggiuntive del docente. Gli stessi
+    messaggi si mostrano al docente prima dell'invio."""
     if not question.solution.strip():
         raise NothingToReview("Scrivi prima la soluzione")
     if not plain_text(question.text_html):
@@ -110,7 +112,13 @@ def review_solution(question: Question, model: LanguageModel, runner: CodeRunner
             "Scrivi prima la traccia: la revisione confronta la soluzione con quello che chiede "
             "il testo"
         )
-    reply = ask_json(model, review_messages(question))
+    return with_notes(review_messages(question), notes)
+
+
+def review_solution(
+    question: Question, model: LanguageModel, runner: CodeRunner, notes: str = ""
+) -> Review:
+    reply = ask_json(model, review_request(question, notes))
     lines = question.solution.count("\n") + 1
     findings = _findings(reply.get("segnalazioni"), lines)
     tests = [_run(test, question, runner) for test in _tests(reply.get("test_suggeriti"), question)]

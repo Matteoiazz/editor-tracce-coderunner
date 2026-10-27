@@ -1,5 +1,5 @@
 // Impostazioni dell'applicazione, nel file impostazioni.json della cartella dati: modello
-// delle funzioni AI e aggiornamento automatico.
+// delle funzioni AI, richiesta mostrata prima dell'invio e aggiornamento automatico.
 // Le legge e le scrive solo il processo principale: la pagina riceve i valori che mostra e
 // può cambiare solo quelli previsti.
 
@@ -17,7 +17,11 @@ const SETTINGS_VERSION = 1;
 const DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 function defaultSettings() {
-  return { version: SETTINGS_VERSION, ai: { model: DEFAULT_MODEL }, updates: { auto: true } };
+  return {
+    version: SETTINGS_VERSION,
+    ai: { model: DEFAULT_MODEL, showRequest: true },
+    updates: { auto: true },
+  };
 }
 
 function isPlainObject(value) {
@@ -39,7 +43,11 @@ function normalize(data) {
   return {
     ...data,
     version: Math.max(version, SETTINGS_VERSION),
-    ai: { ...ai, model: isModelId(ai.model) ? ai.model : DEFAULT_MODEL },
+    ai: {
+      ...ai,
+      model: isModelId(ai.model) ? ai.model : DEFAULT_MODEL,
+      showRequest: typeof ai.showRequest === "boolean" ? ai.showRequest : true,
+    },
     updates: { ...updates, auto: typeof updates.auto === "boolean" ? updates.auto : true },
   };
 }
@@ -78,7 +86,7 @@ async function readSettings(dir) {
  *  copia di un file illeggibile. */
 function pageView({ settings, damagedCopy }) {
   return {
-    ai: { model: settings.ai.model },
+    ai: { model: settings.ai.model, showRequest: settings.ai.showRequest },
     updates: { auto: settings.updates.auto },
     defaultModel: DEFAULT_MODEL,
     damagedCopy,
@@ -108,12 +116,17 @@ function createSettingsStore(dir) {
     /** Valori per la pagina. */
     get: () => enqueue(async () => pageView(await load())),
 
-    /** Applica le modifiche consentite alla pagina (modello, aggiornamento automatico) e le salva. */
+    /** Applica le modifiche consentite alla pagina (modello, richiesta mostrata prima dell'invio,
+     *  aggiornamento automatico) e le salva. */
     update: (change) =>
       enqueue(async () => {
-        const model = isPlainObject(change) && isPlainObject(change.ai) ? change.ai.model : undefined;
+        const ai = isPlainObject(change) && isPlainObject(change.ai) ? change.ai : {};
+        const { model, showRequest } = ai;
         if (model !== undefined && !isModelId(model)) {
           throw new Error("Identificativo del modello non valido");
+        }
+        if (showRequest !== undefined && typeof showRequest !== "boolean") {
+          throw new Error("Valore della richiesta mostrata prima dell'invio non valido");
         }
         const auto = isPlainObject(change) && isPlainObject(change.updates) ? change.updates.auto : undefined;
         if (auto !== undefined && typeof auto !== "boolean") {
@@ -122,7 +135,11 @@ function createSettingsStore(dir) {
         const current = await load();
         const settings = normalize({
           ...current.settings,
-          ai: { ...current.settings.ai, ...(model !== undefined && { model }) },
+          ai: {
+            ...current.settings.ai,
+            ...(model !== undefined && { model }),
+            ...(showRequest !== undefined && { showRequest }),
+          },
           updates: { ...current.settings.updates, ...(auto !== undefined && { auto }) },
         });
         await writeFileAtomic(file, serialize(settings));

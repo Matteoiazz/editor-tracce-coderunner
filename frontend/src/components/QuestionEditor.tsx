@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
-import { generateStudentCode } from "../api";
+import { generateStudentCode, previewReview } from "../api";
 import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
 import type { ExerciseStatus, SectionStatus } from "../status";
@@ -8,6 +8,8 @@ import {
   dismissFinding,
   keyProblemForReview,
   markTestsAdded,
+  rememberReviewNotes,
+  reviewNotes,
   reviewProblem,
   reviewSnapshot,
   startReview,
@@ -16,6 +18,7 @@ import {
 } from "../review";
 import { type TestRow, toTestCase } from "../testcases";
 import type { Question, TestOutcome } from "../types";
+import { AiRequestDialog } from "./AiRequestDialog";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
@@ -93,6 +96,7 @@ export function QuestionEditor(props: Props) {
   // Perché la revisione non è partita; `settings` se si risolve nelle Impostazioni
   const [reviewBlocked, setReviewBlocked] = useState<{ message: string; settings: boolean } | null>(null);
   const [checkingKey, setCheckingKey] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
   // Il messaggio riguarda il testo e la soluzione di quel momento
   useEffect(() => setReviewBlocked(null), [question.text_html, question.solution]);
 
@@ -116,9 +120,32 @@ export function QuestionEditor(props: Props) {
       setReviewBlocked({ message: keyProblem, settings: true });
       return;
     }
-    // Il modello vede tutti i test dell'esercizio, comuni compresi
-    const withTests = { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
-    startReview(item.id, withTests, window.desktop.ai.review);
+    let showRequest = true;
+    try {
+      showRequest = (await window.desktop.settings.get()).ai.showRequest;
+    } catch {
+      // impostazioni non leggibili: si mostra la richiesta, che è la scelta più prudente
+    }
+    if (showRequest) setRequestOpen(true);
+    else sendReview(reviewNotes(item.id));
+  }
+
+  /** L'esercizio da rivedere: il modello vede tutti i suoi test, comuni compresi. */
+  function questionForReview(): Question {
+    return { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
+  }
+
+  function sendReview(notes: string) {
+    rememberReviewNotes(item.id, notes);
+    startReview(item.id, questionForReview(), (q) => window.desktop.ai.review(q, notes));
+  }
+
+  async function hideRequestNextTime() {
+    try {
+      await window.desktop.settings.update({ ai: { showRequest: false } });
+    } catch (e) {
+      setError(`Impostazione non salvata: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   function addSuggestedTests(indexes: number[]) {
@@ -223,6 +250,16 @@ export function QuestionEditor(props: Props) {
           onExpandedChange={(open) => setExpandedCode(open ? "solution" : null)}
           title={`Soluzione · ${questionName(item, exam)}`}
         />
+        {requestOpen && (
+          <AiRequestDialog
+            action="Revisione della soluzione"
+            loadPreview={() => previewReview(questionForReview(), "")}
+            initialNotes={reviewNotes(item.id)}
+            onSend={sendReview}
+            onHideNextTime={hideRequestNextTime}
+            onClose={() => setRequestOpen(false)}
+          />
+        )}
         {reviewBlocked && (
           <div className="review-blocked" role="alert">
             <p className="inline-notice">{reviewBlocked.message}</p>

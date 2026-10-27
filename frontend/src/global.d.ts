@@ -12,7 +12,8 @@ interface BackendConnection {
 
 /** Impostazioni come le riceve la pagina dal processo principale. */
 interface SettingsView {
-  ai: { model: string };
+  /** `showRequest`: prima di ogni richiesta AI si mostra cosa verrà inviato. */
+  ai: { model: string; showRequest: boolean };
   updates: { auto: boolean };
   defaultModel: string;
   /** Copia del file delle impostazioni, se era illeggibile e si è ripartiti dai predefiniti. */
@@ -21,7 +22,7 @@ interface SettingsView {
 
 /** Modifiche che la pagina può chiedere. */
 interface SettingsChange {
-  ai?: { model?: string };
+  ai?: { model?: string; showRequest?: boolean };
   updates?: { auto?: boolean };
 }
 
@@ -149,7 +150,7 @@ interface Window {
       /** Prova chiave e modello con una richiesta breve. */
       check(): Promise<ModelCheck>;
       /** Revisione della soluzione: segnalazioni e test suggeriti, già eseguiti. */
-      review(question: import("./types").Question): Promise<import("./review").Review>;
+      review(question: import("./types").Question, notes: string): Promise<import("./review").Review>;
     };
     updates: {
       status(): Promise<UpdateStatus>;

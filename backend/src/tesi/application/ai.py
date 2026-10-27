@@ -76,3 +76,41 @@ def check_model(model: LanguageModel) -> ModelCheck:
     reply = ask_json(model, CHECK_MESSAGES)
     seconds = round(time.monotonic() - start, 1)
     return ModelCheck(correct=reply.get("somma") == 5, seconds=seconds)
+
+
+# ---------------------------------------------------------------- richiesta mostrata al docente
+
+MAX_NOTES = 4000
+NOTES_HEADING = (
+    "INDICAZIONI AGGIUNTIVE DEL DOCENTE (hanno la precedenza sulle istruzioni generali, ma la "
+    "risposta resta nel formato JSON richiesto)"
+)
+
+
+class NotesTooLong(ValueError):
+    pass
+
+
+def with_notes(messages: list[Message], notes: str) -> list[Message]:
+    """Aggiunge all'ultimo messaggio le indicazioni scritte dal docente prima dell'invio."""
+    notes = notes.strip()
+    if not notes:
+        return messages
+    if len(notes) > MAX_NOTES:
+        raise NotesTooLong(f"Le indicazioni aggiuntive superano i {MAX_NOTES} caratteri")
+    *rest, last = messages
+    return [*rest, Message(last.role, f"{last.content}\n\n{NOTES_HEADING}\n{notes}")]
+
+
+@dataclass(frozen=True)
+class RequestPreview:
+    # Istruzioni fisse dell'app e dati dell'esercizio, esattamente come vengono inviati
+    system: str
+    user: str
+
+
+def preview_of(messages: list[Message]) -> RequestPreview:
+    return RequestPreview(
+        system="\n\n".join(m.content for m in messages if m.role == "system"),
+        user="\n\n".join(m.content for m in messages if m.role != "system"),
+    )

@@ -469,7 +469,7 @@ const ai = createAiClient({
 });
 
 handleWithResult("ai:check", () => ai.check());
-handleWithResult("ai:review", (question) => ai.review(question));
+handleWithResult("ai:review", (question, notes) => ai.review(question, notes));
 
 ipcMain.handle("app:version", () => app.getVersion());
 

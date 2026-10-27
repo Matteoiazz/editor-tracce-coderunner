@@ -53,7 +53,7 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
     /** Prova chiave e modello: { correct, seconds }. */
     check: () => post("check", {}),
     /** Revisione della soluzione dell'esercizio: { findings, tests }. */
-    review: (question) => post("review", { question }),
+    review: (question, notes) => post("review", { question, notes: typeof notes === "string" ? notes : "" }),
   };
 }
 

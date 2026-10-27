@@ -80,6 +80,19 @@ export function fillExpected(question: Question): Promise<Question> {
   return request("/api/questions/fill-expected", jsonBody(question));
 }
 
+// ---------------------------------------------------------------- funzioni AI
+
+/** La richiesta che verrà inviata al modello: istruzioni fisse dell'app e dati dell'esercizio.
+ *  La prepara il backend senza contattare il modello, quindi non serve la chiave. */
+export interface RequestPreview {
+  system: string;
+  user: string;
+}
+
+export function previewReview(question: Question, notes: string): Promise<RequestPreview> {
+  return request("/api/ai/review/preview", jsonBody({ question, notes }));
+}
+
 // ---------------------------------------------------------------- archivio delle tracce
 
 export function listTracks(trash = false): Promise<TrackSummary[]> {

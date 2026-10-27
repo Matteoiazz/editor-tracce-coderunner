@@ -40,9 +40,13 @@ describe("richieste AI al backend", () => {
     const { ai, requests } = client(() => json({ findings: [], tests: [] }));
     const question = { name: "q", solution: "print(1)" };
 
-    expect(await ai.review(question)).toEqual({ findings: [], tests: [] });
+    expect(await ai.review(question, "solo errori")).toEqual({ findings: [], tests: [] });
     expect(requests[0].url).toBe("http://127.0.0.1:8123/api/ai/review");
-    expect(JSON.parse(requests[0].init.body as string)).toEqual({ question, model: "fornitore/modello" });
+    expect(JSON.parse(requests[0].init.body as string)).toEqual({
+      question,
+      notes: "solo errori",
+      model: "fornitore/modello",
+    });
   });
 
   it("senza chiave utilizzabile non contatta il backend", async () => {

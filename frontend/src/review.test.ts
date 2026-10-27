@@ -6,7 +6,9 @@ import {
   inputSummary,
   keyProblemForReview,
   markTestsAdded,
+  rememberReviewNotes,
   type Review,
+  reviewNotes,
   reviewOf,
   reviewProblem,
   reviewSnapshot,
@@ -132,5 +134,16 @@ describe("controlli prima della revisione", () => {
   it("chiave utilizzabile", () => {
     expect(keyProblemForReview(status({}))).toBeNull();
     expect(keyProblemForReview(status({ protected: true, unlocked: true }))).toBeNull();
+  });
+});
+
+describe("indicazioni aggiuntive per esercizio", () => {
+  it("si ricordano le ultime, e una vuota le cancella", () => {
+    expect(reviewNotes("es9")).toBe("");
+    rememberReviewNotes("es9", "solo errori");
+    expect(reviewNotes("es9")).toBe("solo errori");
+    expect(reviewNotes("es10")).toBe("");
+    rememberReviewNotes("es9", "");
+    expect(reviewNotes("es9")).toBe("");
   });
 });

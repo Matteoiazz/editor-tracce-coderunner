@@ -2,7 +2,18 @@
 
 import pytest
 
-from tesi.application.ai import FORMAT_REMINDER, ask_json, check_model, extract_json_object
+from tesi.application.ai import (
+    FORMAT_REMINDER,
+    MAX_NOTES,
+    NOTES_HEADING,
+    NotesTooLong,
+    RequestPreview,
+    ask_json,
+    check_model,
+    extract_json_object,
+    preview_of,
+    with_notes,
+)
 from tesi.ports import Message, ModelError
 
 
@@ -79,3 +90,22 @@ def test_check_model_errore_del_modello() -> None:
 
     with pytest.raises(ModelError):
         check_model(Failing())
+
+
+def test_indicazioni_aggiunte_all_ultimo_messaggio() -> None:
+    messages = [Message("system", "regole"), Message("user", "dati")]
+    result = with_notes(messages, "  la lista può essere vuota  ")
+    assert result[0] == messages[0]
+    assert result[1].content == f"dati\n\n{NOTES_HEADING}\nla lista può essere vuota"
+    # Senza indicazioni i messaggi restano quelli
+    assert with_notes(messages, "   ") == messages
+
+
+def test_indicazioni_troppo_lunghe() -> None:
+    with pytest.raises(NotesTooLong):
+        with_notes([Message("user", "dati")], "x" * (MAX_NOTES + 1))
+
+
+def test_anteprima_della_richiesta() -> None:
+    preview = preview_of([Message("system", "regole"), Message("user", "dati")])
+    assert preview == RequestPreview(system="regole", user="dati")

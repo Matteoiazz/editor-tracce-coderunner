@@ -2150,3 +2150,42 @@ button.ghost.active {
   flex: 1 1 320px;
   margin: 0;
 }
+
+/* ------------------------------------------------------------------ richiesta all'AI */
+
+.ai-request-dialog {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.ai-request-notes {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-request-notes textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.ai-request-parts {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-request-parts summary {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.ai-request-parts pre {
+  max-height: 260px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
