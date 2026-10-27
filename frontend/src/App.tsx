@@ -764,6 +764,10 @@ export function App() {
             onCopyFrom={(source) => handleCopyFrom(selectedItem, source)}
             canDuplicate={exam.kind !== "Pretest" && isExamComplete(exam)}
             onDuplicate={() => handleDuplicate(selectedItem)}
+            onOpenSettings={() => {
+              clearMessages();
+              select({ kind: "settings" });
+            }}
           />
         ) : (
           <section className="start">

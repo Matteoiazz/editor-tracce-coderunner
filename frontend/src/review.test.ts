@@ -4,15 +4,18 @@ import {
   dismissFinding,
   type Finding,
   inputSummary,
+  keyProblemForReview,
   markTestsAdded,
   type Review,
   reviewOf,
+  reviewProblem,
   reviewSnapshot,
   reviewSummary,
   sortedFindings,
   startReview,
   suggestionRow,
 } from "./review";
+import { SOLUTION_SKELETON } from "./exam";
 import type { Question } from "./types";
 
 const question = { text_html: "<p>Testo</p>", solution: "print(1)" } as Question;
@@ -92,5 +95,42 @@ describe("revisioni per esercizio", () => {
     await slow;
     expect(reviewOf("es3")).toMatchObject({ state: "done", review: { findings: [] } });
     closeReview("es3");
+  });
+});
+
+describe("controlli prima della revisione", () => {
+  it("serve il testo della traccia", () => {
+    expect(reviewProblem({ ...question, text_html: "" })).toContain("Scrivi prima la traccia");
+    expect(reviewProblem({ ...question, text_html: "<p>&nbsp;</p>" })).toContain("Scrivi prima la traccia");
+  });
+
+  it("serve una soluzione scritta dal docente", () => {
+    expect(reviewProblem({ ...question, solution: "  \n" })).toBe("Scrivi prima la soluzione.");
+    expect(reviewProblem({ ...question, solution: SOLUTION_SKELETON })).toContain("quella di partenza");
+  });
+
+  it("testo e soluzione presenti", () => {
+    expect(reviewProblem(question)).toBeNull();
+  });
+
+  const status = (changes: Partial<ApiKeyStatus>): ApiKeyStatus => ({
+    saved: true,
+    mask: "sk-or-v1-••••89ab",
+    protected: false,
+    unlocked: false,
+    weakKeychain: false,
+    problem: null,
+    ...changes,
+  });
+
+  it("chiave mancante, bloccata o illeggibile", () => {
+    expect(keyProblemForReview(status({ saved: false, mask: null }))).toContain("inseriscila nelle Impostazioni");
+    expect(keyProblemForReview(status({ protected: true }))).toContain("sbloccala nelle Impostazioni");
+    expect(keyProblemForReview(status({ problem: "file danneggiato" }))).toContain("file danneggiato");
+  });
+
+  it("chiave utilizzabile", () => {
+    expect(keyProblemForReview(status({}))).toBeNull();
+    expect(keyProblemForReview(status({ protected: true, unlocked: true }))).toBeNull();
   });
 });

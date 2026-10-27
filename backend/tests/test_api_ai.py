@@ -122,3 +122,13 @@ def test_review_errore_del_modello(tmp_path: Path) -> None:
     )
     assert response.status_code == 502
     assert response.json()["detail"]["kind"] == "credit"
+
+
+def test_review_senza_testo(tmp_path: Path) -> None:
+    response = client(tmp_path).post(
+        "/api/ai/review",
+        json={"model": "fornitore/modello", "question": {**QUESTION, "text_html": "<p></p>"}},
+        headers={"X-OpenRouter-Key": KEY},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("Scrivi prima la traccia")

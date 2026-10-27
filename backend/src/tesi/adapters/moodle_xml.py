@@ -20,8 +20,15 @@ class MoodleXmlError(ValueError):
 
 # Campi mappati esplicitamente sul dominio; tutti gli altri finiscono in Question.settings.
 _MAPPED = {
-    "name", "questiontext", "generalfeedback", "defaultgrade", "coderunnertype",
-    "answer", "answerpreload", "testcases", "tags",
+    "name",
+    "questiontext",
+    "generalfeedback",
+    "defaultgrade",
+    "coderunnertype",
+    "answer",
+    "answerpreload",
+    "testcases",
+    "tags",
 }
 
 # Valori usati dal docente negli XML reali: applicati agli esercizi creati da zero.
@@ -74,9 +81,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
 
 # ---------------------------------------------------------------- lettura
 
-_EXPORT_HINT = (
-    "Controlla di averlo esportato dalla banca delle domande in formato XML Moodle."
-)
+_EXPORT_HINT = "Controlla di averlo esportato dalla banca delle domande in formato XML Moodle."
 
 
 @dataclass(frozen=True)
@@ -117,9 +122,7 @@ def parse_quiz(data: str | bytes) -> list[Question]:
 
 def _parse_question(el: ET.Element) -> Question:
     settings = {
-        child.tag: child.text or ""
-        for child in el
-        if child.tag not in _MAPPED and len(child) == 0
+        child.tag: child.text or "" for child in el if child.tag not in _MAPPED and len(child) == 0
     }
     return Question(
         name=_text(el, "name/text"),
@@ -177,6 +180,7 @@ def _text(el: ET.Element, path: str) -> str:
 
 # ---------------------------------------------------------------- scrittura
 
+
 def to_quiz_xml(questions: list[Question]) -> str:
     """Produce un file XML Moodle importabile dalla banca delle domande."""
     cdata = _CdataSections()
@@ -233,7 +237,8 @@ def _question_element(q: Question, cdata: _CdataSections) -> ET.Element:
     testcases = ET.SubElement(el, "testcases")
     for tc in q.testcases:
         tc_el = ET.SubElement(
-            testcases, "testcase",
+            testcases,
+            "testcase",
             testtype="0",
             useasexample=_flag(tc.use_as_example),
             hiderestiffail=_flag(tc.hide_rest_if_fail),

@@ -85,7 +85,18 @@ soluzione oppure null}], "test_suggeriti": [{"input": "righe separate da \\n", "
 "cosa verifica"}]}"""
 
 
+class NothingToReview(ValueError):
+    """Manca il testo o la soluzione: la richiesta al modello sarebbe inutile."""
+
+
 def review_solution(question: Question, model: LanguageModel, runner: CodeRunner) -> Review:
+    if not question.solution.strip():
+        raise NothingToReview("Scrivi prima la soluzione")
+    if not plain_text(question.text_html):
+        raise NothingToReview(
+            "Scrivi prima la traccia: la revisione confronta la soluzione con quello che chiede "
+            "il testo"
+        )
     reply = ask_json(model, review_messages(question))
     lines = question.solution.count("\n") + 1
     findings = _findings(reply.get("segnalazioni"), lines)

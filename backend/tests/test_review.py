@@ -2,10 +2,13 @@
 
 import json
 
+import pytest
+
 from tesi.adapters.local_runner import LocalPythonRunner
 from tesi.application.review import (
     MAX_FINDINGS,
     MAX_TESTS,
+    NothingToReview,
     plain_text,
     review_messages,
     review_solution,
@@ -165,3 +168,18 @@ def test_risposta_senza_le_liste() -> None:
 def test_testo_semplice_dall_html() -> None:
     html = "<p>Primo&nbsp;paragrafo</p><p>Secondo <img src='x.png'> e   spazi</p><br>"
     assert plain_text(html) == "Primo paragrafo\n\nSecondo [immagine] e spazi"
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"solution": "  \n"}, "Scrivi prima la soluzione"),
+        ({"text_html": ""}, "Scrivi prima la traccia"),
+        ({"text_html": "<p>&nbsp;</p><p> </p>"}, "Scrivi prima la traccia"),
+    ],
+)
+def test_senza_testo_o_soluzione_non_chiede_al_modello(changes: dict, message: str) -> None:
+    model = ScriptedModel({})
+    with pytest.raises(NothingToReview, match=message):
+        review_solution(question(**changes), model, runner)
+    assert model.calls == []

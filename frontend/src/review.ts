@@ -3,6 +3,7 @@
 // nell'archivio) e sopravvivono al cambio di esercizio, anche se la richiesta è ancora in corso.
 
 import { useSyncExternalStore } from "react";
+import { hasText, isSkeletonSolution } from "./export";
 import { newRow, type TestRow } from "./testcases";
 import type { Question } from "./types";
 
@@ -54,6 +55,29 @@ export function inputSummary(stdin: string): string {
 /** Il test da aggiungere ai test specifici, con l'output già calcolato dalla revisione. */
 export function suggestionRow(test: SuggestedTest): TestRow {
   return { ...newRow(test.stdin), expected: test.output };
+}
+
+/** Perché la revisione non può partire (testo o soluzione mancanti), oppure null: si controlla
+ *  prima di inviare, così non si consuma una richiesta al modello. */
+export function reviewProblem(question: Question): string | null {
+  if (!hasText(question.text_html)) {
+    return "Scrivi prima la traccia: la revisione confronta la soluzione con quello che chiede il testo.";
+  }
+  if (!question.solution.trim()) return "Scrivi prima la soluzione.";
+  if (isSkeletonSolution(question.solution)) {
+    return "Scrivi prima la soluzione: è ancora quella di partenza dell'esercizio nuovo.";
+  }
+  return null;
+}
+
+/** Perché la chiave non si può usare per la revisione, oppure null. */
+export function keyProblemForReview(status: ApiKeyStatus): string | null {
+  if (status.problem) return `La chiave di OpenRouter non si può leggere (${status.problem}).`;
+  if (!status.saved) return "Per la revisione serve la chiave di OpenRouter: inseriscila nelle Impostazioni.";
+  if (status.protected && !status.unlocked) {
+    return "La chiave di OpenRouter è protetta da master password: sbloccala nelle Impostazioni, poi premi di nuovo «Rivedi con l'AI».";
+  }
+  return null;
 }
 
 /** Testo e soluzione su cui è stata fatta la revisione: se cambiano, la revisione è superata. */

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 
 from tesi.api.questions import runner
 from tesi.application.ai import ModelCheck, check_model
-from tesi.application.review import Review, review_solution
+from tesi.application.review import NothingToReview, Review, review_solution
 from tesi.domain import Question
 from tesi.ports import LanguageModel, ModelError
 
@@ -69,5 +69,7 @@ def review(
     model = language_model(request, key, body.model)
     try:
         return review_solution(body.question, model, runner)
+    except NothingToReview as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ModelError as exc:
         raise model_failed(exc) from exc

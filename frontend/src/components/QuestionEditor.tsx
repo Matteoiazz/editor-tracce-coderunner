@@ -6,7 +6,9 @@ import type { ExerciseStatus, SectionStatus } from "../status";
 import {
   closeReview,
   dismissFinding,
+  keyProblemForReview,
   markTestsAdded,
+  reviewProblem,
   reviewSnapshot,
   startReview,
   suggestionRow,
@@ -16,7 +18,7 @@ import { type TestRow, toTestCase } from "../testcases";
 import type { Question, TestOutcome } from "../types";
 import { CodeEditor } from "./CodeEditor";
 import { HtmlEditor } from "./HtmlEditor";
-import { IconExpand, IconGenerate, IconReview } from "./icons";
+import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
 import { ReviewPanel } from "./ReviewPanel";
 import { SectionStateIcon } from "./SectionState";
@@ -38,6 +40,7 @@ interface Props {
   onDuplicate: () => void;
   copySources: CopySource[];
   onCopyFrom: (source: CopySource) => void;
+  onOpenSettings: () => void;
 }
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
@@ -87,8 +90,32 @@ export function QuestionEditor(props: Props) {
   }
 
   const review = useReview(item.id);
+  // Perché la revisione non è partita; `settings` se si risolve nelle Impostazioni
+  const [reviewBlocked, setReviewBlocked] = useState<{ message: string; settings: boolean } | null>(null);
+  const [checkingKey, setCheckingKey] = useState(false);
+  // Il messaggio riguarda il testo e la soluzione di quel momento
+  useEffect(() => setReviewBlocked(null), [question.text_html, question.solution]);
 
-  function handleReview() {
+  async function handleReview() {
+    setReviewBlocked(null);
+    const problem = reviewProblem(question);
+    if (problem) {
+      setReviewBlocked({ message: problem, settings: false });
+      return;
+    }
+    setCheckingKey(true);
+    let keyProblem: string | null;
+    try {
+      keyProblem = keyProblemForReview(await window.desktop.apiKey.status());
+    } catch (e) {
+      keyProblem = `Stato della chiave non disponibile: ${e instanceof Error ? e.message : String(e)}.`;
+    } finally {
+      setCheckingKey(false);
+    }
+    if (keyProblem) {
+      setReviewBlocked({ message: keyProblem, settings: true });
+      return;
+    }
     // Il modello vede tutti i test dell'esercizio, comuni compresi
     const withTests = { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
     startReview(item.id, withTests, window.desktop.ai.review);
@@ -180,7 +207,7 @@ export function QuestionEditor(props: Props) {
                 type="button"
                 className="secondary"
                 onClick={handleReview}
-                disabled={review?.state === "pending"}
+                disabled={review?.state === "pending" || checkingKey}
                 title="Il modello cerca errori, casi limite, punti ambigui del testo e test mancanti"
               >
                 <IconReview /> {review?.state === "pending" ? "Revisione in corso…" : "Rivedi con l'AI"}
@@ -196,6 +223,16 @@ export function QuestionEditor(props: Props) {
           onExpandedChange={(open) => setExpandedCode(open ? "solution" : null)}
           title={`Soluzione · ${questionName(item, exam)}`}
         />
+        {reviewBlocked && (
+          <div className="review-blocked" role="alert">
+            <p className="inline-notice">{reviewBlocked.message}</p>
+            {reviewBlocked.settings && (
+              <button type="button" className="secondary small" onClick={props.onOpenSettings}>
+                <IconSettings /> Vai alle Impostazioni
+              </button>
+            )}
+          </div>
+        )}
         {review && (
           <ReviewPanel
             entry={review}
