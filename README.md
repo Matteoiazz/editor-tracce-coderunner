@@ -186,7 +186,7 @@ GitHub solo se è impostata. Su macOS si servono lo `.zip` e `latest-mac-<proces
 
 Lo scambio di `mac-swap.sh` è provato con app finte dai test automatici, che girano su Linux e
 sui due Mac di GitHub Actions; sui Mac i test usano anche `ditto`, `PlistBuddy` e `codesign` veri
-su una copia della Calcolatrice di sistema.
+su un'app costruita dal test e firmata "ad hoc", come l'app vera.
 
 ## Sicurezza
 

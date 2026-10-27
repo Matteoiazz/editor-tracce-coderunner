@@ -290,35 +290,44 @@ describe("al successivo avvio", () => {
 });
 
 // Con gli strumenti veri di macOS (solo sui Mac di GitHub Actions): ditto, PlistBuddy e codesign
-// su una copia della Calcolatrice di sistema, un'app firmata vera
+// su un'app costruita qui e firmata "ad hoc" come l'app vera. Le app di sistema non si possono
+// copiare: macOS le protegge.
 describe.runIf(process.platform === "darwin")("strumenti di macOS", () => {
-  const calculator = "/System/Applications/Calculator.app";
+  /** App minima: Info.plist ed eseguibile (una copia di /usr/bin/true), firmata ad hoc. */
+  function buildApp(bundle: string, version: string) {
+    execFileSync("/bin/mkdir", ["-p", join(bundle, "Contents", "MacOS"), join(bundle, "Contents", "Resources")]);
+    execFileSync("/bin/cp", ["/usr/bin/true", join(bundle, "Contents", "MacOS", "prova")]);
+    const plist = join(bundle, "Contents", "Info.plist");
+    for (const [key, value] of [
+      ["CFBundleExecutable", "prova"],
+      ["CFBundleIdentifier", "it.unical.prova-aggiornatore"],
+      ["CFBundleShortVersionString", version],
+      ["CFBundlePackageType", "APPL"],
+    ]) {
+      execFileSync("/usr/libexec/PlistBuddy", ["-c", `Add :${key} string ${value}`, plist]);
+    }
+    execFileSync("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", bundle]);
+  }
 
   async function fixture(tamper: boolean) {
-    const source = join(dir, "sorgente", "Calculator.app");
-    execFileSync("/usr/bin/ditto", [calculator, source]);
+    const installed = join(dir, "Applicazioni", "Prova.app");
+    buildApp(installed, "1.0.0");
+    const source = join(dir, "sorgente", "Prova.app");
+    buildApp(source, "1.1.0");
     if (tamper) await writeFile(join(source, "Contents", "Resources", "aggiunto.txt"), "modificata");
-    const zipPath = join(dir, "Calculator.zip");
+    const zipPath = join(dir, "Prova.zip");
     execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", source, zipPath]);
     const zip = await readFile(zipPath);
-    const version = execFileSync("/usr/libexec/PlistBuddy", [
-      "-c",
-      "Print :CFBundleShortVersionString",
-      join(calculator, "Contents", "Info.plist"),
-    ])
-      .toString()
-      .trim();
-    const mac = new MacUpdater({
-      bundle: calculator,
-      currentVersion: "0.0.1",
+    return new MacUpdater({
+      bundle: installed,
+      currentVersion: "1.0.0",
       feed: { metadataUrl: "https://example.test/latest.yml", fileUrl: (_v: string, name: string) => `https://example.test/${name}` },
       cacheDir: join(dir, "cache"),
       dataDir: join(dir, "dati"),
-      fetch: async (url: string) => new Response(url.endsWith(".yml") ? metadata(version, zip, "Calculator.zip") : zip),
+      fetch: async (url: string) => new Response(url.endsWith(".yml") ? metadata("1.1.0", zip, "Prova.zip") : zip),
       quit: () => {},
       onQuit: () => {},
     });
-    return mac;
   }
 
   it("estrae l'app e ne controlla versione, identificativo e firma", async () => {
