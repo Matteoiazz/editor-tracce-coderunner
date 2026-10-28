@@ -5,12 +5,20 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
 
 ## Funzioni
 
+- **Interfaccia**: una barra in alto con tre parti, la traccia aperta (con il suo nome), l'archivio
+  e le impostazioni. Nella traccia, a sinistra i dati dell'esame (su una riga quando sono
+  completi), i test comuni, gli esercizi con il loro argomento (il nome della funzione) e lo stato
+  dei test, un solo «Aggiungi esercizio» (vuoto, dall'archivio, da file XML) e in fondo il
+  riepilogo con Esporta. Ogni esercizio ha un'intestazione fissa su una riga con l'indice delle
+  sezioni (Testo, Soluzione, Codice per gli studenti, Test) e un menu con Duplica, Esercizi simili,
+  Copia da un altro esercizio e Rimuovi.
 - **Tracce d'esame e pretest** con i nomi della convenzione del docente
   (`Esame-AAAA-MM-GG-Traccia1-Esercizio1`, `Pretest-AAAA-MM-GG-Traccia1`).
 - **Esercizi** con testo in HTML (anche tabelle), soluzione nascosta, codice per gli studenti
-  generato dalla soluzione e test case; editor espandibili a tutta finestra. Con «Copia da…»
-  si copia in un esercizio tutto il contenuto di un altro della stessa traccia (testo, soluzione,
-  codice per gli studenti, test); la copia si può annullare finché l'esercizio non viene modificato.
+  generato dalla soluzione e test case; editor espandibili a tutta finestra. Dal menu
+  dell'esercizio si copia in un esercizio tutto il contenuto di un altro della stessa traccia (testo,
+  soluzione, codice per gli studenti, test); la copia si può annullare finché l'esercizio non viene
+  modificato.
 - **Test comuni** a tutti gli esercizi della traccia, con i 9 test standard del docente o creati
   con «Genera test…»: dimensioni da un valore a un altro con un passo, un numero di test per ogni
   passo o in totale (distribuiti in modo uniforme), seed consecutivi, visibili, nascosti o a caso. Un
@@ -22,17 +30,28 @@ da importare su Moodle/CodeRunner, con una seconda parte di RAG/AI.
 - **Verifica**: la soluzione viene eseguita su ogni test e confrontata con l'output atteso (utile
   per gli esercizi importati e dopo una modifica della soluzione); l'esportazione è possibile solo
   quando tutto è superato.
-- **Prima di esportare**: la colonna elenca cosa manca, una riga per esercizio, e segnala
+- **Prima di esportare**: in fondo alla colonna una riga dice quante cose mancano e si apre
+  sull'elenco, una riga per esercizio; segnala anche
   un'altra traccia dell'archivio con lo stesso tipo, data e numero (su Moodle le domande
   avrebbero gli stessi nomi, come capita con una traccia duplicata e non modificata).
 - **Import ed export XML Moodle**, nello stesso formato degli export di Moodle (CDATA); le
   immagini incorporate nel testo vengono riportate nel file esportato.
-- **Archivio delle tracce** (SQLite) con salvataggio automatico, duplicazione, cestino, riuso di
-  un esercizio da un'altra traccia, importazione di più XML, backup e ripristino.
-- **Impostazioni**: la chiave API di OpenRouter, nel portachiavi del sistema oppure protetta da
-  una master password, mostrata solo in forma mascherata (`sk-or-v1-••••3f9a`) e controllabile con
+- **Archivio delle tracce** (SQLite) con salvataggio automatico, a schede: le tracce, raggruppate
+  per anno, si aprono con un clic e si duplicano o si spostano nel cestino dal loro menu; gli
+  esercizi delle altre tracce si cercano e si copiano nella traccia aperta; il cestino. Poi
+  importazione di più XML, backup e ripristino.
+- **Funzioni AI** (con la chiave di OpenRouter): dal pulsante «AI» della soluzione, *Genera la
+  soluzione* dal testo (controllata sui test, fino a tre tentativi) e *Rivedi la soluzione*
+  (possibili errori, casi limite, testo ambiguo, test mancanti, con i test suggeriti già eseguiti);
+  per ogni errore o caso limite, «Correggo io» con la riga evidenziata oppure «Correggi con l'AI»,
+  con le differenze e il confronto sui test prima di applicare. Dal menu dell'esercizio, *Esercizi
+  simili* nello stile del docente, controllati sui test comuni. Prima di ogni richiesta si vede cosa
+  verrà inviato al modello e si possono aggiungere indicazioni; nulla cambia senza conferma.
+- **Impostazioni**, in sezioni con un indice: la chiave API di OpenRouter, nel portachiavi del
+  sistema oppure protetta da una master password, mostrata solo in forma mascherata (`sk-or-v1-••••3f9a`) e controllabile con
   «Prova la chiave»; il modello delle funzioni AI, scelto dall'elenco di OpenRouter (ricerca,
-  filtro dei modelli gratuiti, prezzo per milione di token) o scritto a mano; predefinito
+  filtro dei modelli gratuiti, prezzo per milione di token; l'elenco si apre con «Cambia modello») o
+  scritto a mano; predefinito
   NVIDIA Nemotron 3 Ultra nella variante gratuita (`nvidia/nemotron-3-ultra-550b-a55b:free`). Ogni
   scelta si salva subito. «Prova il modello» fa una richiesta breve con chiave e modello scelti e
   dice se il modello risponde nel formato che serve alle funzioni AI, e in quanto tempo.
