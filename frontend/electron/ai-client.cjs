@@ -54,6 +54,14 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
     check: () => post("check", {}),
     /** Revisione della soluzione dell'esercizio: { findings, tests }. */
     review: (question, notes) => post("review", { question, notes: typeof notes === "string" ? notes : "" }),
+    /** Correzione di una segnalazione: { solution, explanation, tests }. */
+    fix: (question, finding, extraInputs, notes) =>
+      post("fix", {
+        question,
+        finding,
+        extra_inputs: Array.isArray(extraInputs) ? extraInputs : [],
+        notes: typeof notes === "string" ? notes : "",
+      }),
   };
 }
 

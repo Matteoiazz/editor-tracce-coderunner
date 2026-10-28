@@ -4,13 +4,14 @@ La chiave di OpenRouter arriva a ogni richiesta nell'intestazione X-OpenRouter-K
 dal processo principale di Electron: la pagina non la vede e il backend non la salva.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from tesi.api.questions import runner
 from tesi.application.ai import ModelCheck, RequestPreview, check_model, preview_of
-from tesi.application.review import Review, review_request, review_solution
+from tesi.application.fix import Fix, fix_request, fix_solution
+from tesi.application.review import Finding, Review, review_request, review_solution
 from tesi.domain import Question
 from tesi.ports import LanguageModel, ModelError
 
@@ -87,6 +88,48 @@ def review(
         return review_solution(body.question, model, runner, body.notes)
     except ValueError as exc:
         # testo o soluzione mancanti, indicazioni troppo lunghe
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ModelError as exc:
+        raise model_failed(exc) from exc
+
+
+@dataclass
+class FixPreviewRequest:
+    question: Question
+    # La segnalazione della revisione da correggere
+    finding: Finding
+    notes: str = ""
+
+
+@dataclass
+class FixRequest(FixPreviewRequest):
+    model: str = ""
+    # Altri input su cui confrontare le due soluzioni (test suggeriti non ancora aggiunti)
+    extra_inputs: list[str] = field(default_factory=list)
+
+
+@router.post("/fix/preview")
+def fix_preview(body: FixPreviewRequest) -> RequestPreview:
+    """La richiesta di correzione che verrà inviata al modello, da mostrare al docente."""
+    try:
+        return preview_of(fix_request(body.question, body.finding, body.notes))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/fix")
+def fix(
+    body: FixRequest,
+    request: Request,
+    key: str | None = Header(default=None, alias=KEY_HEADER),
+) -> Fix:
+    """Soluzione corretta proposta dal modello, confrontata con quella attuale su tutti i test."""
+    model = language_model(request, key, body.model)
+    try:
+        return fix_solution(
+            body.question, body.finding, model, runner, body.extra_inputs[:20], body.notes
+        )
+    except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ModelError as exc:
         raise model_failed(exc) from exc

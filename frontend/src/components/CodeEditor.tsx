@@ -13,6 +13,8 @@ interface Props {
   onExpandedChange?: (expanded: boolean) => void;
   /** Titolo mostrato nella barra della modalità espansa (es. "Soluzione · Esame-…-Esercizio1"). */
   title?: string;
+  /** Righe da evidenziare, per esempio quelle di una segnalazione da correggere. */
+  highlightLines?: number[];
 }
 
 // L'altezza segue il contenuto entro questi limiti: così lo scorrimento interno
@@ -25,9 +27,27 @@ export function editorHeight(contentHeight: number): number {
 }
 
 /** Editor di codice Python (Monaco, lo stesso di VS Code). */
-export function CodeEditor({ value, onChange, expanded = false, onExpandedChange, title }: Props) {
+export function CodeEditor({ value, onChange, expanded = false, onExpandedChange, title, highlightLines }: Props) {
   const [height, setHeight] = useState(MIN_HEIGHT);
   const editorRef = useRef<MonacoEditor | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const decorations = useRef<ReturnType<MonacoEditor["createDecorationsCollection"]> | null>(null);
+  const lines = (highlightLines ?? []).join(",");
+
+  // Le righe evidenziate restano attaccate al codice anche se si scrive sopra
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    decorations.current ??= editor.createDecorationsCollection();
+    const numbers = lines ? lines.split(",").map(Number) : [];
+    decorations.current.set(
+      numbers.map((line) => ({
+        range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+        options: { isWholeLine: true, className: "code-line-flagged", linesDecorationsClassName: "code-line-flagged-mark" },
+      })),
+    );
+    if (numbers.length > 0) editor.revealLineInCenterIfOutsideViewport(numbers[numbers.length - 1]);
+  }, [lines, mounted]);
   const close = () => onExpandedChange?.(false);
   const { ref, layer } = useExpandedLayer(expanded, close);
 
@@ -56,6 +76,7 @@ export function CodeEditor({ value, onChange, expanded = false, onExpandedChange
             onChange={(v) => onChange(v ?? "")}
             onMount={(editor) => {
               editorRef.current = editor;
+              setMounted(true);
               const update = () => setHeight(editorHeight(editor.getContentHeight()));
               editor.onDidContentSizeChange(update);
               update();

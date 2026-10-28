@@ -1,5 +1,6 @@
 """Endpoint delle funzioni AI, con un modello finto al posto di OpenRouter."""
 
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -174,3 +175,44 @@ def test_review_con_indicazioni(tmp_path: Path) -> None:
         FakeModel.complete = original
     assert response.status_code == 200
     assert received[0][-1].content.endswith("solo errori")
+
+
+FINDING = {
+    "kind": "errore",
+    "title": "Stampa sbagliata",
+    "explanation": "Deve stampare 2.",
+    "line": 2,
+}
+
+
+def test_anteprima_della_correzione(tmp_path: Path) -> None:
+    response = client(tmp_path).post(
+        "/api/ai/fix/preview", json={"question": QUESTION, "finding": FINDING}
+    )
+    assert response.status_code == 200
+    assert "Stampa sbagliata" in response.json()["user"]
+
+
+def test_fix(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    FakeModel.reply = json.dumps({"soluzione": "x = input()\nprint(2)\n", "spiegazione": "ok"})
+    try:
+        response = c.post(
+            "/api/ai/fix",
+            json={
+                "model": "fornitore/modello",
+                "question": QUESTION,
+                "finding": FINDING,
+                "extra_inputs": ["b"],
+            },
+            headers={"X-OpenRouter-Key": KEY},
+        )
+    finally:
+        FakeModel.reply = '{"stato": "pronto", "somma": 5}'
+    assert response.status_code == 200
+    body = response.json()
+    assert body["solution"] == "x = input()\nprint(2)\n"
+    assert [(t["stdin"], t["before"], t["after"], t["same"]) for t in body["tests"]] == [
+        ("a", "a\n1\n", "a\n2\n", False),
+        ("b", "b\n1\n", "b\n2\n", False),
+    ]

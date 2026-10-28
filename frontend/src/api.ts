@@ -2,6 +2,7 @@
 // a ogni avvio.
 
 import type { ArchivedTrack, ExerciseMatch, TrackSummary } from "./archive";
+import type { Finding } from "./review";
 import type { Question, TestOutcome } from "./types";
 
 let connection: Promise<BackendConnection> | null = null;
@@ -91,6 +92,10 @@ export interface RequestPreview {
 
 export function previewReview(question: Question, notes: string): Promise<RequestPreview> {
   return request("/api/ai/review/preview", jsonBody({ question, notes }));
+}
+
+export function previewFix(question: Question, finding: Finding, notes: string): Promise<RequestPreview> {
+  return request("/api/ai/fix/preview", jsonBody({ question, finding, notes }));
 }
 
 // ---------------------------------------------------------------- archivio delle tracce

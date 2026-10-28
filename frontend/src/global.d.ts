@@ -151,6 +151,13 @@ interface Window {
       check(): Promise<ModelCheck>;
       /** Revisione della soluzione: segnalazioni e test suggeriti, già eseguiti. */
       review(question: import("./types").Question, notes: string): Promise<import("./review").Review>;
+      /** Correzione di una segnalazione, confrontata con la soluzione attuale su tutti i test. */
+      fix(
+        question: import("./types").Question,
+        finding: import("./review").Finding,
+        extraInputs: string[],
+        notes: string,
+      ): Promise<import("./review").Fix>;
     };
     updates: {
       status(): Promise<UpdateStatus>;

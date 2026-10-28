@@ -2189,3 +2189,122 @@ button.ghost.active {
   border: 1px solid var(--rule);
   border-radius: var(--radius);
 }
+
+/* Riga di una segnalazione da correggere nell'editor della soluzione */
+.code-line-flagged {
+  background: var(--warn-soft);
+}
+
+.code-line-flagged-mark {
+  margin-left: 3px;
+  background: var(--warn);
+  width: 3px !important;
+}
+
+/* ------------------------------------------------------------------ correzione proposta */
+
+.fix-dialog {
+  width: min(1080px, calc(100vw - 32px));
+}
+
+.fix-body {
+  display: grid;
+  gap: 12px;
+  padding: 20px 22px;
+}
+
+.fix-body h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.fix-body p,
+.fix-body .settings-label {
+  margin: 0;
+}
+
+.fix-diff-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.fix-diff {
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.fix-tests {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.fix-tests li {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.fix-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.fix-compare pre {
+  max-height: 120px;
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  background: var(--ground);
+  border-radius: var(--radius);
+}
+
+.fix-compare pre.fix-error {
+  color: #7d1f15;
+  background: var(--fail-soft);
+}
+
+.finding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.finding .inline-notice {
+  margin: 8px 0 0;
+}
+
+.finding-status {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--pass);
+}
+
+.finding-status.pending {
+  color: var(--warn);
+}
+
+/* Segnalazioni già risolte: restano visibili ma passano in secondo piano */
+.finding-done {
+  border-left-color: var(--pass);
+}
+
+.finding-done .finding-head strong,
+.finding-done .finding-text {
+  color: var(--muted);
+}

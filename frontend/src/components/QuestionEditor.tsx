@@ -1,25 +1,32 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
-import { generateStudentCode, previewReview } from "../api";
+import { generateStudentCode, previewFix, previewReview, type RequestPreview } from "../api";
 import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
 import type { ExamInfo } from "../naming";
 import type { ExerciseStatus, SectionStatus } from "../status";
 import {
   closeReview,
+  discardFix,
   dismissFinding,
   keyProblemForReview,
+  markFixApplied,
+  markFixSeen,
   markTestsAdded,
   rememberReviewNotes,
   reviewNotes,
   reviewProblem,
   reviewSnapshot,
+  setFindingState,
+  startFix,
   startReview,
   suggestionRow,
+  undoFix,
   useReview,
 } from "../review";
 import { type TestRow, toTestCase } from "../testcases";
 import type { Question, TestOutcome } from "../types";
 import { AiRequestDialog } from "./AiRequestDialog";
 import { CodeEditor } from "./CodeEditor";
+import { FixDialog } from "./FixDialog";
 import { HtmlEditor } from "./HtmlEditor";
 import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
@@ -47,6 +54,15 @@ interface Props {
 }
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
+
+/** Una funzione AI pronta da inviare: nome, anteprima della richiesta e invio con le indicazioni. */
+interface AiRequest {
+  action: string;
+  /** Chiave con cui si ricordano le ultime indicazioni aggiuntive. */
+  notesKey: string;
+  loadPreview: () => Promise<RequestPreview>;
+  send: (notes: string) => void;
+}
 
 const SECTIONS: { key: SectionKey; title: string }[] = [
   { key: "text", title: "Traccia" },
@@ -96,17 +112,16 @@ export function QuestionEditor(props: Props) {
   // Perché la revisione non è partita; `settings` se si risolve nelle Impostazioni
   const [reviewBlocked, setReviewBlocked] = useState<{ message: string; settings: boolean } | null>(null);
   const [checkingKey, setCheckingKey] = useState(false);
-  const [requestOpen, setRequestOpen] = useState(false);
+  // Richiesta all'AI da mostrare prima dell'invio, comune a tutte le funzioni
+  const [aiRequest, setAiRequest] = useState<AiRequest | null>(null);
+  // Correzione proposta aperta nella finestra, per indice della segnalazione
+  const [fixShown, setFixShown] = useState<number | null>(null);
   // Il messaggio riguarda il testo e la soluzione di quel momento
   useEffect(() => setReviewBlocked(null), [question.text_html, question.solution]);
 
-  async function handleReview() {
+  /** Controlla la chiave, poi mostra la richiesta oppure la invia subito, secondo le Impostazioni. */
+  async function prepareAiRequest(request: AiRequest) {
     setReviewBlocked(null);
-    const problem = reviewProblem(question);
-    if (problem) {
-      setReviewBlocked({ message: problem, settings: false });
-      return;
-    }
     setCheckingKey(true);
     let keyProblem: string | null;
     try {
@@ -126,8 +141,28 @@ export function QuestionEditor(props: Props) {
     } catch {
       // impostazioni non leggibili: si mostra la richiesta, che è la scelta più prudente
     }
-    if (showRequest) setRequestOpen(true);
-    else sendReview(reviewNotes(item.id));
+    if (showRequest) setAiRequest(request);
+    else sendAiRequest(request, reviewNotes(request.notesKey));
+  }
+
+  function sendAiRequest(request: AiRequest, notes: string) {
+    rememberReviewNotes(request.notesKey, notes);
+    request.send(notes);
+  }
+
+  function handleReview() {
+    const problem = reviewProblem(question);
+    if (problem) {
+      setReviewBlocked({ message: problem, settings: false });
+      return;
+    }
+    const withTests = questionForReview();
+    prepareAiRequest({
+      action: "Revisione della soluzione",
+      notesKey: item.id,
+      loadPreview: () => previewReview(withTests, ""),
+      send: (notes) => startReview(item.id, withTests, (q) => window.desktop.ai.review(q, notes)),
+    });
   }
 
   /** L'esercizio da rivedere: il modello vede tutti i suoi test, comuni compresi. */
@@ -135,9 +170,47 @@ export function QuestionEditor(props: Props) {
     return { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
   }
 
-  function sendReview(notes: string) {
-    rememberReviewNotes(item.id, notes);
-    startReview(item.id, questionForReview(), (q) => window.desktop.ai.review(q, notes));
+  function handleFix(index: number) {
+    if (review?.state !== "done") return;
+    const finding = review.review.findings[index];
+    const withTests = questionForReview();
+    // Le due soluzioni si confrontano anche sui test suggeriti non ancora aggiunti
+    const extraInputs = review.review.tests.filter((_, i) => !review.added.includes(i)).map((t) => t.stdin);
+    prepareAiRequest({
+      action: "Correzione della soluzione",
+      notesKey: `${item.id}:correzione`,
+      loadPreview: () => previewFix(withTests, finding, ""),
+      send: (notes) =>
+        startFix(item.id, index, withTests.solution, () =>
+          window.desktop.ai.fix(withTests, finding, extraInputs, notes),
+        ),
+    });
+  }
+
+  // Una correzione appena arrivata si apre da sola, una volta
+  useEffect(() => {
+    if (review?.state !== "done" || fixShown !== null) return;
+    const ready = Object.entries(review.fixes).find(([, fix]) => fix.state === "done" && !fix.seen);
+    if (!ready) return;
+    const index = Number(ready[0]);
+    markFixSeen(item.id, index);
+    setFixShown(index);
+  }, [review, fixShown]);
+
+  function applyFix(index: number) {
+    const fix = review?.state === "done" ? review.fixes[index] : undefined;
+    if (fix?.state !== "done") return;
+    const previous = question.solution;
+    update({ solution: fix.fix.solution });
+    markFixApplied(item.id, index, previous);
+  }
+
+  function undoAppliedFix(index: number) {
+    const fix = review?.state === "done" ? review.fixes[index] : undefined;
+    if (fix?.state !== "applied") return;
+    if (!window.confirm("La soluzione torna com'era prima della correzione. Continuare?")) return;
+    update({ solution: fix.solution });
+    undoFix(item.id, index);
   }
 
   async function hideRequestNextTime() {
@@ -147,6 +220,15 @@ export function QuestionEditor(props: Props) {
       setError(`Impostazione non salvata: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+
+  // Righe delle segnalazioni che il docente corregge da sé
+  const flaggedLines =
+    review?.state === "done"
+      ? review.review.findings.flatMap((finding, i) =>
+          review.findingStates[i] === "manual" && finding.line !== null ? [finding.line] : [],
+        )
+      : [];
+  const shownFix = fixShown !== null && review?.state === "done" ? review.fixes[fixShown] : undefined;
 
   function addSuggestedTests(indexes: number[]) {
     if (review?.state !== "done") return;
@@ -249,15 +331,27 @@ export function QuestionEditor(props: Props) {
           expanded={expandedCode === "solution"}
           onExpandedChange={(open) => setExpandedCode(open ? "solution" : null)}
           title={`Soluzione · ${questionName(item, exam)}`}
+          highlightLines={flaggedLines}
         />
-        {requestOpen && (
+        {aiRequest && (
           <AiRequestDialog
-            action="Revisione della soluzione"
-            loadPreview={() => previewReview(questionForReview(), "")}
-            initialNotes={reviewNotes(item.id)}
-            onSend={sendReview}
+            action={aiRequest.action}
+            loadPreview={aiRequest.loadPreview}
+            initialNotes={reviewNotes(aiRequest.notesKey)}
+            onSend={(notes) => sendAiRequest(aiRequest, notes)}
             onHideNextTime={hideRequestNextTime}
-            onClose={() => setRequestOpen(false)}
+            onClose={() => setAiRequest(null)}
+          />
+        )}
+        {fixShown !== null && review?.state === "done" && shownFix?.state === "done" && (
+          <FixDialog
+            finding={review.review.findings[fixShown]}
+            fix={shownFix.fix}
+            original={shownFix.solution}
+            outdated={shownFix.solution !== question.solution}
+            onApply={() => applyFix(fixShown)}
+            onDiscard={() => discardFix(item.id, fixShown)}
+            onClose={() => setFixShown(null)}
           />
         )}
         {reviewBlocked && (
@@ -278,6 +372,10 @@ export function QuestionEditor(props: Props) {
             onClose={() => closeReview(item.id)}
             onDismiss={(index) => dismissFinding(item.id, index)}
             onAddTests={addSuggestedTests}
+            onFindingState={(index, state) => setFindingState(item.id, index, state)}
+            onFix={handleFix}
+            onShowFix={setFixShown}
+            onUndoFix={undoAppliedFix}
           />
         )}
       </section>

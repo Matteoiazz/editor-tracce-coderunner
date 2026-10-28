@@ -31,6 +31,23 @@ export interface Review {
   tests: SuggestedTest[];
 }
 
+/** Esito della correzione proposta dal modello (tesi.application.fix). */
+export interface TestComparison {
+  stdin: string;
+  before: string;
+  after: string;
+  before_error: string;
+  after_error: string;
+  /** La soluzione corretta dà lo stesso risultato di quella attuale. */
+  same: boolean;
+}
+
+export interface Fix {
+  solution: string;
+  explanation: string;
+  tests: TestComparison[];
+}
+
 export const KIND_LABELS: Record<FindingKind, string> = {
   errore: "Possibile errore",
   caso_limite: "Caso limite",
@@ -45,6 +62,28 @@ export function sortedFindings(findings: Finding[]): { finding: Finding; index: 
   return findings
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => KIND_ORDER.indexOf(a.finding.kind) - KIND_ORDER.indexOf(b.finding.kind));
+}
+
+/** Solo i problemi della soluzione si possono correggere: testo e test si sistemano a mano. */
+export function canFix(finding: Finding): boolean {
+  return finding.kind === "errore" || finding.kind === "caso_limite";
+}
+
+/** Riepilogo del confronto tra soluzione attuale e corretta, es. "Su 9 test il risultato non
+ *  cambia, su 2 cambia". */
+export function comparisonSummary(tests: TestComparison[]): string {
+  const changed = tests.filter((t) => !t.same).length;
+  const same = tests.length - changed;
+  const broken = tests.filter((t) => t.after_error && !t.before_error).length;
+  const parts = [];
+  if (same > 0) parts.push(`su ${same} test il risultato non cambia`);
+  if (changed > 0) parts.push(`su ${changed} cambia`);
+  let text = parts.join(", ");
+  text = text ? text[0].toUpperCase() + text.slice(1) : "Nessun test su cui confrontare";
+  if (broken > 0) {
+    text += `. Attenzione: su ${broken} test la soluzione corretta va in errore`;
+  }
+  return `${text}.`;
 }
 
 /** Input su una riga, es. "3 · 0", per l'elenco dei test suggeriti. */
@@ -98,6 +137,19 @@ export function reviewSummary(review: Review): string {
 
 // ---------------------------------------------------------------- revisioni per esercizio
 
+/** Cosa ha deciso il docente per una segnalazione: correggerla da sé ("manual"), segnarla come
+ *  risolta, oppure ha applicato la correzione dell'AI ("fixed"). */
+export type FindingState = "manual" | "resolved" | "fixed";
+
+/** Correzione chiesta al modello per una segnalazione. `solution`: la soluzione al momento della
+ *  richiesta; la correzione si applica solo se nel frattempo non è cambiata. */
+export type FixEntry =
+  | { state: "pending"; solution: string }
+  | { state: "error"; solution: string; message: string }
+  | { state: "done"; solution: string; fix: Fix; seen: boolean }
+  /** Applicata: `solution` è quella di prima, per poterla ripristinare. */
+  | { state: "applied"; solution: string };
+
 export type ReviewEntry =
   | { state: "pending"; snapshot: string }
   | { state: "error"; snapshot: string; message: string }
@@ -108,6 +160,9 @@ export type ReviewEntry =
       /** Indici delle segnalazioni ignorate e dei test già aggiunti. */
       dismissed: number[];
       added: number[];
+      /** Per indice della segnalazione. */
+      findingStates: Record<number, FindingState>;
+      fixes: Record<number, FixEntry>;
     };
 
 const entries = new Map<string, ReviewEntry>();
@@ -144,7 +199,9 @@ export async function startReview(
   set(id, pending);
   try {
     const review = await request(question);
-    if (entries.get(id) === pending) set(id, { state: "done", snapshot, review, dismissed: [], added: [] });
+    if (entries.get(id) === pending) {
+      set(id, { state: "done", snapshot, review, dismissed: [], added: [], findingStates: {}, fixes: {} });
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (entries.get(id) === pending) set(id, { state: "error", snapshot, message });
@@ -159,6 +216,63 @@ export function dismissFinding(id: string, index: number) {
 export function markTestsAdded(id: string, indexes: number[]) {
   const entry = entries.get(id);
   if (entry?.state === "done") set(id, { ...entry, added: [...new Set([...entry.added, ...indexes])] });
+}
+
+export function setFindingState(id: string, index: number, state: FindingState | null) {
+  const entry = entries.get(id);
+  if (entry?.state !== "done") return;
+  const findingStates = { ...entry.findingStates };
+  if (state) findingStates[index] = state;
+  else delete findingStates[index];
+  set(id, { ...entry, findingStates });
+}
+
+function setFix(id: string, index: number, fix: FixEntry | null) {
+  const entry = entries.get(id);
+  if (entry?.state !== "done") return;
+  const fixes = { ...entry.fixes };
+  if (fix) fixes[index] = fix;
+  else delete fixes[index];
+  set(id, { ...entry, fixes });
+}
+
+/** Chiede la correzione di una segnalazione; vale l'ultima richiesta per quella segnalazione. */
+export async function startFix(id: string, index: number, solution: string, request: () => Promise<Fix>) {
+  const pending: FixEntry = { state: "pending", solution };
+  setFix(id, index, pending);
+  const current = () => {
+    const entry = entries.get(id);
+    return entry?.state === "done" && entry.fixes[index] === pending;
+  };
+  try {
+    const fix = await request();
+    if (current()) setFix(id, index, { state: "done", solution, fix, seen: false });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (current()) setFix(id, index, { state: "error", solution, message });
+  }
+}
+
+export function markFixSeen(id: string, index: number) {
+  const entry = entries.get(id);
+  const fix = entry?.state === "done" ? entry.fixes[index] : undefined;
+  if (fix?.state === "done") setFix(id, index, { ...fix, seen: true });
+}
+
+/** La correzione è stata applicata: si ricorda la soluzione di prima. */
+export function markFixApplied(id: string, index: number, previous: string) {
+  setFix(id, index, { state: "applied", solution: previous });
+  setFindingState(id, index, "fixed");
+}
+
+export function discardFix(id: string, index: number) {
+  setFix(id, index, null);
+}
+
+/** Dopo il ripristino della soluzione precedente la segnalazione torna da decidere. */
+export function undoFix(id: string, index: number) {
+  setFix(id, index, null);
+  setFindingState(id, index, null);
 }
 
 export function closeReview(id: string) {

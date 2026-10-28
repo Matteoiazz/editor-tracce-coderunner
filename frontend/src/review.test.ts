@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  canFix,
   closeReview,
+  comparisonSummary,
+  discardFix,
   dismissFinding,
   type Finding,
   inputSummary,
   keyProblemForReview,
+  markFixApplied,
+  markFixSeen,
   markTestsAdded,
   rememberReviewNotes,
   type Review,
@@ -13,9 +18,12 @@ import {
   reviewProblem,
   reviewSnapshot,
   reviewSummary,
+  setFindingState,
   sortedFindings,
+  startFix,
   startReview,
   suggestionRow,
+  undoFix,
 } from "./review";
 import { SOLUTION_SKELETON } from "./exam";
 import type { Question } from "./types";
@@ -145,5 +153,66 @@ describe("indicazioni aggiuntive per esercizio", () => {
     expect(reviewNotes("es10")).toBe("");
     rememberReviewNotes("es9", "");
     expect(reviewNotes("es9")).toBe("");
+  });
+});
+
+describe("correzione delle segnalazioni", () => {
+  const same = { stdin: "1\n3", before: "x", after: "x", before_error: "", after_error: "", same: true };
+  const changed = { ...same, stdin: "2\n0", before: "", before_error: "ZeroDivisionError", after: "0", same: false };
+  const broken = { ...same, stdin: "3\n5", after: "", after_error: "IndexError", same: false };
+
+  it("solo errori e casi limite si correggono", () => {
+    expect(canFix(finding("errore", "a"))).toBe(true);
+    expect(canFix(finding("caso_limite", "a"))).toBe(true);
+    expect(canFix(finding("testo", "a"))).toBe(false);
+    expect(canFix(finding("test_mancante", "a"))).toBe(false);
+  });
+
+  it("riepilogo del confronto", () => {
+    expect(comparisonSummary([same, same, changed])).toBe("Su 2 test il risultato non cambia, su 1 cambia.");
+    expect(comparisonSummary([same, broken])).toBe(
+      "Su 1 test il risultato non cambia, su 1 cambia. Attenzione: su 1 test la soluzione corretta va in errore.",
+    );
+    expect(comparisonSummary([])).toBe("Nessun test su cui confrontare.");
+  });
+
+  it("dalla richiesta all'applicazione, e ritorno", async () => {
+    await startReview("es20", question, async () => REVIEW);
+    setFindingState("es20", 0, "manual");
+    expect(reviewOf("es20")).toMatchObject({ findingStates: { 0: "manual" } });
+    setFindingState("es20", 0, null);
+
+    const fix = { solution: "print(2)\n", explanation: "", tests: [changed] };
+    let resolve!: (value: typeof fix) => void;
+    const done = startFix("es20", 1, "print(1)", () => new Promise((r) => (resolve = r)));
+    expect(reviewOf("es20")).toMatchObject({ fixes: { 1: { state: "pending" } } });
+    resolve(fix);
+    await done;
+    expect(reviewOf("es20")).toMatchObject({ fixes: { 1: { state: "done", seen: false, solution: "print(1)" } } });
+    markFixSeen("es20", 1);
+    expect(reviewOf("es20")).toMatchObject({ fixes: { 1: { seen: true } } });
+
+    markFixApplied("es20", 1, "print(1)");
+    expect(reviewOf("es20")).toMatchObject({
+      findingStates: { 1: "fixed" },
+      fixes: { 1: { state: "applied", solution: "print(1)" } },
+    });
+    undoFix("es20", 1);
+    const entry = reviewOf("es20");
+    expect(entry?.state === "done" && entry.findingStates[1]).toBeFalsy();
+    expect(entry?.state === "done" && entry.fixes[1]).toBeFalsy();
+    closeReview("es20");
+  });
+
+  it("correzione non riuscita, poi scartata", async () => {
+    await startReview("es21", question, async () => REVIEW);
+    await startFix("es21", 1, "print(1)", async () => {
+      throw new Error("Il modello non ha cambiato la soluzione");
+    });
+    expect(reviewOf("es21")).toMatchObject({ fixes: { 1: { state: "error", message: "Il modello non ha cambiato la soluzione" } } });
+    discardFix("es21", 1);
+    const entry = reviewOf("es21");
+    expect(entry?.state === "done" && entry.fixes[1]).toBeFalsy();
+    closeReview("es21");
   });
 });

@@ -49,6 +49,21 @@ describe("richieste AI al backend", () => {
     });
   });
 
+  it("correzione: esercizio, segnalazione e input in più", async () => {
+    const { ai, requests } = client(() => json({ solution: "print(2)\n", explanation: "", tests: [] }));
+    const finding = { kind: "errore", title: "t", explanation: "e", line: null };
+
+    await ai.fix({ name: "q" }, finding, ["3"], "minima");
+    expect(requests[0].url).toBe("http://127.0.0.1:8123/api/ai/fix");
+    expect(JSON.parse(requests[0].init.body as string)).toEqual({
+      question: { name: "q" },
+      finding,
+      extra_inputs: ["3"],
+      notes: "minima",
+      model: "fornitore/modello",
+    });
+  });
+
   it("senza chiave utilizzabile non contatta il backend", async () => {
     const { ai, requests } = client(() => json({}), {
       key: async () => {

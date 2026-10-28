@@ -1,4 +1,8 @@
 import {
+  canFix,
+  type Finding,
+  type FindingState,
+  type FixEntry,
   inputSummary,
   KIND_LABELS,
   type ReviewEntry,
@@ -16,11 +20,19 @@ interface Props {
   onDismiss: (index: number) => void;
   /** Aggiunge ai test specifici i test suggeriti con questi indici. */
   onAddTests: (indexes: number[]) => void;
+  /** Cambia la decisione del docente su una segnalazione (null: torna da decidere). */
+  onFindingState: (index: number, state: FindingState | null) => void;
+  /** Chiede al modello la correzione della segnalazione. */
+  onFix: (index: number) => void;
+  onShowFix: (index: number) => void;
+  /** Rimette la soluzione di prima della correzione applicata. */
+  onUndoFix: (index: number) => void;
 }
 
 /** Esito della revisione della soluzione, sotto l'editor della soluzione. Le segnalazioni sono
  *  ipotesi del modello; i test suggeriti sono già stati eseguiti sulla soluzione. */
-export function ReviewPanel({ entry, stale, onRetry, onClose, onDismiss, onAddTests }: Props) {
+export function ReviewPanel(props: Props) {
+  const { entry, stale, onRetry, onClose, onDismiss, onAddTests } = props;
   const head = (summary: string | null) => (
     <div className="review-head">
       <h3>Revisione dell'AI</h3>
@@ -61,7 +73,7 @@ export function ReviewPanel({ entry, stale, onRetry, onClose, onDismiss, onAddTe
     );
   }
 
-  const { review, dismissed, added } = entry;
+  const { review, dismissed, added, findingStates, fixes } = entry;
   const findings = sortedFindings(review.findings).filter(({ index }) => !dismissed.includes(index));
   // Prima i test su cui la soluzione va in errore: sono problemi certi, non ipotesi
   const tests = review.tests
@@ -83,7 +95,12 @@ export function ReviewPanel({ entry, stale, onRetry, onClose, onDismiss, onAddTe
       {findings.length > 0 && (
         <ul className="review-findings">
           {findings.map(({ finding, index }) => (
-            <li key={index} className={`finding finding-${finding.kind}`}>
+            <li
+              key={index}
+              className={`finding finding-${finding.kind}${
+                findingStates[index] === "resolved" || findingStates[index] === "fixed" ? " finding-done" : ""
+              }`}
+            >
               <div className="finding-head">
                 <span className="finding-kind">{KIND_LABELS[finding.kind]}</span>
                 <strong>{finding.title}</strong>
@@ -93,6 +110,15 @@ export function ReviewPanel({ entry, stale, onRetry, onClose, onDismiss, onAddTe
                 </button>
               </div>
               {finding.explanation && <p className="finding-text">{finding.explanation}</p>}
+              <FindingActions
+                finding={finding}
+                state={findingStates[index]}
+                fix={fixes[index]}
+                onState={(state) => props.onFindingState(index, state)}
+                onFix={() => props.onFix(index)}
+                onShowFix={() => props.onShowFix(index)}
+                onUndoFix={() => props.onUndoFix(index)}
+              />
             </li>
           ))}
         </ul>
@@ -150,5 +176,98 @@ export function ReviewPanel({ entry, stale, onRetry, onClose, onDismiss, onAddTe
         soluzione.
       </p>
     </div>
+  );
+}
+
+/** Cosa fare di una segnalazione: correggere da sé (con la riga evidenziata nell'editor) o
+ *  chiedere la correzione al modello; poi segnarla come risolta. Testo e test mancanti si
+ *  sistemano a mano e non hanno questi pulsanti, solo "Risolta". */
+function FindingActions(props: {
+  finding: Finding;
+  state: FindingState | undefined;
+  fix: FixEntry | undefined;
+  onState: (state: FindingState | null) => void;
+  onFix: () => void;
+  onShowFix: () => void;
+  onUndoFix: () => void;
+}) {
+  const { finding, state, fix, onState } = props;
+
+  if (state === "fixed") {
+    return (
+      <div className="finding-actions">
+        <span className="finding-status">
+          <IconCheck /> Corretta con l'AI
+        </span>
+        <button type="button" className="ghost small" onClick={props.onUndoFix}>
+          Ripristina la soluzione precedente
+        </button>
+      </div>
+    );
+  }
+  if (state === "resolved") {
+    return (
+      <div className="finding-actions">
+        <span className="finding-status">
+          <IconCheck /> Risolta
+        </span>
+        <button type="button" className="ghost small" onClick={() => onState(null)}>
+          Riapri
+        </button>
+      </div>
+    );
+  }
+  if (state === "manual") {
+    return (
+      <div className="finding-actions">
+        <span className="finding-status pending">
+          Da correggere{finding.line !== null && ` · riga ${finding.line} evidenziata nella soluzione`}
+        </span>
+        <button type="button" className="secondary small" onClick={() => onState("resolved")}>
+          Segna come risolta
+        </button>
+        <button type="button" className="ghost small" onClick={() => onState(null)}>
+          Annulla
+        </button>
+      </div>
+    );
+  }
+  if (fix?.state === "pending") {
+    return (
+      <div className="finding-actions">
+        <span className="finding-status pending">Correzione in corso…</span>
+      </div>
+    );
+  }
+  if (fix?.state === "done") {
+    return (
+      <div className="finding-actions">
+        <span className="finding-status pending">Correzione pronta</span>
+        <button type="button" className="secondary small" onClick={props.onShowFix}>
+          Vedi la correzione
+        </button>
+      </div>
+    );
+  }
+  return (
+    <>
+      {fix?.state === "error" && <p className="inline-notice">Correzione non riuscita: {fix.message}.</p>}
+      <div className="finding-actions">
+        {canFix(finding) ? (
+          <>
+            <button type="button" className="ghost small" onClick={() => onState("manual")}>
+              Correggo io
+            </button>
+            <button type="button" className="secondary small" onClick={props.onFix}>
+              Correggi con l'AI
+            </button>
+          </>
+        ) : (
+          <button type="button" className="ghost small" onClick={() => onState("resolved")}>
+            Segna come risolta
+          </button>
+        )}
+      </div>
+    </>
   );
 }
