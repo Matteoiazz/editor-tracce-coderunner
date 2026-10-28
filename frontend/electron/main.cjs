@@ -140,13 +140,18 @@ function stopBackendAndWait(timeoutMs = 5000) {
 
 function stopBackend() {
   if (!backendProcess) return;
-  // Su Windows kill() da solo può lasciare processi figli: taskkill /T li chiude tutti.
-  if (isWindows) {
-    spawn("taskkill", ["/pid", String(backendProcess.pid), "/T", "/F"]);
-  } else {
-    backendProcess.kill();
-  }
+  const running = backendProcess;
   backendProcess = null;
+  // Su Windows kill() da solo può lasciare processi figli: taskkill /T li chiude tutti.
+  // windowsHide evita che compaia per un attimo la finestra del prompt dei comandi; se taskkill
+  // non parte, resta kill()
+  if (isWindows) {
+    spawn("taskkill", ["/pid", String(running.pid), "/T", "/F"], { windowsHide: true }).on("error", () =>
+      running.kill(),
+    );
+  } else {
+    running.kill();
+  }
 }
 
 /** Aspetta che il backend risponda su /health, riprovando ogni 200 ms. */

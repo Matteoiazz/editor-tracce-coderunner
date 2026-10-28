@@ -2,9 +2,11 @@
 // la chiave di OpenRouter (nell'intestazione X-OpenRouter-Key) e il modello scelto nelle
 // Impostazioni. La pagina non riceve mai la chiave e può chiedere solo le operazioni elencate.
 
-// Il backend aspetta il modello fino a 120 secondi e, se il formato della risposta è
-// sbagliato, ripete la richiesta una volta
-const TIMEOUT_MS = 300_000;
+// Il backend aspetta il modello fino a 120 secondi per richiesta e smette da solo; la
+// generazione può farne fino a sei (tre tentativi, ciascuno con un secondo invio se il formato
+// è sbagliato) e dopo ogni tentativo esegue i test. Questo limite serve solo se il backend
+// non risponde più: deve restare più lungo del lavoro che fa
+const TIMEOUT_MS = 900_000;
 
 /** `connection` restituisce indirizzo e codice del backend, `key` la chiave in chiaro (o un
  *  errore che dice di inserirla o sbloccarla), `model` l'identificativo del modello. */
@@ -30,7 +32,9 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
       text = await response.text();
     } catch {
       throw new Error(
-        signal.aborted ? "Il modello non ha risposto in tempo" : "Il backend dell'app non risponde",
+        signal.aborted
+          ? "La richiesta all'AI è durata troppo ed è stata interrotta: riprova, oppure scegli un modello più veloce"
+          : "Il backend dell'app non risponde",
       );
     }
     let body = null;

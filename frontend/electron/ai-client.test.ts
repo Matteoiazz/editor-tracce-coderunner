@@ -131,6 +131,6 @@ describe("richieste AI al backend", () => {
         init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
       });
     const { ai } = client(hang, { timeoutMs: 20 });
-    await expect(ai.check()).rejects.toThrow("non ha risposto in tempo");
+    await expect(ai.check()).rejects.toThrow("è durata troppo ed è stata interrotta");
   });
 });
