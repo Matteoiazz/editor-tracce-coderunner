@@ -15,6 +15,9 @@ interface Props {
   entry: ReviewEntry;
   /** Testo o soluzione sono cambiati dopo la revisione. */
   stale: boolean;
+  /** Si sta controllando la chiave per una funzione AI: i pulsanti che ne avviano una restano
+   *  disattivati, così un doppio clic non invia due richieste. */
+  checking: boolean;
   onRetry: () => void;
   onClose: () => void;
   onDismiss: (index: number) => void;
@@ -32,14 +35,14 @@ interface Props {
 /** Esito della revisione della soluzione, sotto l'editor della soluzione. Le segnalazioni sono
  *  ipotesi del modello; i test suggeriti sono già stati eseguiti sulla soluzione. */
 export function ReviewPanel(props: Props) {
-  const { entry, stale, onRetry, onClose, onDismiss, onAddTests } = props;
+  const { entry, stale, checking, onRetry, onClose, onDismiss, onAddTests } = props;
   const head = (summary: string | null) => (
     <div className="review-head">
       <h3>Revisione dell'AI</h3>
       {summary && <span className="small-text muted">{summary}</span>}
       <div className="section-actions">
         {entry.state !== "pending" && (
-          <button type="button" className="ghost small" onClick={onRetry}>
+          <button type="button" className="ghost small" onClick={onRetry} disabled={checking}>
             Ripeti
           </button>
         )}
@@ -114,6 +117,7 @@ export function ReviewPanel(props: Props) {
                 finding={finding}
                 state={findingStates[index]}
                 fix={fixes[index]}
+                checking={checking}
                 onState={(state) => props.onFindingState(index, state)}
                 onFix={() => props.onFix(index)}
                 onShowFix={() => props.onShowFix(index)}
@@ -186,6 +190,7 @@ function FindingActions(props: {
   finding: Finding;
   state: FindingState | undefined;
   fix: FixEntry | undefined;
+  checking: boolean;
   onState: (state: FindingState | null) => void;
   onFix: () => void;
   onShowFix: () => void;
@@ -258,7 +263,7 @@ function FindingActions(props: {
             <button type="button" className="ghost small" onClick={() => onState("manual")}>
               Correggo io
             </button>
-            <button type="button" className="secondary small" onClick={props.onFix}>
+            <button type="button" className="secondary small" onClick={props.onFix} disabled={props.checking}>
               Correggi con l'AI
             </button>
           </>

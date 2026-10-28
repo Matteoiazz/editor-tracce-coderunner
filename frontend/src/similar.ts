@@ -3,7 +3,8 @@
 // cambio di esercizio anche con la richiesta in corso.
 
 import { useSyncExternalStore } from "react";
-import { hasText, isSkeletonSolution } from "./export";
+import { isSkeletonSolution } from "./export";
+import { aiTextProblem } from "./richtext";
 import type { Question } from "./types";
 
 /** Stessa forma del JSON del backend (tesi.application.similar). */
@@ -20,11 +21,29 @@ export interface SimilarExercises {
   proposals: Proposal[];
   /** Proposte scartate perché non superavano i controlli. */
   discarded: number;
+  /** Input su cui sono state eseguite le proposte: zero se non c'erano test. */
+  checked_inputs: number;
+}
+
+/** Quali controlli hanno superato le proposte, per la finestra che le mostra. */
+export function checksText(result: SimilarExercises): string {
+  if (result.checked_inputs === 0) {
+    return (
+      "Non c'erano test su cui eseguirle: è stato controllato solo che siano Python valido, con una " +
+      "funzione e un main che legge l'input. Dopo averne aggiunta una, calcola gli output dei test."
+    );
+  }
+  const inputs = result.checked_inputs === 1 ? "sull'input di 1 test" : `sugli input di ${result.checked_inputs} test`;
+  return `Ogni proposta è stata eseguita ${inputs} senza errori e dà risultati diversi dall'esercizio di partenza.`;
 }
 
 /** Perché la richiesta non può partire, oppure null. */
 export function similarProblem(question: Question): string | null {
-  if (!hasText(question.text_html)) return "Scrivi prima il testo dell'esercizio: gli esercizi simili si costruiscono su questo.";
+  const textProblem = aiTextProblem(
+    question.text_html,
+    "Scrivi prima il testo dell'esercizio: gli esercizi simili si costruiscono su questo.",
+  );
+  if (textProblem) return textProblem;
   if (!question.solution.trim() || isSkeletonSolution(question.solution)) {
     return "Scrivi prima la soluzione: serve per proporre esercizi con la stessa struttura.";
   }

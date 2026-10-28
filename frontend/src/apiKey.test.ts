@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyDetails, keyProblem, newPasswordProblem, protectionText } from "./apiKey";
+import { keyDetails, keyProblem, keyProblemForAi, newPasswordProblem, protectionText } from "./apiKey";
 
 const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab";
 
@@ -77,5 +77,20 @@ describe("testi della chiave", () => {
       "Spesa finora con questa chiave: 1,25 $.",
       "Scade il 1 marzo 2027.",
     ]);
+  });
+});
+
+describe("chiave per le funzioni AI", () => {
+  it("mancante, bloccata o illeggibile", () => {
+    expect(keyProblemForAi(status({ saved: false, mask: null }))).toBe(
+      "Per le funzioni AI serve la chiave di OpenRouter: inseriscila nelle Impostazioni.",
+    );
+    expect(keyProblemForAi(status({ protected: true }))).toContain("sbloccala nelle Impostazioni, poi riprova");
+    expect(keyProblemForAi(status({ problem: "file danneggiato" }))).toContain("file danneggiato");
+  });
+
+  it("utilizzabile", () => {
+    expect(keyProblemForAi(status({}))).toBeNull();
+    expect(keyProblemForAi(status({ protected: true, unlocked: true }))).toBeNull();
   });
 });

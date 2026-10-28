@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SOLUTION_SKELETON } from "./exam";
 import {
+  checksText,
   clearSimilar,
   markProposalAdded,
   markSimilarSeen,
@@ -24,20 +25,29 @@ describe("esercizi simili", () => {
   });
 
   it("riepilogo", () => {
-    expect(similarSummary({ proposals: [proposal, proposal, proposal], discarded: 0 })).toBe("3 proposte");
-    expect(similarSummary({ proposals: [proposal], discarded: 2 })).toBe(
+    expect(similarSummary({ proposals: [proposal, proposal, proposal], discarded: 0, checked_inputs: 9 })).toBe("3 proposte");
+    expect(similarSummary({ proposals: [proposal], discarded: 2, checked_inputs: 9 })).toBe(
       "1 proposta (2 scartate perché non superavano i controlli)",
     );
-    expect(similarSummary({ proposals: [], discarded: 1 })).toBe(
+    expect(similarSummary({ proposals: [], discarded: 1, checked_inputs: 9 })).toBe(
       "Nessuna proposta valida (1 scartata perché non superava i controlli)",
     );
+  });
+
+  it("dice su quanti test sono state eseguite, o che non c'erano test", () => {
+    const result = (checked: number): SimilarExercises => ({ proposals: [proposal], discarded: 0, checked_inputs: checked });
+    expect(checksText(result(9))).toBe(
+      "Ogni proposta è stata eseguita sugli input di 9 test senza errori e dà risultati diversi dall'esercizio di partenza.",
+    );
+    expect(checksText(result(1))).toContain("sull'input di 1 test");
+    expect(checksText(result(0))).toContain("Non c'erano test su cui eseguirle");
   });
 
   it("in corso, pronte, aggiunte una alla volta", async () => {
     let resolve!: (value: SimilarExercises) => void;
     const done = startSimilar("s1", () => new Promise((r) => (resolve = r)));
     expect(similarOf("s1")).toEqual({ state: "pending" });
-    resolve({ proposals: [proposal, proposal], discarded: 0 });
+    resolve({ proposals: [proposal, proposal], discarded: 0, checked_inputs: 9 });
     await done;
     expect(similarOf("s1")).toMatchObject({ state: "done", seen: false, added: {} });
     markSimilarSeen("s1");

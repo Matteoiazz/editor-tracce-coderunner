@@ -11,6 +11,7 @@ import {
   unsupportedReason,
 } from "./exam";
 import type { ExamInfo } from "./naming";
+import { hasContent } from "./richtext";
 import {
   inputLineCount,
   missingInputMessage,
@@ -49,10 +50,6 @@ export function prepareQuestion(
     testcases: tests.map(toTestCase),
     tags,
   };
-}
-
-export function hasText(html: string): boolean {
-  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 }
 
 export function normalizeCode(code: string): string {
@@ -117,7 +114,7 @@ export function exportProblemList(
     if (!isValidGrade(question.default_grade)) {
       issues.push(["i punti devono essere maggiori di 0", "punti non validi"]);
     }
-    if (!hasText(question.text_html)) issues.push(["il testo è vuoto", "testo vuoto"]);
+    if (!hasContent(question.text_html)) issues.push(["il testo è vuoto", "testo vuoto"]);
     if (!question.solution.trim()) issues.push(["la soluzione è vuota", "soluzione vuota"]);
     else if (isSkeletonSolution(question.solution)) {
       issues.push([

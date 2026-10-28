@@ -24,12 +24,13 @@ const run = (changes: Partial<GeneratedSolution["tests"][number]>) => ({
   ...changes,
 });
 
-const result = (tests: GeneratedSolution["tests"]): GeneratedSolution => ({
+const result = (tests: GeneratedSolution["tests"], notRun = 0): GeneratedSolution => ({
   solution: "print(1)\n",
   explanation: "",
   attempts: 1,
   tests,
   problems: [],
+  not_run: notRun,
 });
 
 describe("soluzione generata", () => {
@@ -58,6 +59,14 @@ describe("soluzione generata", () => {
     expect(
       testsSummary(result([run({ expected: "y", passed: false }), run({ error: "IndexError", passed: false })])),
     ).toBe("Va in errore su 1 test su 2; output uguale a quello atteso su 0 test su 1.");
+  });
+
+  it("test non eseguiti dopo un test interrotto", () => {
+    const stopped = run({ error: "tempo limite superato", passed: false });
+    expect(testsSummary(result([stopped], 8))).toBe(
+      "Va in errore su 1 test su 1; gli altri 8 test non sono stati eseguiti dopo l'interruzione.",
+    );
+    expect(testsSummary(result([stopped], 1))).toContain("l'altro test non è stato eseguito");
   });
 
   it("in corso, pronta, vista, chiusa", async () => {

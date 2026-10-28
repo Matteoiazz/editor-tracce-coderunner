@@ -7,7 +7,6 @@ import {
   dismissFinding,
   type Finding,
   inputSummary,
-  keyProblemForReview,
   markFixApplied,
   markFixSeen,
   markTestsAdded,
@@ -123,25 +122,10 @@ describe("controlli prima della revisione", () => {
     expect(reviewProblem(question)).toBeNull();
   });
 
-  const status = (changes: Partial<ApiKeyStatus>): ApiKeyStatus => ({
-    saved: true,
-    mask: "sk-or-v1-••••89ab",
-    protected: false,
-    unlocked: false,
-    weakKeychain: false,
-    problem: null,
-    ...changes,
-  });
-
-  it("chiave mancante, bloccata o illeggibile", () => {
-    expect(keyProblemForReview(status({ saved: false, mask: null }))).toContain("inseriscila nelle Impostazioni");
-    expect(keyProblemForReview(status({ protected: true }))).toContain("sbloccala nelle Impostazioni");
-    expect(keyProblemForReview(status({ problem: "file danneggiato" }))).toContain("file danneggiato");
-  });
-
-  it("chiave utilizzabile", () => {
-    expect(keyProblemForReview(status({}))).toBeNull();
-    expect(keyProblemForReview(status({ protected: true, unlocked: true }))).toBeNull();
+  it("un testo fatto solo di immagini non basta al modello", () => {
+    expect(reviewProblem({ ...question, text_html: '<p><img src="x.png"></p>' })).toContain(
+      "non vede le immagini",
+    );
   });
 });
 
@@ -182,7 +166,7 @@ describe("correzione delle segnalazioni", () => {
     expect(reviewOf("es20")).toMatchObject({ findingStates: { 0: "manual" } });
     setFindingState("es20", 0, null);
 
-    const fix = { solution: "print(2)\n", explanation: "", tests: [changed] };
+    const fix = { solution: "print(2)\n", explanation: "", tests: [changed], not_compared: 0 };
     let resolve!: (value: typeof fix) => void;
     const done = startFix("es20", 1, "print(1)", () => new Promise((r) => (resolve = r)));
     expect(reviewOf("es20")).toMatchObject({ fixes: { 1: { state: "pending" } } });

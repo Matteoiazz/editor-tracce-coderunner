@@ -16,7 +16,6 @@ import {
   nextNumber,
   parseExerciseNumber,
   parseTags,
-  plainText,
   questionName,
   SOLUTION_SKELETON,
   unsupportedReason,
@@ -352,14 +351,6 @@ describe("adaptQuestionToKind", () => {
   });
 });
 
-describe("plainText", () => {
-  it("toglie i tag e decodifica i caratteri speciali", () => {
-    expect(plainText("<p>Se <strong>lst</strong> &lt; 3&nbsp;e</p><p>altro &amp; fine</p>")).toBe(
-      "Se lst < 3 e altro & fine",
-    );
-  });
-});
-
 describe("copySources", () => {
   function withText(number: number | null, html: string): EditableQuestion {
     const item = createQuestion(number ?? 1, esame);
@@ -375,7 +366,7 @@ describe("copySources", () => {
 
     expect(sources.map((s) => s.label)).toEqual(["Esercizio 1", "Esercizio 3"]);
     expect(sources[0].preview).toBe("Implementare la funzione calcola");
-    expect(sources[1].preview).toBe("Testo della traccia vuoto");
+    expect(sources[1].preview).toBe("Testo vuoto");
   });
 
   it("accorcia le anteprime lunghe", () => {

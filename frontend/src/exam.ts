@@ -1,6 +1,7 @@
 // Regole dell'esame: creazione degli esercizi, numerazione, adattamento degli importati.
 
 import { buildName, DEFAULT_TRACK, type ExamInfo, type ExamKind, formatDay, parseName } from "./naming";
+import { plainText } from "./richtext";
 import { composeTests, detectCommonBlock, startsWithBlock, type TestRow, toRow } from "./testcases";
 import type { Question, TestCase } from "./types";
 
@@ -303,20 +304,6 @@ export function ignoredMessage(ignored: Record<string, number>): string | null {
   return `${verb} ${total} ${noun} di tipo CodeRunner (${detail}).`;
 }
 
-/** Testo senza formattazione di un frammento HTML, su una riga (per le anteprime). */
-export function plainText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** Etichetta breve di un esercizio, es. "Esercizio 2". */
 export function exerciseLabel(item: EditableQuestion): string {
   return item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero";
@@ -361,7 +348,7 @@ export function copySources(items: EditableQuestion[], currentId: string): CopyS
         id: item.id,
         label: exerciseLabel(item),
         preview: !text
-          ? "Testo della traccia vuoto"
+          ? "Testo vuoto"
           : text.length > PREVIEW_LENGTH
             ? `${text.slice(0, PREVIEW_LENGTH)}…`
             : text,

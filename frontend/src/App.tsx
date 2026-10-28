@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Proposal } from "./similar";
+import { clearGeneration } from "./generation";
+import { closeReview } from "./review";
+import { clearSimilar, type Proposal } from "./similar";
 import {
   backupArchive,
   checkBackup,
@@ -23,6 +25,7 @@ import {
   openTrackTitle,
   reuseExercise,
   sameNameTracks,
+  sameTrackContent,
   toArchive,
   trackLabel,
   type TrackSummary,
@@ -156,8 +159,16 @@ export function App() {
   // Vero se la traccia aperta è già nell'archivio: allora va salvata anche se viene svuotata
   const inArchive = useRef(false);
 
+  // Tracce lasciate in questa sessione, com'erano: riaprendone una non cambiata nel frattempo si
+  // riusano gli stessi identificativi degli esercizi, così revisioni, soluzioni generate ed
+  // esercizi simili dell'AI (anche quelli ancora in corso) restano collegati agli esercizi
+  const leftTracks = useRef(new Map<string, OpenTrack>());
+
   /** Apre una traccia; `stored` è falso per una traccia nuova, non ancora nell'archivio. */
-  function openTrack(track: OpenTrack, stored = true) {
+  function openTrack(opened: OpenTrack, stored = true) {
+    leftTracks.current.set(trackId, { id: trackId, exam, common, items });
+    const left = leftTracks.current.get(opened.id);
+    const track = left && sameTrackContent(left, opened) ? left : opened;
     inArchive.current = stored;
     saver.markSaved(toArchive(track));
     setTrackId(track.id);
@@ -165,7 +176,11 @@ export function App() {
     setCommon(track.common);
     setItems(track.items);
     setRecords({});
-    setSelection(track.items.length > 0 ? { kind: "exercise", id: track.items[0].id } : null);
+    // Come select(): la vista riparte dall'alto e la barra in alto riporta qui
+    const next: Selection = track.items.length > 0 ? { kind: "exercise", id: track.items[0].id } : null;
+    setSelection(next);
+    lastTrackView.current = next;
+    mainRef.current?.scrollTo({ top: 0 });
   }
 
   // All'avvio si riapre la traccia modificata più di recente. Se l'archivio è vuoto e c'è
@@ -440,6 +455,12 @@ export function App() {
     );
   }
 
+  /** Azione sulla traccia aperta chiesta dalla colonna: se non riesce, l'errore si mostra in alto
+   *  (dall'Archivio le stesse azioni passano per la vista, che lo mostra già). */
+  function runTrackAction(action: () => Promise<void>, failure: string) {
+    action().catch((e) => setError(`${failure}: ${errorText(e)}`));
+  }
+
   // La traccia corrente resta nell'archivio: se ne apre una nuova vuota
   async function handleNewExam() {
     await flushSave();
@@ -605,8 +626,8 @@ export function App() {
     setNotice(`Creato ${questionName(copy, exam)} come copia di ${questionName(item, exam)}.`);
   }
 
-  /** Aggiunge alla traccia un esercizio proposto dall'AI, dopo quello di partenza e i suoi
-   *  simili già aggiunti; resta aperto l'esercizio di partenza, per aggiungere le altre proposte. */
+  /** Aggiunge alla traccia, con il primo numero libero, un esercizio proposto dall'AI; resta
+   *  aperto l'esercizio di partenza, per aggiungere le altre proposte. */
   async function handleAddSimilar(source: EditableQuestion, proposal: Proposal): Promise<string> {
     let studentCode = "";
     try {
@@ -636,6 +657,11 @@ export function App() {
     const index = items.findIndex((it) => it.id === item.id);
     const rest = items.filter((it) => it.id !== item.id);
     setItems(rest);
+    // Revisione e proposte dell'AI dell'esercizio eliminato non servono più; una richiesta ancora
+    // in corso viene ignorata quando arriva
+    closeReview(item.id);
+    clearGeneration(item.id);
+    clearSimilar(item.id);
     const neighbour = rest[Math.min(index, rest.length - 1)];
     select(neighbour ? { kind: "exercise", id: neighbour.id } : null);
   }
@@ -699,8 +725,11 @@ export function App() {
         onNew={handleNew}
         onImport={handleImport}
         hasContent={!isEmptySession({ exam, common, items })}
+        // Una traccia nuova entra nell'archivio con il primo esercizio o test comune (il
+        // salvataggio in attesa parte prima dell'azione); prima non si può duplicare né spostare
+        inArchive={inArchive.current || items.length > 0 || common.length > 0}
         onNewExam={handleNewExam}
-        onDuplicateTrack={() => handleDuplicateTrack(trackId)}
+        onDuplicateTrack={() => runTrackAction(() => handleDuplicateTrack(trackId), "Duplicazione non riuscita")}
         onTrashTrack={() => {
           if (
             window.confirm(
@@ -708,7 +737,7 @@ export function App() {
                 "scheda Cestino dell'archivio.",
             )
           ) {
-            handleTrashTrack(trackId);
+            runTrackAction(() => handleTrashTrack(trackId), "Spostamento nel cestino non riuscito");
           }
         }}
         onReuse={() => handleShowArchive("exercises")}
@@ -787,7 +816,13 @@ export function App() {
             initialTab={selection.tab ?? "tracks"}
             onOpen={handleOpenTrack}
             onShowCurrent={showTrack}
-            reuseBlocked={pretestFull ? "Il pretest ha un solo esercizio" : null}
+            reuseBlocked={
+              canCreate
+                ? null
+                : pretestFull
+                  ? "Il pretest ha un solo esercizio"
+                  : "Indica tipo, data e numero della traccia per aggiungere esercizi"
+            }
             onReuse={handleReuse}
             onDuplicate={handleDuplicateTrack}
             onTrash={handleTrashTrack}

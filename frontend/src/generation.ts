@@ -3,7 +3,8 @@
 // di esercizio anche con la richiesta in corso.
 
 import { useSyncExternalStore } from "react";
-import { hasText, isSkeletonSolution } from "./export";
+import { isSkeletonSolution } from "./export";
+import { aiTextProblem } from "./richtext";
 import type { Question } from "./types";
 
 /** Stessa forma del JSON del backend (tesi.application.generate). */
@@ -23,13 +24,17 @@ export interface GeneratedSolution {
   tests: TestRun[];
   /** Problemi rimasti dopo l'ultimo tentativo; vuoto se supera tutti i controlli. */
   problems: string[];
+  /** Test non eseguiti dopo un test interrotto (tempo limite o output eccessivo); `tests`
+   *  contiene solo quelli eseguiti. */
+  not_run: number;
 }
 
 /** Perché la generazione non può partire, oppure null. */
 export function generationProblem(question: Question): string | null {
-  return hasText(question.text_html)
-    ? null
-    : "Scrivi prima il testo dell'esercizio: la soluzione si genera da quello che chiede.";
+  return aiTextProblem(
+    question.text_html,
+    "Scrivi prima il testo dell'esercizio: la soluzione si genera da quello che chiede.",
+  );
 }
 
 /** Vero se generare sostituirebbe una soluzione scritta dal docente (va chiesta conferma). */
@@ -57,6 +62,13 @@ export function testsSummary(result: GeneratedSolution): string {
         : compared.length === 1
           ? "output uguale a quello atteso sull'unico test che lo ha"
           : `output uguale a quello atteso su tutti i ${compared.length} test che lo hanno`,
+    );
+  }
+  if (result.not_run > 0) {
+    parts.push(
+      result.not_run === 1
+        ? "l'altro test non è stato eseguito dopo l'interruzione"
+        : `gli altri ${result.not_run} test non sono stati eseguiti dopo l'interruzione`,
     );
   }
   return `${parts.join("; ")}.`;

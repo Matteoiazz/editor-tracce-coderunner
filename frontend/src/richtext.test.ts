@@ -1,5 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { joinList, unsupportedElements } from "./richtext";
+import { aiTextProblem, hasContent, hasText, joinList, plainText, unsupportedElements } from "./richtext";
+
+describe("plainText", () => {
+  it("toglie i tag e decodifica i caratteri speciali", () => {
+    expect(plainText("<p>Se <strong>lst</strong> &lt; 3&nbsp;e</p><p>altro &amp; fine</p>")).toBe(
+      "Se lst < 3 e altro & fine",
+    );
+  });
+
+  it("decodifica le lettere accentate e le entità numeriche, una volta sola", () => {
+    expect(plainText("<p>perch&eacute; &egrave; cos&igrave; &#8211; &#x2192; &amp;lt;</p>")).toBe(
+      "perché è così – → &lt;",
+    );
+    expect(plainText("&sconosciuta; &#99999999;")).toBe("&sconosciuta; &#99999999;");
+  });
+});
+
+describe("testo con un contenuto", () => {
+  const image = '<p><img src="@@PLUGINFILE@@/testo.png"></p>';
+
+  it("un testo fatto solo di un'immagine non è vuoto, ma il modello non può leggerlo", () => {
+    expect(hasText(image)).toBe(false);
+    expect(hasContent(image)).toBe(true);
+    expect(hasContent("<p>&nbsp;</p><p> </p>")).toBe(false);
+    expect(aiTextProblem(image, "Scrivi prima il testo.")).toContain("non vede le immagini");
+    expect(aiTextProblem("<p></p>", "Scrivi prima il testo.")).toBe("Scrivi prima il testo.");
+    expect(aiTextProblem("<p>Somma</p>", "Scrivi prima il testo.")).toBeNull();
+  });
+});
 
 describe("unsupportedElements", () => {
   it("non segnala testo, elenchi, codice e tabelle", () => {

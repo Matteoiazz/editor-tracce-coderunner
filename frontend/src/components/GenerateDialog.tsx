@@ -75,8 +75,9 @@ export function GenerateDialog({ result, original, showDiff, outdated, onApply, 
         )}
         {failed.length > 0 && (
           <ul className="fix-tests">
-            {failed.map((t) => (
-              <li key={t.stdin}>
+            {/* Due test possono avere lo stesso input: la chiave è la posizione */}
+            {failed.map((t, i) => (
+              <li key={i}>
                 <code className="mono">{inputSummary(t.stdin)}</code>
                 <div className="fix-compare">
                   <div>

@@ -34,4 +34,21 @@ describe("chiamate al backend", () => {
     expect(headers.get("X-App-Token")).toBe("segreto");
     expect(headers.get("Content-Type")).toBe("application/json");
   });
+
+  it("messaggio del backend: un testo o il primo errore di validazione", async () => {
+    const { question } = createQuestion(1, { date: "2026-10-15", kind: "Esame", track: 1 });
+    const reply = (detail: unknown, status: number) =>
+      vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ detail }), { status }));
+
+    reply("Test 2: tempo limite superato", 422);
+    await expect(verifyQuestion(question)).rejects.toThrow("Test 2: tempo limite superato");
+
+    reply([{ loc: ["body", "default_grade"], msg: "Input should be a valid number", type: "float_type" }], 422);
+    await expect(verifyQuestion(question)).rejects.toThrow(
+      "Dati non accettati dal backend (body.default_grade): Input should be a valid number",
+    );
+
+    reply({ altro: 1 }, 500);
+    await expect(verifyQuestion(question)).rejects.toThrow("Errore del backend (HTTP 500)");
+  });
 });

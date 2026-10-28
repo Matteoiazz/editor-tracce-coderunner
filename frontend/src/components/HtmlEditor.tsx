@@ -76,6 +76,8 @@ export function HtmlEditor({ value, onChange }: Props) {
           .split(/(?:\r\n?|\n)+/)
           .filter((line) => line.length > 0)
           .map((line) => schema.nodes.paragraph.create(null, schema.text(line, marks)));
+        // Solo righe vuote: niente da incollare (uno slice aperto senza contenuto non è valido)
+        if (paragraphs.length === 0) return Slice.empty;
         return new Slice(Fragment.from(paragraphs), 1, 1);
       },
     },

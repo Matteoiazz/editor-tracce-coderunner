@@ -89,16 +89,15 @@ export interface GeneratorParams {
 /** Oltre questo numero di test si tratta quasi certamente di un errore di battitura. */
 export const MAX_GENERATED_TESTS = 200;
 
-/** Dimensioni del range: start, start + step, … fino a end compreso (se ci si arriva). */
-export function generatorSizes({ start, end, step }: GeneratorParams): number[] {
-  const sizes: number[] = [];
-  for (let size = start; size <= end; size += step) sizes.push(size);
-  return sizes;
+/** Quante dimensioni ha il range: start, start + step, … fino a end compreso (se ci si arriva).
+ *  Si calcolano senza elencarle: con un valore enorme in «A» l'elenco bloccherebbe la finestra. */
+export function stepCount({ start, end, step }: GeneratorParams): number {
+  return end < start ? 0 : Math.floor((end - start) / step) + 1;
 }
 
 /** Quanti test verrebbero creati con questi parametri. */
 export function generatedCount(params: GeneratorParams): number {
-  return params.mode === "perStep" ? generatorSizes(params).length * params.count : params.count;
+  return params.mode === "perStep" ? stepCount(params) * params.count : params.count;
 }
 
 export type GeneratorErrors = Partial<Record<"start" | "end" | "step" | "count", string>>;
@@ -121,15 +120,18 @@ export function generatorErrors(params: GeneratorParams): GeneratorErrors {
   return errors;
 }
 
-/** Dimensioni dei test generati, in ordine. "In totale": `count` valori presi a distanza
- *  uniforme tra quelli del range (primo e ultimo compresi), ripetuti se sono più dei passi. */
+/** Dimensioni dei test generati, in ordine, per parametri validi (al massimo
+ *  MAX_GENERATED_TESTS test). "In totale": `count` valori presi a distanza uniforme tra quelli
+ *  del range (primo e ultimo compresi), ripetuti se sono più dei passi. */
 export function generatedSizes(params: GeneratorParams): number[] {
-  const sizes = generatorSizes(params);
-  if (params.mode === "perStep") return sizes.flatMap((size) => Array(params.count).fill(size));
-  if (params.count === 1) return [sizes[0]];
-  return Array.from(
-    { length: params.count },
-    (_, i) => sizes[Math.round((i * (sizes.length - 1)) / (params.count - 1))],
+  const steps = stepCount(params);
+  const size = (k: number) => params.start + k * params.step;
+  if (params.mode === "perStep") {
+    return Array.from({ length: steps * params.count }, (_, i) => size(Math.floor(i / params.count)));
+  }
+  if (params.count === 1) return [params.start];
+  return Array.from({ length: params.count }, (_, i) =>
+    size(Math.round((i * (steps - 1)) / (params.count - 1))),
   );
 }
 

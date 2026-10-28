@@ -25,6 +25,16 @@ export function newPasswordProblem(password: string, repeated: string): string |
   return null;
 }
 
+/** Perché la chiave non si può usare per una funzione AI, oppure null. */
+export function keyProblemForAi(status: ApiKeyStatus): string | null {
+  if (status.problem) return `La chiave di OpenRouter non si può leggere (${status.problem}).`;
+  if (!status.saved) return "Per le funzioni AI serve la chiave di OpenRouter: inseriscila nelle Impostazioni.";
+  if (status.protected && !status.unlocked) {
+    return "La chiave di OpenRouter è protetta da master password: sbloccala nelle Impostazioni, poi riprova.";
+  }
+  return null;
+}
+
 /** Dove sta la chiave salvata e, se è protetta, se è già sbloccata. */
 export function protectionText(status: ApiKeyStatus): string {
   if (!status.protected) {

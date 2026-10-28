@@ -57,8 +57,11 @@ interface Props {
   onNew: () => void;
   onImport: () => void;
   onReuse: () => void;
-  /** La traccia ha contenuto: si può duplicare, spostare nel cestino o lasciare per una nuova. */
+  /** La traccia ha contenuto: si può lasciare per una nuova. */
   hasContent: boolean;
+  /** La traccia è nell'archivio (o ci entra con il salvataggio in attesa): si può duplicare o
+   *  spostare nel cestino. */
+  inArchive: boolean;
   onNewExam: () => void;
   onDuplicateTrack: () => void;
   onTrashTrack: () => void;
@@ -80,6 +83,9 @@ export function Sidebar(props: Props) {
     if (!complete) setEditingExam(true);
   }, [complete]);
   const [showBlockers, setShowBlockers] = useState(false);
+  const notStored = props.inArchive
+    ? undefined
+    : "La traccia entra nell'archivio quando ha un esercizio o dei test comuni";
 
   return (
     <aside className="sidebar" aria-label="Traccia aperta">
@@ -120,7 +126,8 @@ export function Sidebar(props: Props) {
                       description: "Copia esercizi e test; poi cambia la data",
                       icon: <IconCopy />,
                       onSelect: props.onDuplicateTrack,
-                      disabled: !props.hasContent,
+                      disabled: !props.inArchive,
+                      title: notStored,
                     },
                   ],
                 },
@@ -132,7 +139,8 @@ export function Sidebar(props: Props) {
                       icon: <IconTrash />,
                       danger: true,
                       onSelect: props.onTrashTrack,
-                      disabled: !props.hasContent,
+                      disabled: !props.inArchive,
+                      title: notStored,
                     },
                   ],
                 },

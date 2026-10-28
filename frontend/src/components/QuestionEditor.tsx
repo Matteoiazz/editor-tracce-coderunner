@@ -7,6 +7,7 @@ import {
   previewSimilar,
   type RequestPreview,
 } from "../api";
+import { keyProblemForAi } from "../apiKey";
 import { type CopySource, type EditableQuestion, exerciseTests, questionName, shortLabel } from "../exam";
 import { isSkeletonSolution } from "../export";
 import {
@@ -32,7 +33,6 @@ import {
   closeReview,
   discardFix,
   dismissFinding,
-  keyProblemForReview,
   markFixApplied,
   markFixSeen,
   markTestsAdded,
@@ -96,9 +96,14 @@ interface Props {
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
 
+/** Dove si mostra l'avviso di una funzione AI che non parte: vicino al pulsante usato, sotto la
+ *  soluzione oppure sotto l'intestazione (esercizi simili, dal menu dell'esercizio). */
+type AiPlace = "solution" | "head";
+
 /** Una funzione AI pronta da inviare: nome, anteprima della richiesta e invio con le indicazioni. */
 interface AiRequest {
   action: string;
+  place: AiPlace;
   /** Chiave con cui si ricordano le ultime indicazioni aggiuntive. */
   notesKey: string;
   loadPreview: () => Promise<RequestPreview>;
@@ -151,30 +156,32 @@ export function QuestionEditor(props: Props) {
   }
 
   const review = useReview(item.id);
-  // Perché la revisione non è partita; `settings` se si risolve nelle Impostazioni
-  const [reviewBlocked, setReviewBlocked] = useState<{ message: string; settings: boolean } | null>(null);
+  // Perché una funzione AI non è partita; `settings` se si risolve nelle Impostazioni
+  const [aiBlocked, setAiBlocked] = useState<{ message: string; settings: boolean; place: AiPlace } | null>(
+    null,
+  );
   const [checkingKey, setCheckingKey] = useState(false);
   // Richiesta all'AI da mostrare prima dell'invio, comune a tutte le funzioni
   const [aiRequest, setAiRequest] = useState<AiRequest | null>(null);
   // Correzione proposta aperta nella finestra, per indice della segnalazione
   const [fixShown, setFixShown] = useState<number | null>(null);
   // Il messaggio riguarda il testo e la soluzione di quel momento
-  useEffect(() => setReviewBlocked(null), [question.text_html, question.solution]);
+  useEffect(() => setAiBlocked(null), [question.text_html, question.solution]);
 
   /** Controlla la chiave, poi mostra la richiesta oppure la invia subito, secondo le Impostazioni. */
   async function prepareAiRequest(request: AiRequest) {
-    setReviewBlocked(null);
+    setAiBlocked(null);
     setCheckingKey(true);
     let keyProblem: string | null;
     try {
-      keyProblem = keyProblemForReview(await window.desktop.apiKey.status());
+      keyProblem = keyProblemForAi(await window.desktop.apiKey.status());
     } catch (e) {
       keyProblem = `Stato della chiave non disponibile: ${e instanceof Error ? e.message : String(e)}.`;
     } finally {
       setCheckingKey(false);
     }
     if (keyProblem) {
-      setReviewBlocked({ message: keyProblem, settings: true });
+      setAiBlocked({ message: keyProblem, settings: true, place: request.place });
       return;
     }
     let showRequest = true;
@@ -195,12 +202,13 @@ export function QuestionEditor(props: Props) {
   function handleReview() {
     const problem = reviewProblem(question);
     if (problem) {
-      setReviewBlocked({ message: problem, settings: false });
+      setAiBlocked({ message: problem, settings: false, place: "solution" });
       return;
     }
     const withTests = questionForReview();
     prepareAiRequest({
       action: "Revisione della soluzione",
+      place: "solution",
       notesKey: item.id,
       loadPreview: () => previewReview(withTests, ""),
       send: (notes) => startReview(item.id, withTests, (q) => window.desktop.ai.review(q, notes)),
@@ -218,7 +226,7 @@ export function QuestionEditor(props: Props) {
   function handleGenerate() {
     const problem = generationProblem(question);
     if (problem) {
-      setReviewBlocked({ message: problem, settings: false });
+      setAiBlocked({ message: problem, settings: false, place: "solution" });
       return;
     }
     if (
@@ -232,6 +240,7 @@ export function QuestionEditor(props: Props) {
     const withTests = questionForReview();
     prepareAiRequest({
       action: "Soluzione generata",
+      place: "solution",
       notesKey: `${item.id}:soluzione`,
       loadPreview: () => previewGenerate(withTests, ""),
       send: (notes) =>
@@ -255,13 +264,11 @@ export function QuestionEditor(props: Props) {
 
   const similar = useSimilar(item.id);
   const [similarShown, setSimilarShown] = useState(false);
-  const [similarBlocked, setSimilarBlocked] = useState<string | null>(null);
 
   function handleSimilar() {
-    setSimilarBlocked(null);
     const problem = similarProblem(question);
     if (problem) {
-      setSimilarBlocked(problem);
+      setAiBlocked({ message: problem, settings: false, place: "head" });
       return;
     }
     const source = { ...question, testcases: [] };
@@ -270,6 +277,7 @@ export function QuestionEditor(props: Props) {
     const context = { kind: exam.kind, excludeTrack: props.trackId, testInputs };
     prepareAiRequest({
       action: "Esercizi simili",
+      place: "head",
       notesKey: `${item.id}:simili`,
       loadPreview: () => previewSimilar(source, exam.kind, props.trackId, ""),
       send: (notes) => startSimilar(item.id, () => window.desktop.ai.similar(source, context, notes)),
@@ -298,6 +306,7 @@ export function QuestionEditor(props: Props) {
     const extraInputs = review.review.tests.filter((_, i) => !review.added.includes(i)).map((t) => t.stdin);
     prepareAiRequest({
       action: "Correzione della soluzione",
+      place: "solution",
       notesKey: `${item.id}:correzione`,
       loadPreview: () => previewFix(withTests, finding, ""),
       send: (notes) =>
@@ -371,6 +380,19 @@ export function QuestionEditor(props: Props) {
       <IconExpand /> Espandi
     </button>
   );
+
+  // Avviso di una funzione AI che non è partita, nel punto da cui è stata chiesta
+  const blockedNotice = (place: AiPlace) =>
+    aiBlocked?.place === place && (
+      <div className={place === "head" ? "review-blocked exercise-head-notice" : "review-blocked"} role="alert">
+        <p className="inline-notice">{aiBlocked.message}</p>
+        {aiBlocked.settings && (
+          <button type="button" className="secondary small" onClick={props.onOpenSettings}>
+            <IconSettings /> Vai alle Impostazioni
+          </button>
+        )}
+      </div>
+    );
 
   const heading = (key: SectionKey, title: string, sectionStatus: SectionStatus, extra?: ReactNode) => (
     <div className="section-head">
@@ -466,7 +488,7 @@ export function QuestionEditor(props: Props) {
           onGradeChange={(default_grade) => update({ default_grade })}
           onTagsChange={(tags) => update({ tags })}
         />
-        {similarBlocked && <p className="inline-notice exercise-head-notice">{similarBlocked}</p>}
+        {blockedNotice("head")}
         {similar?.state === "error" && (
           <div className="review-blocked exercise-head-notice" role="alert">
             <p className="inline-notice">Esercizi simili non riusciti: {similar.message}.</p>
@@ -601,20 +623,12 @@ export function QuestionEditor(props: Props) {
             onClose={() => setFixShown(null)}
           />
         )}
-        {reviewBlocked && (
-          <div className="review-blocked" role="alert">
-            <p className="inline-notice">{reviewBlocked.message}</p>
-            {reviewBlocked.settings && (
-              <button type="button" className="secondary small" onClick={props.onOpenSettings}>
-                <IconSettings /> Vai alle Impostazioni
-              </button>
-            )}
-          </div>
-        )}
+        {blockedNotice("solution")}
         {review && (
           <ReviewPanel
             entry={review}
             stale={review.snapshot !== reviewSnapshot(question)}
+            checking={checkingKey}
             onRetry={handleReview}
             onClose={() => closeReview(item.id)}
             onDismiss={(index) => dismissFinding(item.id, index)}

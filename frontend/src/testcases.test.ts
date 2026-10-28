@@ -9,7 +9,6 @@ import {
   generatedCount,
   generatedSizes,
   generatorErrors,
-  generatorSizes,
   inputLineCount,
   missingInputMessage,
   newRow,
@@ -20,6 +19,7 @@ import {
   sameTest,
   standardCommonTests,
   startsWithBlock,
+  stepCount,
   toRow,
 } from "./testcases";
 
@@ -165,9 +165,15 @@ describe("generatore di test comuni", () => {
     generateCommonTests(params, firstSeed).map((row) => row.stdin);
 
   it("da 0 a 100 a passi di 5: una dimensione per passo, estremi compresi", () => {
-    expect(generatorSizes(base)).toHaveLength(21);
-    expect(generatorSizes(base).slice(0, 3)).toEqual([0, 5, 10]);
-    expect(generatorSizes(base).at(-1)).toBe(100);
+    expect(stepCount(base)).toBe(21);
+    expect(generatedSizes(base).slice(0, 3)).toEqual([0, 5, 10]);
+    expect(generatedSizes(base).at(-1)).toBe(100);
+  });
+
+  it("valori enormi: il conteggio non crea l'elenco delle dimensioni", () => {
+    const huge = { ...base, end: 1e12, step: 1 };
+    expect(generatorErrors(huge).count).toContain("il massimo è 200");
+    expect(generatedSizes({ ...huge, count: 3, mode: "total" })).toEqual([0, 5e11, 1e12]);
   });
 
   it("per ogni passo: N test per dimensione, con seed consecutivi", () => {
@@ -186,8 +192,8 @@ describe("generatore di test comuni", () => {
   });
 
   it("un passo più grande del range e start uguale a end", () => {
-    expect(generatorSizes({ ...base, end: 3, step: 10 })).toEqual([0]);
-    expect(generatorSizes({ ...base, start: 7, end: 7 })).toEqual([7]);
+    expect(generatedSizes({ ...base, end: 3, step: 10 })).toEqual([0]);
+    expect(generatedSizes({ ...base, start: 7, end: 7 })).toEqual([7]);
   });
 
   it("i seed partono da quello indicato: in coda ai test esistenti si continua la numerazione", () => {

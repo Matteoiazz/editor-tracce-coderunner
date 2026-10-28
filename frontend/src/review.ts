@@ -3,7 +3,8 @@
 // nell'archivio) e sopravvivono al cambio di esercizio, anche se la richiesta è ancora in corso.
 
 import { useSyncExternalStore } from "react";
-import { hasText, isSkeletonSolution } from "./export";
+import { isSkeletonSolution } from "./export";
+import { aiTextProblem } from "./richtext";
 import { newRow, type TestRow } from "./testcases";
 import type { Question } from "./types";
 
@@ -46,6 +47,9 @@ export interface Fix {
   solution: string;
   explanation: string;
   tests: TestComparison[];
+  /** Input non confrontati: oltre il numero massimo, o dopo che la soluzione corretta si è
+   *  interrotta (tempo limite o output eccessivo). */
+  not_compared: number;
 }
 
 export const KIND_LABELS: Record<FindingKind, string> = {
@@ -99,22 +103,14 @@ export function suggestionRow(test: SuggestedTest): TestRow {
 /** Perché la revisione non può partire (testo o soluzione mancanti), oppure null: si controlla
  *  prima di inviare, così non si consuma una richiesta al modello. */
 export function reviewProblem(question: Question): string | null {
-  if (!hasText(question.text_html)) {
-    return "Scrivi prima il testo dell'esercizio: la revisione confronta la soluzione con quello che chiede.";
-  }
+  const textProblem = aiTextProblem(
+    question.text_html,
+    "Scrivi prima il testo dell'esercizio: la revisione confronta la soluzione con quello che chiede.",
+  );
+  if (textProblem) return textProblem;
   if (!question.solution.trim()) return "Scrivi prima la soluzione.";
   if (isSkeletonSolution(question.solution)) {
     return "Scrivi prima la soluzione: è ancora quella di partenza dell'esercizio nuovo.";
-  }
-  return null;
-}
-
-/** Perché la chiave non si può usare per la revisione, oppure null. */
-export function keyProblemForReview(status: ApiKeyStatus): string | null {
-  if (status.problem) return `La chiave di OpenRouter non si può leggere (${status.problem}).`;
-  if (!status.saved) return "Per la revisione serve la chiave di OpenRouter: inseriscila nelle Impostazioni.";
-  if (status.protected && !status.unlocked) {
-    return "La chiave di OpenRouter è protetta da master password: sbloccala nelle Impostazioni, poi premi di nuovo «Rivedi con l'AI».";
   }
   return null;
 }

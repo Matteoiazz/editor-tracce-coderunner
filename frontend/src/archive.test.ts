@@ -7,6 +7,7 @@ import {
   reuseExercise,
   sameNameIds,
   sameNameTracks,
+  sameTrackContent,
   type OpenTrack,
   toArchive,
   openTrackTitle,
@@ -102,6 +103,26 @@ describe("fromArchive", () => {
   it("andata e ritorno senza perdite", () => {
     const archived = toArchive(openTrack());
     expect(toArchive(fromArchive(archived))).toEqual(archived);
+  });
+});
+
+describe("sameTrackContent", () => {
+  it("non contano gli identificativi interni né l'ordine dei campi", () => {
+    const original = openTrack();
+    // Come la traccia letta dall'archivio: campi della domanda in un altro ordine
+    const reordered = toArchive(original);
+    reordered.exercises[0].question = Object.fromEntries(
+      Object.entries(reordered.exercises[0].question).reverse(),
+    ) as ArchivedExercise["question"];
+
+    expect(sameTrackContent(original, fromArchive(reordered))).toBe(true);
+  });
+
+  it("una modifica qualsiasi conta", () => {
+    const original = openTrack();
+    const changed = fromArchive(toArchive(original));
+    changed.items[0].question.solution += "\n# altro";
+    expect(sameTrackContent(original, changed)).toBe(false);
   });
 });
 

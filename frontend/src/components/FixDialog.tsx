@@ -59,6 +59,16 @@ export function FixDialog({ finding, fix, original, outdated, onApply, onDiscard
           {changed.length > 0 &&
             " Gli output attesi dei test che cambiano vanno ricalcolati con «Calcola output» dopo aver applicato la correzione."}
         </p>
+        {fix.not_compared > 0 && (
+          <p className="small-text muted">
+            {fix.not_compared === 1
+              ? "Un altro test non è stato confrontato"
+              : `Altri ${fix.not_compared} test non sono stati confrontati`}
+            : il confronto si ferma dopo un numero massimo di test, o prima se la soluzione corretta
+            si interrompe (tempo limite o output eccessivo). Dopo aver applicato la correzione,
+            «Calcola output» li esegue tutti.
+          </p>
+        )}
         {changed.length > 0 && (
           <ul className="fix-tests">
             {changed.map((t) => (

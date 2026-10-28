@@ -90,6 +90,21 @@ export function fromArchive(track: ArchivedTrack): OpenTrack {
   };
 }
 
+/** Vero se due tracce hanno lo stesso contenuto nell'archivio: contano dati, test ed esercizi,
+ *  non gli identificativi interni dell'interfaccia né l'ordine dei campi. */
+export function sameTrackContent(a: OpenTrack, b: OpenTrack): boolean {
+  return canonicalJson(toArchive(a)) === canonicalJson(toArchive(b));
+}
+
+/** JSON con i campi di ogni oggetto in ordine alfabetico. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
+      : v,
+  );
+}
+
 /** Identificativi dei test comuni alle posizioni indicate (quelle fuori elenco si ignorano). */
 function excludedIds(common: TestRow[], positions: number[] = []): string[] {
   return positions.flatMap((i) => (common[i] ? [common[i].id] : []));

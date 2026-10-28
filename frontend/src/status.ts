@@ -2,7 +2,8 @@
 // esiti della verifica, puntini dei test, stato di ogni sezione, riepilogo dell'esame.
 
 import { type EditableQuestion, exerciseTests, unsupportedReason } from "./exam";
-import { hasText, isSkeletonSolution, normalizeCode } from "./export";
+import { isSkeletonSolution, normalizeCode } from "./export";
+import { hasContent } from "./richtext";
 import {
   inputLineCount,
   outcomesById,
@@ -112,7 +113,7 @@ export function exerciseStatus(
   const required = requiredInputLines(question.solution);
   const shortInputs = unsupported ? 0 : rows.filter((r) => inputLineCount(r.stdin) < required).length;
 
-  const text = hasText(question.text_html)
+  const text = hasContent(question.text_html)
     ? section("done", "Testo presente")
     : section("todo", "Scrivi il testo dell'esercizio");
   const solution = !question.solution.trim()

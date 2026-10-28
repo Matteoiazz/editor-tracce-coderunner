@@ -27,11 +27,23 @@ async function send(path: string, init: RequestInit): Promise<Response> {
     throw new Error(BACKEND_UNREACHABLE);
   }
   if (!response.ok) {
-    // FastAPI mette il messaggio d'errore nel campo "detail"
     const body = await response.json().catch(() => null);
-    throw new Error(body?.detail ?? `Errore del backend (HTTP ${response.status})`);
+    throw new Error(detailText(body?.detail) ?? `Errore del backend (HTTP ${response.status})`);
   }
   return response;
+}
+
+/** Il messaggio d'errore di FastAPI, nel campo "detail": un testo, oppure l'elenco degli errori
+ *  di validazione dei dati inviati, di cui si mostra il primo con il campo a cui si riferisce. */
+function detailText(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  const first: unknown = Array.isArray(detail) ? detail[0] : null;
+  if (first && typeof first === "object" && typeof (first as { msg?: unknown }).msg === "string") {
+    const { loc, msg } = first as { loc?: unknown; msg: string };
+    const field = Array.isArray(loc) ? loc.join(".") : "";
+    return `Dati non accettati dal backend${field ? ` (${field})` : ""}: ${msg}`;
+  }
+  return null;
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { inputSummary } from "../review";
-import { type SimilarExercises, similarSummary } from "../similar";
+import { checksText, type SimilarExercises, similarSummary } from "../similar";
 import { IconCheck, IconPlus } from "./icons";
 
 interface Props {
@@ -34,9 +34,7 @@ export function SimilarDialog({ result, added, onAdd, onDiscard, onClose }: Prop
       <div className="fix-body">
         <h2 id="simili-titolo">Esercizi simili</h2>
         <p className="small-text muted">
-          {similarSummary(result)}. Ogni proposta è stata eseguita sugli input dei test comuni senza
-          errori e dà risultati diversi dall'esercizio di partenza. Controlla testo e soluzione prima
-          di usarla.
+          {similarSummary(result)}. {checksText(result)} Controlla testo e soluzione prima di usarla.
         </p>
 
         <ul className="similar-list">
