@@ -16,6 +16,7 @@ import {
   verifyQuestion,
 } from "./api";
 import {
+  type ArchiveTab,
   type ExerciseMatch,
   fromArchive,
   type OpenTrack,
@@ -29,7 +30,6 @@ import {
 import { importIntoArchive, importReportMessage } from "./archiveImport";
 import { createArchiveSaver } from "./archiveSaver";
 import { ArchivePanel } from "./components/ArchivePanel";
-import { ReusePanel } from "./components/ReusePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
@@ -326,12 +326,12 @@ export function App() {
   // ------------------------------------------------ archivio: vista e azioni
 
   // L'elenco mostra anche l'ultima modifica della traccia aperta
-  async function handleShowArchive() {
+  async function handleShowArchive(tab: ArchiveTab = "tracks") {
     clearMessages();
     await flushSave();
     // Una nuova chiave rilegge l'elenco anche se la vista è già aperta
     setArchiveKey((k) => k + 1);
-    select({ kind: "archive" });
+    select({ kind: "archive", tab });
   }
 
   async function handleOpenTrack(id: string) {
@@ -711,10 +711,7 @@ export function App() {
             handleTrashTrack(trackId);
           }
         }}
-        onReuse={() => {
-          clearMessages();
-          select({ kind: "reuse" });
-        }}
+        onReuse={() => handleShowArchive("exercises")}
         summary={summary}
         blockers={items.length === 0 ? [] : blockers}
         exporting={exporting}
@@ -782,18 +779,16 @@ export function App() {
             installingUpdate={installingUpdate}
             onInstallUpdate={handleInstallUpdate}
           />
-        ) : selection?.kind === "reuse" ? (
-          <ReusePanel
-            currentTrackId={trackId}
-            blockedReason={pretestFull ? "Il pretest ha un solo esercizio" : null}
-            onAdd={handleReuse}
-            onError={setError}
-          />
         ) : selection?.kind === "archive" ? (
           <ArchivePanel
             key={archiveKey}
             currentId={trackId}
+            currentTitle={openTrackTitle(exam)}
+            initialTab={selection.tab ?? "tracks"}
             onOpen={handleOpenTrack}
+            onShowCurrent={showTrack}
+            reuseBlocked={pretestFull ? "Il pretest ha un solo esercizio" : null}
+            onReuse={handleReuse}
             onDuplicate={handleDuplicateTrack}
             onTrash={handleTrashTrack}
             onImportFiles={handleImportIntoArchive}

@@ -435,9 +435,11 @@ input[type="checkbox"] {
   width: 48px;
 }
 
+/* Voci della stessa larghezza su una riga, quante che siano */
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   padding: 2px;
   background: var(--ground);
   border: 1px solid var(--rule-strong);
@@ -781,7 +783,6 @@ input[type="checkbox"] {
 .exercise,
 .common-view,
 .archive-view,
-.reuse-view,
 .settings-view,
 .start {
   max-width: 1040px;
@@ -1219,7 +1220,7 @@ body.editor-expanded .main {
 
 .test-table th,
 .test-table td {
-  padding: 6px 8px;
+  padding: 4px 8px;
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--rule);
@@ -1238,7 +1239,7 @@ body.editor-expanded .main {
 
 .test-table td.number {
   width: 36px;
-  padding-top: 10px;
+  padding-top: 8px;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--muted);
@@ -1249,13 +1250,16 @@ body.editor-expanded .main {
   text-align: center;
 }
 
+/* L'input occupa solo le righe che ha: due righe (seed e dimensione) restano basse */
 .test-table textarea.stdin {
+  display: block;
   width: 104px;
-  padding: 4px 6px;
+  padding: 2px 6px;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   line-height: 1.4;
-  resize: vertical;
+  field-sizing: content;
+  resize: none;
 }
 
 .test-table textarea.stdin.incomplete {
@@ -1272,8 +1276,9 @@ body.editor-expanded .main {
 
 .test-table select {
   width: 100%;
-  min-height: 30px;
-  font-size: var(--text-sm);
+  min-height: 26px;
+  padding: 1px 4px;
+  font-size: var(--text-xs);
 }
 
 .test-table th.col-number {
@@ -1315,7 +1320,7 @@ body.editor-expanded .main {
 }
 
 .test-table td.expected {
-  padding-top: 9px;
+  padding-top: 7px;
 }
 
 .expected-cell {
@@ -1442,7 +1447,7 @@ body.editor-expanded .main {
 }
 
 .archive-tabs {
-  min-width: 260px;
+  min-width: 360px;
 }
 
 .archive-filters {
@@ -1474,6 +1479,55 @@ body.editor-expanded .main {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
+}
+
+/* Riga di una traccia: tutta la parte con il nome apre la traccia, il menu sta a destra */
+.archive-row:has(> .archive-open) {
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 4px 10px 4px 4px;
+}
+
+.archive-open {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  justify-content: stretch;
+  justify-items: start;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px;
+  font-weight: 400;
+  text-align: left;
+  border-radius: 4px;
+}
+
+.archive-open:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.archive-row.current .archive-open:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.5);
+}
+
+.archive-group + .archive-group {
+  margin-top: 20px;
+}
+
+.archive-group-title {
+  margin: 0 0 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.archive-empty-toggle {
+  margin-top: 12px;
+  color: var(--ink-2);
+}
+
+.archive-exercises .view-lede {
+  margin: 0 0 12px;
 }
 
 .archive-row + .archive-row {

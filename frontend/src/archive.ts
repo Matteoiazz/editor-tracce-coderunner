@@ -151,6 +151,31 @@ export function trackYears(tracks: TrackSummary[]): number[] {
   return [...years].sort((a, b) => b - a);
 }
 
+/** Schede della vista Archivio. */
+export type ArchiveTab = "tracks" | "exercises" | "trash";
+
+/** Tracce raggruppate per anno dell'esame, dal più recente; quelle senza data in fondo.
+ *  Dentro ogni anno resta l'ordine dell'elenco (dalla modificata più di recente). */
+export function tracksByYear(tracks: TrackSummary[]): { label: string; tracks: TrackSummary[] }[] {
+  const groups = trackYears(tracks).map((year) => ({
+    label: String(year),
+    tracks: tracks.filter((t) => t.day?.startsWith(`${year}-`)),
+  }));
+  const undated = tracks.filter((t) => !t.day);
+  return undated.length > 0 ? [...groups, { label: "Senza data", tracks: undated }] : groups;
+}
+
+/** Esercizi trovati raggruppati per traccia, nell'ordine dei risultati. */
+export function matchesByTrack(matches: ExerciseMatch[]): ExerciseMatch[][] {
+  const groups = new Map<string, ExerciseMatch[]>();
+  for (const match of matches) {
+    const group = groups.get(match.track_id);
+    if (group) group.push(match);
+    else groups.set(match.track_id, [match]);
+  }
+  return [...groups.values()];
+}
+
 /** Esercizio trovato nell'archivio (tesi.domain.track.ExerciseMatch). */
 export interface ExerciseMatch {
   track_id: string;

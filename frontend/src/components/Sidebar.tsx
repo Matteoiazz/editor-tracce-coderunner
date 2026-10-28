@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { openTrackTitle } from "../archive";
+import { type ArchiveTab, openTrackTitle } from "../archive";
 import { isExamComplete, parseExerciseNumber } from "../exam";
 import type { Blocker } from "../export";
 import type { ExamInfo, ExamKind } from "../naming";
@@ -23,8 +23,7 @@ import { StatusDots } from "./StatusDots";
 
 export type Selection =
   | { kind: "common" }
-  | { kind: "archive" }
-  | { kind: "reuse" }
+  | { kind: "archive"; tab?: ArchiveTab }
   | { kind: "settings" }
   | { kind: "exercise"; id: string }
   | null;

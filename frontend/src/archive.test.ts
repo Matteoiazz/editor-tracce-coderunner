@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type ArchivedExercise,
+  type ExerciseMatch,
   formatDay,
   fromArchive,
   reuseExercise,
@@ -11,6 +12,8 @@ import {
   openTrackTitle,
   trackLabel,
   trackYears,
+  tracksByYear,
+  matchesByTrack,
   type TrackSummary,
 } from "./archive";
 import { createQuestion } from "./exam";
@@ -276,5 +279,25 @@ describe("nome della traccia aperta", () => {
     expect(openTrackTitle({ kind: "Pretest", date: "", track: null })).toBe(
       "Pretest · senza data · traccia senza numero",
     );
+  });
+});
+
+describe("raggruppamenti dell'archivio", () => {
+  const track = (id: string, day: string | null) =>
+    ({ id, kind: "Esame", day, number: 1, exercise_count: 1, updated_at: "", exported_at: null, deleted_at: null }) as TrackSummary;
+
+  it("tracce per anno, quelle senza data in fondo", () => {
+    const groups = tracksByYear([track("a", "2026-07-03"), track("b", null), track("c", "2027-02-14"), track("d", "2026-01-10")]);
+    expect(groups.map((g) => [g.label, g.tracks.map((t) => t.id)])).toEqual([
+      ["2027", ["c"]],
+      ["2026", ["a", "d"]],
+      ["Senza data", ["b"]],
+    ]);
+  });
+
+  it("esercizi per traccia, nell'ordine dei risultati", () => {
+    const match = (track_id: string, position: number) => ({ track_id, position }) as ExerciseMatch;
+    const groups = matchesByTrack([match("t1", 0), match("t2", 0), match("t1", 1)]);
+    expect(groups.map((g) => g.map((m) => `${m.track_id}/${m.position}`))).toEqual([["t1/0", "t1/1"], ["t2/0"]]);
   });
 });
