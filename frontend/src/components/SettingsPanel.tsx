@@ -3,7 +3,15 @@ import { formatMoment } from "../archive";
 import { contextText, filterModels, ipcErrorText, isModelId, modelCheckText, priceText } from "../settings";
 import { updateStatusText } from "../updates";
 import { ApiKeySection } from "./ApiKeySection";
-import { IconCheck, IconRestore } from "./icons";
+import { IconCaret, IconCheck, IconRestore } from "./icons";
+
+// Parti della pagina, raggiungibili dall'indice in alto (identificativi dei titoli)
+const PARTS: [string, string][] = [
+  ["impostazioni-chiave", "Chiave"],
+  ["impostazioni-modello", "Modello"],
+  ["impostazioni-richieste", "Richieste all'AI"],
+  ["impostazioni-aggiornamenti", "Aggiornamenti"],
+];
 
 interface Props {
   onError: (message: string) => void;
@@ -33,6 +41,8 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
   );
   const [checkingModel, setCheckingModel] = useState(false);
   const scrolledToCurrent = useRef(false);
+  // L'elenco dei modelli è lungo: si apre solo per cambiare modello
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     window.desktop.settings
@@ -44,12 +54,16 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
 
   // All'apertura l'elenco mostra il modello scelto, a metà altezza
   useEffect(() => {
+    if (!pickerOpen) {
+      scrolledToCurrent.current = false;
+      return;
+    }
     const box = listRef.current;
     if (scrolledToCurrent.current || !box || !view || !list?.models.length) return;
     scrolledToCurrent.current = true;
     const row = box.querySelector<HTMLElement>(".model-option.selected");
     if (row) box.scrollTop = row.offsetTop - (box.clientHeight - row.offsetHeight) / 2;
-  }, [view, list]);
+  }, [view, list, pickerOpen]);
 
   async function loadModels(refresh: boolean) {
     setLoadingList(true);
@@ -160,6 +174,18 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
       <header className="view-head">
         <h1>Impostazioni</h1>
         <p className="view-lede">Valgono per tutta l'applicazione e si salvano appena le cambi.</p>
+        <nav className="settings-index" aria-label="Parti delle impostazioni">
+          {PARTS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className="ghost small"
+              onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {view.damagedCopy && (
@@ -169,15 +195,15 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
         </p>
       )}
 
-      <section className="settings-section" aria-labelledby="impostazioni-ai">
-        <h2 id="impostazioni-ai">Intelligenza artificiale</h2>
-        <p className="settings-lede">
-          Chiave e modello usati dalle funzioni di intelligenza artificiale, tramite OpenRouter.
-        </p>
-
+      <section className="settings-section" aria-labelledby="impostazioni-chiave">
+        <h2 id="impostazioni-chiave">Chiave di OpenRouter</h2>
+        <p className="settings-lede">Serve a tutte le funzioni di intelligenza artificiale dell'app.</p>
         <ApiKeySection />
+      </section>
 
-        <h3 className="settings-label">Modello</h3>
+      <section className="settings-section" aria-labelledby="impostazioni-modello">
+        <h2 id="impostazioni-modello">Modello</h2>
+        <p className="settings-lede">Il modello di OpenRouter che risponde alle richieste dell'app.</p>
         <div className="model-current">
           <div className="model-current-info" aria-live="polite">
             {/* Un modello che non è nell'elenco si conosce solo per identificativo */}
@@ -210,6 +236,16 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
           <button type="button" className="secondary" disabled={checkingModel} onClick={checkModel}>
             {checkingModel ? "Prova in corso…" : "Prova il modello"}
           </button>
+          <button
+            type="button"
+            className="ghost"
+            aria-expanded={pickerOpen}
+            aria-controls="scelta-modello"
+            onClick={() => setPickerOpen(!pickerOpen)}
+          >
+            {pickerOpen ? "Chiudi l'elenco" : "Cambia modello"}{" "}
+            <IconCaret className={pickerOpen ? "caret open" : "caret"} />
+          </button>
           {checkingModel && (
             <span className="small-text muted">I modelli gratuiti possono impiegare fino a un minuto.</span>
           )}
@@ -226,6 +262,8 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
             </p>
           ))}
 
+        {pickerOpen && (
+        <div className="model-picker" id="scelta-modello">
         {models.length > 0 && (
           <div className="model-toolbar">
             <input
@@ -324,8 +362,12 @@ export function SettingsPanel({ onError, update, installingUpdate, onInstallUpda
             </p>
           )}
         </form>
+        </div>
+        )}
+      </section>
 
-        <h3 className="settings-label">Richiesta all'AI</h3>
+      <section className="settings-section" aria-labelledby="impostazioni-richieste">
+        <h2 id="impostazioni-richieste">Richieste all'AI</h2>
         <label className="checkbox">
           <input
             type="checkbox"

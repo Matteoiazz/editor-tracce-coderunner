@@ -1,7 +1,8 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { keyDetails, keyProblem, newPasswordProblem, protectionText } from "../apiKey";
 import { ipcErrorText } from "../settings";
-import { IconCheck } from "./icons";
+import { IconCaret, IconCheck } from "./icons";
+import { Menu } from "./Menu";
 
 /** Operazioni che, con la chiave protetta, chiedono la master password attuale. */
 type PasswordAction = "reveal" | "unlock" | "test" | "unprotect";
@@ -138,7 +139,6 @@ export function ApiKeySection() {
   if (!status) {
     return (
       <div className="key-section">
-        <h3 className="settings-label">Chiave API</h3>
         {error ? <p className="field-error">{error}</p> : <p className="muted">Caricamento…</p>}
       </div>
     );
@@ -166,7 +166,6 @@ export function ApiKeySection() {
   if (!status.saved || panel?.kind === "save") {
     return (
       <div className="key-section">
-        <h3 className="settings-label">Chiave API</h3>
         <p className="settings-lede small-text">
           La chiave del tuo account OpenRouter: si crea su openrouter.ai, alla voce Keys.
         </p>
@@ -194,7 +193,6 @@ export function ApiKeySection() {
   if (status.problem) {
     return (
       <div className="key-section">
-        <h3 className="settings-label">Chiave API</h3>
         <p className="inline-notice">{status.problem}.</p>
         <div className="key-actions">
           <button type="button" className="ghost small danger" onClick={remove} disabled={busy}>
@@ -208,7 +206,6 @@ export function ApiKeySection() {
 
   return (
     <div className="key-section">
-      <h3 className="settings-label">Chiave API</h3>
       <div className="key-current">
         <div className="key-current-info" aria-live="polite">
           <p className="mono key-value">{revealed ?? status.mask}</p>
@@ -272,38 +269,50 @@ export function ApiKeySection() {
               Sblocca
             </button>
           ))}
-      </div>
-      <div className="key-actions">
-        {status.protected ? (
-          <>
-            <button type="button" className="ghost small" disabled={busy} onClick={() => open({ kind: "change" })}>
-              Cambia master password
-            </button>
-            <button
-              type="button"
-              className="ghost small"
-              disabled={busy}
-              onClick={() => open({ kind: "password", action: "unprotect" })}
-            >
-              Togli la protezione
-            </button>
-          </>
-        ) : (
-          <button type="button" className="ghost small" disabled={busy} onClick={() => open({ kind: "protect" })}>
-            Proteggi con password
-          </button>
-        )}
-        <button
-          type="button"
-          className="ghost small"
+        {/* Le azioni meno frequenti in un menu: protezione, sostituzione, rimozione */}
+        <Menu
+          label={
+            <>
+              Altro <IconCaret />
+            </>
+          }
+          className="ghost"
+          ariaLabel="Altre azioni sulla chiave"
           disabled={busy}
-          onClick={() => open({ kind: "save", replacing: true })}
-        >
-          Sostituisci
-        </button>
-        <button type="button" className="ghost small danger" disabled={busy} onClick={remove}>
-          Rimuovi
-        </button>
+          groups={[
+            {
+              items: status.protected
+                ? [
+                    {
+                      label: "Cambia master password",
+                      onSelect: () => open({ kind: "change" }),
+                    },
+                    {
+                      label: "Togli la protezione",
+                      description: "La chiave torna nel portachiavi del sistema",
+                      onSelect: () => open({ kind: "password", action: "unprotect" }),
+                    },
+                  ]
+                : [
+                    {
+                      label: "Proteggi con password",
+                      description: "Servirà una volta per sessione per usarla",
+                      onSelect: () => open({ kind: "protect" }),
+                    },
+                  ],
+            },
+            {
+              items: [
+                {
+                  label: "Sostituisci la chiave",
+                  description: "Incolla una chiave nuova al posto di questa",
+                  onSelect: () => open({ kind: "save", replacing: true }),
+                },
+                { label: "Rimuovi la chiave", danger: true, onSelect: remove },
+              ],
+            },
+          ]}
+        />
       </div>
 
       {panel?.kind === "password" && (
