@@ -7,10 +7,11 @@ import {
   IconCheck,
   IconExport,
   IconImport,
+  IconMore,
   IconNewExam,
   IconPlus,
-  IconSettings,
 } from "./icons";
+import { Menu } from "./Menu";
 import { StatusDots } from "./StatusDots";
 
 export type Selection =
@@ -50,8 +51,6 @@ interface Props {
   onImport: () => void;
   canClearExam: boolean;
   onNewExam: () => void;
-  onArchive: () => void;
-  onSettings: () => void;
   onReuse: () => void;
   summary: ExamSummary;
   blockers: Blocker[];
@@ -72,39 +71,33 @@ export function Sidebar(props: Props) {
       <div className="sidebar-scroll">
       <section className="exam-panel">
         <div className="exam-panel-head">
-          <h1>Traccia</h1>
-          <div className="exam-actions">
-            <button type="button" className="ghost small" onClick={props.onImport}>
-              <IconImport /> Importa XML
-            </button>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={props.onNewExam}
-              disabled={!props.canClearExam}
-              title="Inizia una nuova traccia; quella attuale resta salvata nell'archivio"
-            >
-              <IconNewExam /> Nuovo esame
-            </button>
-            <button
-              type="button"
-              className={`ghost small${selection?.kind === "archive" ? " active" : ""}`}
-              onClick={props.onArchive}
-              aria-pressed={selection?.kind === "archive"}
-              title="Tracce salvate e cestino"
-            >
-              <IconArchive /> Archivio
-            </button>
-            <button
-              type="button"
-              className={`ghost small${selection?.kind === "settings" ? " active" : ""}`}
-              onClick={props.onSettings}
-              aria-pressed={selection?.kind === "settings"}
-              title="Modello dell'intelligenza artificiale e aggiornamenti"
-            >
-              <IconSettings /> Impostazioni
-            </button>
-          </div>
+          <h2>Dati dell'esame</h2>
+          <Menu
+            label={<IconMore />}
+            className="icon"
+            ariaLabel="Azioni della traccia"
+            title="Azioni della traccia"
+            align="end"
+            groups={[
+              {
+                items: [
+                  {
+                    label: "Nuova traccia",
+                    description: "Quella aperta resta salvata nell'archivio",
+                    icon: <IconNewExam />,
+                    onSelect: props.onNewExam,
+                    disabled: !props.canClearExam,
+                  },
+                  {
+                    label: "Importa esercizi da file XML…",
+                    description: "Esportati da Moodle, nello stesso formato",
+                    icon: <IconImport />,
+                    onSelect: props.onImport,
+                  },
+                ],
+              },
+            ]}
+          />
         </div>
         <label className="field">
           <span>Data</span>

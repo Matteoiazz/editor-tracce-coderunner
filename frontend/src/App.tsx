@@ -19,6 +19,7 @@ import {
   type ExerciseMatch,
   fromArchive,
   type OpenTrack,
+  openTrackTitle,
   reuseExercise,
   sameNameTracks,
   toArchive,
@@ -34,6 +35,7 @@ import { CommonTestsPanel } from "./components/CommonTestsPanel";
 import { IconClose } from "./components/icons";
 import { QuestionEditor } from "./components/QuestionEditor";
 import { type Selection, Sidebar } from "./components/Sidebar";
+import { type Area, TopBar } from "./components/TopBar";
 import {
   adaptItemsToKind,
   adoptImported,
@@ -266,8 +268,12 @@ export function App() {
 
   // ------------------------------------------------ selezione ed esiti
 
+  // Ultima vista della traccia (esercizio o test comuni): la barra in alto ci riporta lì
+  const lastTrackView = useRef<Selection>(null);
+
   function select(next: Selection) {
     setSelection(next);
+    if (next?.kind !== "archive" && next?.kind !== "settings") lastTrackView.current = next;
     // Un messaggio informativo riguarda la vista precedente: al cambio di vista sparisce.
     // Non sparisce invece a tempo, perché la pagina salirebbe sotto il mouse del docente.
     // Gli errori restano finché non vengono chiusi.
@@ -286,6 +292,25 @@ export function App() {
       [id]: makeRecord(solution, rows, outcomes, id !== selectedRef.current),
     }));
     setRevealKeys((current) => ({ ...current, [id]: String(Date.now()) }));
+  }
+
+  /** Torna alla traccia, sulla vista lasciata; se l'esercizio non c'è più, sul primo. */
+  function showTrack() {
+    clearMessages();
+    const last = lastTrackView.current;
+    const valid =
+      last?.kind === "exercise" ? items.some((it) => it.id === last.id) : last !== null;
+    const first = sortedByNumber(items)[0];
+    select(valid ? last : first ? { kind: "exercise", id: first.id } : null);
+  }
+
+  function handleArea(area: Area) {
+    if (area === "track") showTrack();
+    else if (area === "archive") handleShowArchive();
+    else {
+      clearMessages();
+      select({ kind: "settings" });
+    }
   }
 
   // ------------------------------------------------ azioni
@@ -642,9 +667,15 @@ export function App() {
 
   const selectedItem = items.find((it) => it.id === selectedId);
   const pendingUpdate = updateBanner(update, postponedUpdate);
+  const area: Area =
+    selection?.kind === "archive" ? "archive" : selection?.kind === "settings" ? "settings" : "track";
 
   return (
     <div className="app">
+      <TopBar area={area} trackTitle={openTrackTitle(exam)} onSelect={handleArea} />
+      <div className={area === "track" ? "workspace with-sidebar" : "workspace"}>
+      {/* La colonna della traccia compare solo quando si lavora sulla traccia */}
+      {area === "track" && (
       <Sidebar
         exam={exam}
         onExamChange={handleExamChange}
@@ -668,11 +699,6 @@ export function App() {
         onImport={handleImport}
         canClearExam={!isEmptySession({ exam, common, items })}
         onNewExam={handleNewExam}
-        onArchive={handleShowArchive}
-        onSettings={() => {
-          clearMessages();
-          select({ kind: "settings" });
-        }}
         onReuse={() => {
           clearMessages();
           select({ kind: "reuse" });
@@ -682,6 +708,7 @@ export function App() {
         exporting={exporting}
         onExport={handleExport}
       />
+      )}
 
       {/* Il messaggio sta sopra l'area che scorre: non copre l'intestazione dell'esercizio */}
       <div className="main-column">
@@ -821,6 +848,7 @@ export function App() {
           </section>
         )}
       </main>
+      </div>
       </div>
     </div>
   );

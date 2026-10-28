@@ -8,6 +8,7 @@ import {
   sameNameTracks,
   type OpenTrack,
   toArchive,
+  openTrackTitle,
   trackLabel,
   trackYears,
   type TrackSummary,
@@ -260,5 +261,20 @@ describe("reuseExercise da una traccia di altro tipo", () => {
 
     expect(item.question.default_grade).toBe(5);
     expect(item.question.tags).toEqual(["Esame", "liste"]);
+  });
+});
+
+describe("nome della traccia aperta", () => {
+  it("nuova finché non ha tipo né data", () => {
+    expect(openTrackTitle({ kind: null, date: "", track: 1 })).toBe("nuova");
+  });
+
+  it("altrimenti come nell'archivio", () => {
+    expect(openTrackTitle({ kind: "Esame", date: "2027-02-14", track: 2 })).toBe(
+      trackLabel({ kind: "Esame", day: "2027-02-14", number: 2 }),
+    );
+    expect(openTrackTitle({ kind: "Pretest", date: "", track: null })).toBe(
+      "Pretest · senza data · traccia senza numero",
+    );
   });
 });

@@ -201,3 +201,33 @@ export const IconReview = (p: IconProps) => (
     <path d="M10.25 10.25l3.25 3.25" />
   </Icon>
 );
+
+/** La traccia d'esame: un foglio con le righe del testo. */
+export const IconDocument = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 2.5h5.5L12 5v8.5H4z" />
+    <path d="M6 8h4M6 10.5h4" />
+  </Icon>
+);
+
+/** Altre azioni: tre punti in fila. */
+export const IconMore = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2.6} />
+  </Icon>
+);
+
+/** Funzioni dell'intelligenza artificiale: una stella a quattro punte e una più piccola. */
+export const IconAi = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 2.5l1.2 3.3 3.3 1.2-3.3 1.2L7 11.5 5.8 8.2 2.5 7l3.3-1.2z" />
+    <path d="M12 10.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" />
+  </Icon>
+);
+
+/** Freccia verso il basso dei pulsanti che aprono un menu. */
+export const IconCaret = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 6.5L8 10l3.5-3.5" />
+  </Icon>
+);

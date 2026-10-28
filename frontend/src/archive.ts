@@ -115,6 +115,12 @@ export function trackLabel(track: Pick<TrackSummary, "kind" | "day" | "number">)
   ].join(" · ");
 }
 
+/** Nome della traccia aperta nella barra in alto: "nuova" finché non ha né tipo né data. */
+export function openTrackTitle(exam: ExamInfo): string {
+  if (!exam.kind && !exam.date) return "nuova";
+  return trackLabel({ kind: exam.kind, day: exam.date || null, number: exam.track });
+}
+
 /** Altre tracce dell'archivio con tipo, data e numero della traccia aperta: su Moodle i loro
  *  esercizi avrebbero gli stessi nomi (succede con una traccia duplicata e non modificata). */
 export function sameNameTracks(
