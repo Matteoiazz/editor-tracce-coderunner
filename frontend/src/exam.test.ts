@@ -9,6 +9,7 @@ import {
   createQuestion,
   duplicateQuestion,
   duplicateNumbers,
+  exerciseTopic,
   ignoredMessage,
   type EditableQuestion,
   isValidGrade,
@@ -439,5 +440,27 @@ describe("copyExerciseContent", () => {
     copied.commonExpected.x = "y";
     expect(source.question.tags).toEqual([]);
     expect(source.commonExpected).toEqual({});
+  });
+});
+
+describe("di cosa parla l'esercizio", () => {
+  const item = (solution: string, text_html = "") => {
+    const created = createQuestion(1, esame);
+    return { ...created, question: { ...created.question, solution, text_html } };
+  };
+
+  it("il nome della funzione della soluzione", () => {
+    expect(exerciseTopic(item("import math\n\ndef somma_pari(lst):\n    return 0\n"))).toBe("somma_pari");
+  });
+
+  it("con lo scheletro iniziale, l'inizio del testo", () => {
+    expect(exerciseTopic(item(SOLUTION_SKELETON, "<p>Contare gli zeri della lista</p>"))).toBe(
+      "Contare gli zeri della lista",
+    );
+    expect(exerciseTopic(item(SOLUTION_SKELETON, `<p>${"parola ".repeat(20)}</p>`))).toMatch(/…$/);
+  });
+
+  it("vuoto per un esercizio appena creato", () => {
+    expect(exerciseTopic(item(SOLUTION_SKELETON))).toBe("");
   });
 });

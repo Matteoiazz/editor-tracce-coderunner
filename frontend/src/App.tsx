@@ -52,6 +52,7 @@ import {
   type CopySource,
   copySources,
   exerciseLabel,
+  exerciseTopic,
   questionName,
   shortLabel,
   unsupportedReason,
@@ -684,7 +685,7 @@ export function App() {
           id: it.id,
           name: questionName(it, exam),
           label: shortLabel(it, exam),
-          kind: exam.kind,
+          topic: exerciseTopic(it),
           grade: it.question.default_grade,
           status: statuses.get(it.id)!,
           duplicate: it.number !== null && duplicates.has(it.number),
@@ -697,8 +698,19 @@ export function App() {
         createHint={pretestFull ? "Il pretest ha un solo esercizio" : null}
         onNew={handleNew}
         onImport={handleImport}
-        canClearExam={!isEmptySession({ exam, common, items })}
+        hasContent={!isEmptySession({ exam, common, items })}
         onNewExam={handleNewExam}
+        onDuplicateTrack={() => handleDuplicateTrack(trackId)}
+        onTrashTrack={() => {
+          if (
+            window.confirm(
+              `Spostare nel cestino la traccia ${openTrackTitle(exam)}? Si può ripristinare dalla ` +
+                "scheda Cestino dell'archivio.",
+            )
+          ) {
+            handleTrashTrack(trackId);
+          }
+        }}
         onReuse={() => {
           clearMessages();
           select({ kind: "reuse" });
@@ -830,20 +842,21 @@ export function App() {
             <h1>Prepara un esame per Moodle</h1>
             <ol className="start-steps">
               <li className={isExamComplete(exam) ? "done" : ""}>
-                <strong>Indica data, tipo e traccia</strong> nella colonna a sinistra.
+                <strong>Indica tipo, data e numero della traccia</strong> nella colonna a sinistra.
               </li>
               <li className={common.length > 0 ? "done" : ""}>
                 <strong>Definisci i test comuni</strong>, per esempio i 9 test standard.
               </li>
               <li>
-                <strong>Crea gli esercizi</strong>: traccia, soluzione, codice per gli studenti, test.
+                <strong>Crea gli esercizi</strong>: testo, soluzione, codice per gli studenti, test.
               </li>
               <li>
                 <strong>Esporta l'XML</strong> quando il riepilogo in basso a sinistra è tutto verde.
               </li>
             </ol>
             <p className="start-alt">
-              Hai già un esame su Moodle? Importa il suo XML per riusare gli esercizi.
+              Hai già un esame su Moodle? Con «Aggiungi esercizio» → «Da file XML…» ne riusi gli
+              esercizi.
             </p>
           </section>
         )}

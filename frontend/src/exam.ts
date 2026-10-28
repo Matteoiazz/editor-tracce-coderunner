@@ -322,6 +322,19 @@ export function exerciseLabel(item: EditableQuestion): string {
   return item.number !== null ? `Esercizio ${item.number}` : "Esercizio senza numero";
 }
 
+const TOPIC_LENGTH = 40;
+
+/** Di cosa parla l'esercizio, per riconoscerlo nella colonna: il nome della funzione della
+ *  soluzione, altrimenti l'inizio del testo. Vuoto per un esercizio appena creato. */
+export function exerciseTopic(item: EditableQuestion): string {
+  const { solution, text_html } = item.question;
+  const skeleton = solution.trim() === SOLUTION_SKELETON.trim();
+  const name = skeleton ? undefined : /^def\s+([A-Za-z_]\w*)\s*\(/m.exec(solution)?.[1];
+  if (name) return name;
+  const text = plainText(text_html);
+  return text.length > TOPIC_LENGTH ? `${text.slice(0, TOPIC_LENGTH).trimEnd()}…` : text;
+}
+
 /** Etichetta di un esercizio nella colonna: data, tipo e traccia sono già indicati sopra. */
 export function shortLabel(item: EditableQuestion, exam: ExamInfo): string {
   return exam.kind === "Pretest" ? "Esercizio del pretest" : exerciseLabel(item);
