@@ -18,7 +18,7 @@ const proposal = { title: "Massimo", text: "t", text_html: "<p>t</p>", solution:
 describe("esercizi simili", () => {
   it("servono testo e soluzione scritta", () => {
     expect(similarProblem(question)).toBeNull();
-    expect(similarProblem({ ...question, text_html: "" })).toContain("Scrivi prima la traccia");
+    expect(similarProblem({ ...question, text_html: "" })).toContain("Scrivi prima il testo");
     expect(similarProblem({ ...question, solution: SOLUTION_SKELETON })).toContain("Scrivi prima la soluzione");
     expect(similarProblem({ ...question, solution: " " })).toContain("Scrivi prima la soluzione");
   });

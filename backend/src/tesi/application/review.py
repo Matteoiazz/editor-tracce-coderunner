@@ -109,8 +109,8 @@ def review_request(question: Question, notes: str = "") -> list[Message]:
         raise NothingToReview("Scrivi prima la soluzione")
     if not plain_text(question.text_html):
         raise NothingToReview(
-            "Scrivi prima la traccia: la revisione confronta la soluzione con quello che chiede "
-            "il testo"
+            "Scrivi prima il testo dell'esercizio: la revisione confronta la soluzione con quello "
+            "che chiede"
         )
     return with_notes(review_messages(question), notes)
 

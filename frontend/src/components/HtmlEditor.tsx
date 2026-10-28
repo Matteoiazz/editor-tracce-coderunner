@@ -22,7 +22,7 @@ interface Props {
   onChange: (html: string) => void;
 }
 
-/** Editor visuale del testo della traccia; produce HTML.
+/** Editor visuale del testo dell'esercizio; produce HTML.
  *  `value` è usato come contenuto iniziale: finché il testo non viene modificato,
  *  l'HTML originale resta invariato. */
 export function HtmlEditor({ value, onChange }: Props) {

@@ -90,7 +90,7 @@ describe("exerciseStatus", () => {
 
     expect(status.sections.text.state).toBe("todo");
     expect(status.sections.studentCode.state).toBe("error");
-    expect(status.sections.tests).toEqual({ state: "error", note: "1 test falliti" });
+    expect(status.sections.tests).toEqual({ state: "error", note: "1 test fallito" });
     expect(status.ready).toBe(false);
   });
 

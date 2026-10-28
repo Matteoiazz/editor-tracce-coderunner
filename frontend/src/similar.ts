@@ -24,7 +24,7 @@ export interface SimilarExercises {
 
 /** Perché la richiesta non può partire, oppure null. */
 export function similarProblem(question: Question): string | null {
-  if (!hasText(question.text_html)) return "Scrivi prima la traccia: gli esercizi simili si costruiscono su questa.";
+  if (!hasText(question.text_html)) return "Scrivi prima il testo dell'esercizio: gli esercizi simili si costruiscono su questo.";
   if (!question.solution.trim() || isSkeletonSolution(question.solution)) {
     return "Scrivi prima la soluzione: serve per proporre esercizi con la stessa struttura.";
   }

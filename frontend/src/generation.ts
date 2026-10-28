@@ -29,7 +29,7 @@ export interface GeneratedSolution {
 export function generationProblem(question: Question): string | null {
   return hasText(question.text_html)
     ? null
-    : "Scrivi prima la traccia: la soluzione si genera da quello che chiede il testo.";
+    : "Scrivi prima il testo dell'esercizio: la soluzione si genera da quello che chiede.";
 }
 
 /** Vero se generare sostituirebbe una soluzione scritta dal docente (va chiesta conferma). */

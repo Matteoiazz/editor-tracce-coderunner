@@ -109,9 +109,9 @@ describe("revisioni per esercizio", () => {
 });
 
 describe("controlli prima della revisione", () => {
-  it("serve il testo della traccia", () => {
-    expect(reviewProblem({ ...question, text_html: "" })).toContain("Scrivi prima la traccia");
-    expect(reviewProblem({ ...question, text_html: "<p>&nbsp;</p>" })).toContain("Scrivi prima la traccia");
+  it("serve il testo dell'esercizio", () => {
+    expect(reviewProblem({ ...question, text_html: "" })).toContain("Scrivi prima il testo");
+    expect(reviewProblem({ ...question, text_html: "<p>&nbsp;</p>" })).toContain("Scrivi prima il testo");
   });
 
   it("serve una soluzione scritta dal docente", () => {

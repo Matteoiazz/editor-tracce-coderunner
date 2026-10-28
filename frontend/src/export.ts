@@ -117,7 +117,7 @@ export function exportProblemList(
     if (!isValidGrade(question.default_grade)) {
       issues.push(["i punti devono essere maggiori di 0", "punti non validi"]);
     }
-    if (!hasText(question.text_html)) issues.push(["il testo della traccia è vuoto", "testo vuoto"]);
+    if (!hasText(question.text_html)) issues.push(["il testo è vuoto", "testo vuoto"]);
     if (!question.solution.trim()) issues.push(["la soluzione è vuota", "soluzione vuota"]);
     else if (isSkeletonSolution(question.solution)) {
       issues.push([

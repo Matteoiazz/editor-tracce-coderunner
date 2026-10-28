@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { type CopySource, isValidGrade, parseExerciseNumber, parseTags } from "../exam";
+import { isValidGrade, parseExerciseNumber, parseTags } from "../exam";
 import type { ExamKind } from "../naming";
-import { CopyFromMenu } from "./CopyFromMenu";
-import { IconCopy, IconGenerate, IconTrash } from "./icons";
 
 interface Props {
+  /** Nome completo della domanda su Moodle. */
   name: string;
   number: number | null;
   grade: number;
@@ -14,21 +13,13 @@ interface Props {
   onNumberChange: (number: number | null) => void;
   onGradeChange: (grade: number) => void;
   onTagsChange: (tags: string[]) => void;
-  onRemove: () => void;
-  canDuplicate: boolean;
-  onDuplicate: () => void;
-  /** Esercizi simili con l'AI; assente dove non si possono aggiungere esercizi (pretest). */
-  onSimilar?: () => void;
-  similarPending?: boolean;
-  /** Altri esercizi della traccia da cui copiare il contenuto (vuoto nel pretest). */
-  copySources: CopySource[];
-  onCopyFrom: (source: CopySource) => void;
 }
 
-/** Intestazione dell'esercizio: nome, numero, punti, tag e rimozione. */
+/** Dati dell'esercizio sotto l'intestazione fissa: numero, punti, tag e il nome che avrà la
+ *  domanda su Moodle. Scorrono via con la pagina: servono all'inizio, non durante il lavoro. */
 export function QuestionHeader(props: Props) {
   const { name, number, grade, tags, examKind, duplicate } = props;
-  const { onNumberChange, onGradeChange, onTagsChange, onRemove } = props;
+  const { onNumberChange, onGradeChange, onTagsChange } = props;
   // Il testo del campo è tenuto a parte: altrimenti una virgola appena digitata
   // sparirebbe subito, perché un tag vuoto viene scartato.
   const [tagsText, setTagsText] = useState(tags.join(", "));
@@ -42,50 +33,18 @@ export function QuestionHeader(props: Props) {
 
   return (
     <div className="question-header">
-      <div className="title-row">
-        <h1 className="mono">{name}</h1>
-        <div className="title-actions">
-          {props.copySources.length > 0 && (
-            <CopyFromMenu sources={props.copySources} onCopy={props.onCopyFrom} />
-          )}
-          {props.canDuplicate && (
-            <button
-              type="button"
-              className="ghost"
-              onClick={props.onDuplicate}
-              title="Crea un nuovo esercizio con lo stesso testo, codice e test, da modificare"
-            >
-              <IconCopy /> Duplica
-            </button>
-          )}
-          {props.onSimilar && (
-            <button
-              type="button"
-              className="ghost"
-              onClick={props.onSimilar}
-              disabled={props.similarPending}
-              title="Il modello propone esercizi nuovi con la stessa struttura, nello stile dei tuoi"
-            >
-              <IconGenerate /> {props.similarPending ? "Proposte in corso…" : "Simili con l'AI"}
-            </button>
-          )}
-          <button type="button" className="ghost danger" onClick={onRemove}>
-            <IconTrash /> Rimuovi
-          </button>
-        </div>
-      </div>
       <div className="fields">
         {examKind !== "Pretest" && (
-        <label>
-          N°
-          <input
-            type="text"
-            inputMode="numeric"
-            className="number-input"
-            value={number ?? ""}
-            onChange={(e) => onNumberChange(parseExerciseNumber(e.target.value))}
-          />
-        </label>
+          <label>
+            N°
+            <input
+              type="text"
+              inputMode="numeric"
+              className="number-input"
+              value={number ?? ""}
+              onChange={(e) => onNumberChange(parseExerciseNumber(e.target.value))}
+            />
+          </label>
         )}
         {examKind !== "Pretest" && number === null && (
           <span className="error">Indica il numero dell'esercizio</span>
@@ -118,6 +77,9 @@ export function QuestionHeader(props: Props) {
           />
         </label>
       </div>
+      <p className="moodle-name">
+        Nome su Moodle <span className="mono">{name}</span>
+      </p>
     </div>
   );
 }

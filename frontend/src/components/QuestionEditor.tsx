@@ -7,7 +7,7 @@ import {
   previewSimilar,
   type RequestPreview,
 } from "../api";
-import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
+import { type CopySource, type EditableQuestion, exerciseTests, questionName, shortLabel } from "../exam";
 import { isSkeletonSolution } from "../export";
 import {
   clearGeneration,
@@ -55,7 +55,17 @@ import { FixDialog } from "./FixDialog";
 import { GenerateDialog } from "./GenerateDialog";
 import { SimilarDialog } from "./SimilarDialog";
 import { HtmlEditor } from "./HtmlEditor";
-import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
+import {
+  IconAi,
+  IconCaret,
+  IconCopy,
+  IconExpand,
+  IconGenerate,
+  IconMore,
+  IconSettings,
+  IconTrash,
+} from "./icons";
+import { Menu, type MenuItem } from "./Menu";
 import { QuestionHeader } from "./QuestionHeader";
 import { ReviewPanel } from "./ReviewPanel";
 import { SectionStateIcon } from "./SectionState";
@@ -95,8 +105,9 @@ interface AiRequest {
   send: (notes: string) => void;
 }
 
+// "Testo" e non "Traccia": la traccia è l'esame intero, con tutti i suoi esercizi
 const SECTIONS: { key: SectionKey; title: string }[] = [
-  { key: "text", title: "Traccia" },
+  { key: "text", title: "Testo" },
   { key: "solution", title: "Soluzione" },
   { key: "studentCode", title: "Codice per gli studenti" },
   { key: "tests", title: "Test" },
@@ -367,10 +378,31 @@ export function QuestionEditor(props: Props) {
         <SectionStateIcon state={sectionStatus.state} />
         {title}
       </h2>
-      <span className="section-note">{sectionStatus.note}</span>
+      {sectionStatus.state !== "done" && <span className="section-note">{sectionStatus.note}</span>}
       {extra}
     </div>
   );
+
+  // Azioni dell'esercizio nel menu dell'intestazione: le più usate in alto, Rimuovi in fondo
+  const exerciseActions: MenuItem[] = props.canDuplicate
+    ? [
+        {
+          label: "Duplica",
+          description: "Nuovo esercizio con lo stesso testo, codice e test",
+          icon: <IconCopy />,
+          onSelect: props.onDuplicate,
+        },
+        {
+          label: similar?.state === "pending" ? "Proposte in corso…" : "Esercizi simili con l'AI…",
+          description: "Nuovi esercizi con la stessa struttura, nel tuo stile",
+          icon: <IconAi />,
+          onSelect: handleSimilar,
+          disabled: similar?.state === "pending" || checkingKey,
+        },
+      ]
+    : [];
+  const aiBusy =
+    generation?.state === "pending" ? "Generazione…" : review?.state === "pending" ? "Revisione…" : null;
 
   return (
     <article
@@ -378,7 +410,51 @@ export function QuestionEditor(props: Props) {
       aria-label={questionName(item, exam)}
       style={{ "--head-height": `${headHeight}px` } as CSSProperties}
     >
+      {/* Intestazione fissa su una riga: nome breve, sezioni con il loro stato, altre azioni */}
       <header ref={headRef} className="exercise-head">
+        <h1 className="exercise-title mono" title={questionName(item, exam)}>
+          {shortLabel(item, exam)}
+        </h1>
+        <nav className="section-index" aria-label="Sezioni dell'esercizio">
+          {SECTIONS.map(({ key, title }) => (
+            <button
+              key={key}
+              type="button"
+              className="section-link"
+              onClick={() => goTo(key)}
+              title={status.sections[key].note}
+            >
+              <SectionStateIcon state={status.sections[key].state} />
+              {title}
+            </button>
+          ))}
+        </nav>
+        <Menu
+          label={<IconMore />}
+          className="icon exercise-menu"
+          ariaLabel="Azioni dell'esercizio"
+          title="Duplica, esercizi simili, copia da un altro esercizio, rimuovi"
+          align="end"
+          groups={[
+            { items: exerciseActions },
+            {
+              heading: "Copia qui il contenuto di",
+              items: props.copySources.map((source) => ({
+                label: source.label,
+                description: source.preview,
+                onSelect: () => props.onCopyFrom(source),
+              })),
+            },
+            {
+              items: [
+                { label: "Rimuovi l'esercizio", icon: <IconTrash />, danger: true, onSelect: props.onRemove },
+              ],
+            },
+          ]}
+        />
+      </header>
+
+      <div className="exercise-intro">
         <QuestionHeader
           name={questionName(item, exam)}
           number={item.number}
@@ -389,13 +465,6 @@ export function QuestionEditor(props: Props) {
           onNumberChange={(number) => onUpdate((current) => ({ ...current, number }))}
           onGradeChange={(default_grade) => update({ default_grade })}
           onTagsChange={(tags) => update({ tags })}
-          onRemove={props.onRemove}
-          canDuplicate={props.canDuplicate}
-          onDuplicate={props.onDuplicate}
-          copySources={props.copySources}
-          onCopyFrom={props.onCopyFrom}
-          onSimilar={props.canDuplicate ? handleSimilar : undefined}
-          similarPending={similar?.state === "pending" || checkingKey}
         />
         {similarBlocked && <p className="inline-notice exercise-head-notice">{similarBlocked}</p>}
         {similar?.state === "error" && (
@@ -423,24 +492,10 @@ export function QuestionEditor(props: Props) {
             onClose={() => setSimilarShown(false)}
           />
         )}
-        <nav className="section-index" aria-label="Sezioni dell'esercizio">
-          {SECTIONS.map(({ key, title }) => (
-            <button
-              key={key}
-              type="button"
-              className="section-link"
-              onClick={() => goTo(key)}
-              title={status.sections[key].note}
-            >
-              <SectionStateIcon state={status.sections[key].state} />
-              {title}
-            </button>
-          ))}
-        </nav>
-      </header>
+      </div>
 
       <section id="sezione-text" className="exercise-section">
-        {heading("text", "Traccia", status.sections.text)}
+        {heading("text", "Testo", status.sections.text)}
         <HtmlEditor value={question.text_html} onChange={(text_html) => update({ text_html })} />
       </section>
 
@@ -449,24 +504,37 @@ export function QuestionEditor(props: Props) {
           <>
             <span className="section-aside">nascosta agli studenti</span>
             <div className="section-actions">
-              <button
-                type="button"
+              {/* Le funzioni AI sulla soluzione in un solo pulsante: mentre una è in corso,
+                  il pulsante lo dice */}
+              <Menu
+                label={
+                  <>
+                    <IconAi /> {aiBusy ?? "AI"} <IconCaret />
+                  </>
+                }
                 className="secondary"
-                onClick={handleGenerate}
-                disabled={generation?.state === "pending" || checkingKey}
-                title="Il modello scrive la soluzione dal testo; l'app la controlla sui test"
-              >
-                <IconGenerate /> {generation?.state === "pending" ? "Generazione in corso…" : "Genera con l'AI"}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={handleReview}
-                disabled={review?.state === "pending" || checkingKey}
-                title="Il modello cerca errori, casi limite, punti ambigui del testo e test mancanti"
-              >
-                <IconReview /> {review?.state === "pending" ? "Revisione in corso…" : "Rivedi con l'AI"}
-              </button>
+                ariaLabel="Funzioni AI sulla soluzione"
+                align="end"
+                disabled={checkingKey}
+                groups={[
+                  {
+                    items: [
+                      {
+                        label: generation?.state === "pending" ? "Generazione in corso…" : "Genera la soluzione",
+                        description: "Dal testo; l'app la controlla sui test prima di mostrartela",
+                        onSelect: handleGenerate,
+                        disabled: generation?.state === "pending",
+                      },
+                      {
+                        label: review?.state === "pending" ? "Revisione in corso…" : "Rivedi la soluzione",
+                        description: "Possibili errori, casi limite, testo ambiguo, test mancanti",
+                        onSelect: handleReview,
+                        disabled: review?.state === "pending",
+                      },
+                    ],
+                  },
+                ]}
+              />
               {expandButton("solution")}
             </div>
           </>

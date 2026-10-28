@@ -100,7 +100,7 @@ export function suggestionRow(test: SuggestedTest): TestRow {
  *  prima di inviare, così non si consuma una richiesta al modello. */
 export function reviewProblem(question: Question): string | null {
   if (!hasText(question.text_html)) {
-    return "Scrivi prima la traccia: la revisione confronta la soluzione con quello che chiede il testo.";
+    return "Scrivi prima il testo dell'esercizio: la revisione confronta la soluzione con quello che chiede.";
   }
   if (!question.solution.trim()) return "Scrivi prima la soluzione.";
   if (isSkeletonSolution(question.solution)) {

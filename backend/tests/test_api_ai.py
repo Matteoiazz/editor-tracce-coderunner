@@ -132,7 +132,7 @@ def test_review_senza_testo(tmp_path: Path) -> None:
         headers={"X-OpenRouter-Key": KEY},
     )
     assert response.status_code == 422
-    assert response.json()["detail"].startswith("Scrivi prima la traccia")
+    assert response.json()["detail"].startswith("Scrivi prima il testo")
 
 
 def test_anteprima_della_revisione_senza_chiave(tmp_path: Path) -> None:

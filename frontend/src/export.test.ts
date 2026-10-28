@@ -120,7 +120,7 @@ describe("exportProblems", () => {
     );
 
     expect(problems).toEqual([
-      "Esame-2026-10-15-Traccia1-Esercizio1: il testo della traccia è vuoto",
+      "Esame-2026-10-15-Traccia1-Esercizio1: il testo è vuoto",
       "Esame-2026-10-15-Traccia1-Esercizio1: il codice per gli studenti è uguale alla soluzione (premi «Genera dalla soluzione»)",
       "Esame-2026-10-15-Traccia1-Esercizio1: 9 test senza output atteso (premi «Calcola output»)",
     ]);
@@ -212,7 +212,7 @@ describe("exportBlockers", () => {
           "Esercizio 3: testo vuoto, soluzione da scrivere, codice studenti da generare, " +
           "9 output da calcolare",
         title: [
-          "Esame-2026-10-15-Traccia1-Esercizio3: il testo della traccia è vuoto",
+          "Esame-2026-10-15-Traccia1-Esercizio3: il testo è vuoto",
           "Esame-2026-10-15-Traccia1-Esercizio3: la soluzione è ancora quella di partenza: scrivi la soluzione vera",
           "Esame-2026-10-15-Traccia1-Esercizio3: il codice per gli studenti è vuoto (premi «Genera dalla soluzione»)",
           "Esame-2026-10-15-Traccia1-Esercizio3: 9 test senza output atteso (premi «Calcola output»)",
@@ -266,7 +266,7 @@ describe("exportProblemList", () => {
 
     const problems = exportProblemList([first, second], pretest, common);
 
-    const empty = problems.find((p) => p.issue === "il testo della traccia è vuoto");
+    const empty = problems.find((p) => p.issue === "il testo è vuoto");
     expect(empty?.item?.id).toBe(second.id);
     expect(problems[0]).toEqual({ text: "Il pretest ha un solo esercizio: ce ne sono 2, rimuovi quelli in più" });
   });

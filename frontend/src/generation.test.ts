@@ -33,8 +33,8 @@ const result = (tests: GeneratedSolution["tests"]): GeneratedSolution => ({
 });
 
 describe("soluzione generata", () => {
-  it("serve il testo della traccia", () => {
-    expect(generationProblem({ ...question, text_html: "<p></p>" })).toContain("Scrivi prima la traccia");
+  it("serve il testo dell'esercizio", () => {
+    expect(generationProblem({ ...question, text_html: "<p></p>" })).toContain("Scrivi prima il testo");
     expect(generationProblem(question)).toBeNull();
   });
 

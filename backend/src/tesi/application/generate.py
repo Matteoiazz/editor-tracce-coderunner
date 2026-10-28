@@ -92,7 +92,7 @@ def generate_request(question: Question, notes: str = "") -> list[Message]:
     """I messaggi per il modello, con le indicazioni aggiuntive del docente."""
     text = plain_text(question.text_html)
     if not text:
-        raise NothingToReview("Scrivi prima la traccia: la soluzione si genera dal testo")
+        raise NothingToReview("Scrivi prima il testo dell'esercizio: la soluzione si genera da quello")
     parts = [f"TESTO DELL'ESERCIZIO\n{text}"]
     if question.student_code.strip():
         parts.append(

@@ -114,7 +114,7 @@ export function exerciseStatus(
 
   const text = hasText(question.text_html)
     ? section("done", "Testo presente")
-    : section("todo", "Scrivi il testo della traccia");
+    : section("todo", "Scrivi il testo dell'esercizio");
   const solution = !question.solution.trim()
     ? section("todo", "Scrivi la soluzione")
     : isSkeletonSolution(question.solution)
@@ -130,10 +130,10 @@ export function exerciseStatus(
   if (rows.length === 0) testsSection = section("todo", "Aggiungi almeno un test");
   else if (shortInputs > 0) testsSection = section("error", `${shortInputs} test con valori di input mancanti`);
   else if (unsupported) testsSection = section("warning", "Non eseguibile dall'applicazione");
-  else if (failed > 0) testsSection = section("error", `${failed} test falliti`);
+  else if (failed > 0) testsSection = section("error", failed === 1 ? "1 test fallito" : `${failed} test falliti`);
   else if (pending > 0) testsSection = section("warning", `${pending} test da calcolare`);
   else if (unverified > 0) testsSection = section("warning", "Da verificare");
-  else testsSection = section("done", `${passed} test superati`);
+  else testsSection = section("done", passed === 1 ? "1 test superato" : `${passed} test superati`);
 
   const sections = { text, solution, studentCode, tests: testsSection };
   const structural = [text, solution, studentCode].every((s) => s.state === "done");

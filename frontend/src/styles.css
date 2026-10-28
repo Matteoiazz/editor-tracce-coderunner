@@ -37,7 +37,6 @@
 
   --radius: 6px;
   --rail-width: 312px;
-  --head-offset: 168px;
 
   color-scheme: light;
   accent-color: var(--accent);
@@ -700,34 +699,34 @@ input[type="checkbox"] {
   margin: 0 auto;
 }
 
+/* Intestazione fissa su una riga: occupa poco anche sugli schermi bassi dei portatili */
 .exercise-head {
   position: sticky;
   top: 0;
   z-index: 100;
-  padding: 20px 0 0;
+  display: flex;
+  gap: 4px 16px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 0;
   background: var(--ground);
   border-bottom: 1px solid var(--rule);
 }
 
-.question-header .title-row {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.title-actions {
-  display: flex;
+.exercise-title {
   flex: none;
-  gap: 4px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.question-header h1 {
-  min-width: 0;
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
+.exercise-menu {
+  flex: none;
+  margin-left: auto;
+}
+
+.exercise-intro {
+  padding-top: 16px;
 }
 
 .question-header .fields {
@@ -735,9 +734,20 @@ input[type="checkbox"] {
   flex-wrap: wrap;
   gap: 8px 20px;
   align-items: center;
-  margin-top: 10px;
   font-size: var(--text-sm);
   color: var(--ink-2);
+}
+
+.moodle-name {
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.moodle-name .mono {
+  margin-left: 6px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 .question-header label {
@@ -762,10 +772,10 @@ input[type="checkbox"] {
 
 .section-index {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 2px;
-  margin: 12px -8px 0;
-  padding-bottom: 6px;
+  min-width: 0;
 }
 
 .section-link {
@@ -804,7 +814,8 @@ input[type="checkbox"] {
 
 .exercise-section {
   padding-top: 32px;
-  scroll-margin-top: var(--head-offset);
+  /* L'indice porta la sezione appena sotto l'intestazione fissa */
+  scroll-margin-top: calc(var(--head-height, 52px) - 16px);
 }
 
 .section-head {
@@ -1569,56 +1580,6 @@ button.ghost.active {
   }
 }
 
-/* Menu «Copia da…» della sezione Traccia */
-.copy-menu {
-  position: relative;
-}
-
-.copy-menu-list {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  /* Sopra la barra dell'editor (50), sotto l'intestazione fissa dell'esercizio (100) */
-  z-index: 60;
-  width: min(380px, 80vw);
-  max-height: 300px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 4px;
-  list-style: none;
-  background: var(--surface);
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(28 35 33 / 0.14);
-}
-
-.copy-menu-list button {
-  display: grid;
-  gap: 2px;
-  width: 100%;
-  min-height: auto;
-  padding: 8px 10px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-}
-
-.copy-menu-list button:hover,
-.copy-menu-list button:focus-visible {
-  background: var(--hover);
-}
-
-.copy-menu-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.copy-menu-preview {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /* Finestra del generatore di test comuni */
 .generator-dialog {
   width: min(560px, calc(100vw - 32px));
@@ -2100,21 +2061,15 @@ button.ghost.active {
 .finding {
   padding: 8px 10px;
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--muted);
   border-radius: var(--radius);
 }
 
-.finding-errore {
-  border-left-color: var(--fail);
+.finding-errore .finding-kind {
+  color: var(--fail);
 }
 
-.finding-caso_limite {
-  border-left-color: var(--warn);
-}
-
-.finding-testo,
-.finding-test_mancante {
-  border-left-color: var(--accent);
+.finding-caso_limite .finding-kind {
+  color: var(--warn);
 }
 
 .finding-head {
@@ -2358,10 +2313,7 @@ button.ghost.active {
 }
 
 /* Segnalazioni già risolte: restano visibili ma passano in secondo piano */
-.finding-done {
-  border-left-color: var(--pass);
-}
-
+.finding-done .finding-kind,
 .finding-done .finding-head strong,
 .finding-done .finding-text {
   color: var(--muted);

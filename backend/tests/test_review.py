@@ -191,8 +191,8 @@ def test_testo_semplice_dall_html() -> None:
     ("changes", "message"),
     [
         ({"solution": "  \n"}, "Scrivi prima la soluzione"),
-        ({"text_html": ""}, "Scrivi prima la traccia"),
-        ({"text_html": "<p>&nbsp;</p><p> </p>"}, "Scrivi prima la traccia"),
+        ({"text_html": ""}, "Scrivi prima il testo"),
+        ({"text_html": "<p>&nbsp;</p><p> </p>"}, "Scrivi prima il testo"),
     ],
 )
 def test_senza_testo_o_soluzione_non_chiede_al_modello(changes: dict, message: str) -> None:
