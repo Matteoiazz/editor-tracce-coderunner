@@ -13,7 +13,14 @@ from tesi.application.ai import ModelCheck, RequestPreview, check_model, preview
 from tesi.application.fix import Fix, fix_request, fix_solution
 from tesi.application.generate import GeneratedSolution, generate_request, generate_solution
 from tesi.application.review import Finding, Review, review_request, review_solution
-from tesi.domain import Question
+from tesi.application.similar import (
+    SimilarExercises,
+    StyleExample,
+    similar_exercises,
+    similar_request,
+    style_examples,
+)
+from tesi.domain import ExamKind, Question
 from tesi.ports import LanguageModel, ModelError
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -167,6 +174,60 @@ def generate(
     model = language_model(request, key, body.model)
     try:
         return generate_solution(body.question, model, runner, body.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ModelError as exc:
+        raise model_failed(exc) from exc
+
+
+@dataclass
+class SimilarPreviewRequest:
+    # L'esercizio di partenza
+    question: Question
+    # Tipo della traccia aperta e il suo identificativo, per scegliere gli esempi di stile
+    # dall'archivio (esclusa la traccia stessa)
+    kind: ExamKind | None = None
+    exclude_track: str = ""
+    notes: str = ""
+
+
+@dataclass
+class SimilarRequest(SimilarPreviewRequest):
+    model: str = ""
+    # Input dei test comuni dell'esame, su cui si provano le proposte
+    test_inputs: list[str] = field(default_factory=list)
+
+
+def _examples(request: Request, body: SimilarPreviewRequest) -> list[StyleExample]:
+    return style_examples(request.app.state.archive, body.kind, body.exclude_track)
+
+
+@router.post("/similar/preview")
+def similar_preview(body: SimilarPreviewRequest, request: Request) -> RequestPreview:
+    """La richiesta di esercizi simili che verrà inviata al modello, da mostrare al docente."""
+    try:
+        return preview_of(similar_request(body.question, _examples(request, body), body.notes))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/similar")
+def similar(
+    body: SimilarRequest,
+    request: Request,
+    key: str | None = Header(default=None, alias=KEY_HEADER),
+) -> SimilarExercises:
+    """Esercizi simili proposti dal modello, controllati sugli input dei test comuni."""
+    model = language_model(request, key, body.model)
+    try:
+        return similar_exercises(
+            body.question,
+            _examples(request, body),
+            body.test_inputs,
+            model,
+            runner,
+            body.notes,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ModelError as exc:

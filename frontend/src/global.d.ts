@@ -160,6 +160,12 @@ interface Window {
       ): Promise<import("./review").Fix>;
       /** Soluzione generata dal testo, controllata sui test fino a tre tentativi. */
       generate(question: import("./types").Question, notes: string): Promise<import("./generation").GeneratedSolution>;
+      /** Esercizi simili nello stile del docente, controllati sugli input dei test comuni. */
+      similar(
+        question: import("./types").Question,
+        context: { kind: string | null; excludeTrack: string; testInputs: string[] },
+        notes: string,
+      ): Promise<import("./similar").SimilarExercises>;
     };
     updates: {
       status(): Promise<UpdateStatus>;

@@ -66,6 +66,15 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
       }),
     /** Soluzione generata e controllata sui test: { solution, explanation, attempts, tests, problems }. */
     generate: (question, notes) => post("generate", { question, notes: notesOf(notes) }),
+    /** Esercizi simili controllati sugli input dei test comuni: { proposals, discarded }. */
+    similar: (question, context, notes) =>
+      post("similar", {
+        question,
+        kind: context?.kind ?? null,
+        exclude_track: typeof context?.excludeTrack === "string" ? context.excludeTrack : "",
+        test_inputs: Array.isArray(context?.testInputs) ? context.testInputs : [],
+        notes: notesOf(notes),
+      }),
   };
 }
 

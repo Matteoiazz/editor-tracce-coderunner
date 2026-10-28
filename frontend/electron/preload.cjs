@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld("desktop", {
     fix: (question, finding, extraInputs, notes) =>
       invokeResult("ai:fix", question, finding, extraInputs ?? [], notes ?? ""),
     generate: (question, notes) => invokeResult("ai:generate", question, notes ?? ""),
+    similar: (question, context, notes) => invokeResult("ai:similar", question, context, notes ?? ""),
   },
   updates: {
     status: () => ipcRenderer.invoke("update:status"),

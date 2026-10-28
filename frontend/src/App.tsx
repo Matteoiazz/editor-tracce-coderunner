@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import type { Proposal } from "./similar";
 import {
   backupArchive,
   checkBackup,
   duplicateTrack,
   exportXml,
+  generateStudentCode,
   getTrack,
   importXml,
   listTracks,
@@ -577,6 +579,31 @@ export function App() {
     setNotice(`Creato ${questionName(copy, exam)} come copia di ${questionName(item, exam)}.`);
   }
 
+  /** Aggiunge alla traccia un esercizio proposto dall'AI, dopo quello di partenza e i suoi
+   *  simili già aggiunti; resta aperto l'esercizio di partenza, per aggiungere le altre proposte. */
+  async function handleAddSimilar(source: EditableQuestion, proposal: Proposal): Promise<string> {
+    let studentCode = "";
+    try {
+      studentCode = await generateStudentCode(proposal.solution);
+    } catch {
+      // si genera poi con «Genera dalla soluzione»: la proposta resta utilizzabile
+    }
+    const created = createQuestion(nextNumber(items), exam);
+    created.question = {
+      ...created.question,
+      text_html: proposal.text_html,
+      solution: proposal.solution,
+      student_code: studentCode,
+      tags: [...source.question.tags],
+    };
+    setItems((current) => [...current, created]);
+    const name = questionName(created, exam);
+    setNotice(
+      `Creato ${name} da una proposta dell'AI: controlla testo e soluzione, poi premi «Calcola output».`,
+    );
+    return name;
+  }
+
   function handleRemove(item: EditableQuestion) {
     const name = questionName(item, exam);
     if (!window.confirm(`Eliminare ${name}? L'operazione non si può annullare.`)) return;
@@ -764,6 +791,8 @@ export function App() {
             onCopyFrom={(source) => handleCopyFrom(selectedItem, source)}
             canDuplicate={exam.kind !== "Pretest" && isExamComplete(exam)}
             onDuplicate={() => handleDuplicate(selectedItem)}
+            trackId={trackId}
+            onAddSimilar={(proposal) => handleAddSimilar(selectedItem, proposal)}
             onOpenSettings={() => {
               clearMessages();
               select({ kind: "settings" });

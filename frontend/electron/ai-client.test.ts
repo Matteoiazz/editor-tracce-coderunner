@@ -76,6 +76,21 @@ describe("richieste AI al backend", () => {
     });
   });
 
+  it("esercizi simili: esercizio, traccia e input dei test comuni", async () => {
+    const { ai, requests } = client(() => json({ proposals: [], discarded: 0 }));
+
+    await ai.similar({ name: "q" }, { kind: "Esame", excludeTrack: "t1", testInputs: ["0\n1"] }, "stringhe");
+    expect(requests[0].url).toBe("http://127.0.0.1:8123/api/ai/similar");
+    expect(JSON.parse(requests[0].init.body as string)).toEqual({
+      question: { name: "q" },
+      kind: "Esame",
+      exclude_track: "t1",
+      test_inputs: ["0\n1"],
+      notes: "stringhe",
+      model: "fornitore/modello",
+    });
+  });
+
   it("senza chiave utilizzabile non contatta il backend", async () => {
     const { ai, requests } = client(() => json({}), {
       key: async () => {

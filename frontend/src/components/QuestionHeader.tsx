@@ -2,7 +2,7 @@ import { useState } from "react";
 import { type CopySource, isValidGrade, parseExerciseNumber, parseTags } from "../exam";
 import type { ExamKind } from "../naming";
 import { CopyFromMenu } from "./CopyFromMenu";
-import { IconCopy, IconTrash } from "./icons";
+import { IconCopy, IconGenerate, IconTrash } from "./icons";
 
 interface Props {
   name: string;
@@ -17,6 +17,9 @@ interface Props {
   onRemove: () => void;
   canDuplicate: boolean;
   onDuplicate: () => void;
+  /** Esercizi simili con l'AI; assente dove non si possono aggiungere esercizi (pretest). */
+  onSimilar?: () => void;
+  similarPending?: boolean;
   /** Altri esercizi della traccia da cui copiare il contenuto (vuoto nel pretest). */
   copySources: CopySource[];
   onCopyFrom: (source: CopySource) => void;
@@ -53,6 +56,17 @@ export function QuestionHeader(props: Props) {
               title="Crea un nuovo esercizio con lo stesso testo, codice e test, da modificare"
             >
               <IconCopy /> Duplica
+            </button>
+          )}
+          {props.onSimilar && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={props.onSimilar}
+              disabled={props.similarPending}
+              title="Il modello propone esercizi nuovi con la stessa struttura, nello stile dei tuoi"
+            >
+              <IconGenerate /> {props.similarPending ? "Proposte in corso…" : "Simili con l'AI"}
             </button>
           )}
           <button type="button" className="ghost danger" onClick={onRemove}>

@@ -1,5 +1,12 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
-import { generateStudentCode, previewFix, previewGenerate, previewReview, type RequestPreview } from "../api";
+import {
+  generateStudentCode,
+  previewFix,
+  previewGenerate,
+  previewReview,
+  previewSimilar,
+  type RequestPreview,
+} from "../api";
 import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
 import { isSkeletonSolution } from "../export";
 import {
@@ -11,6 +18,15 @@ import {
   useGeneration,
 } from "../generation";
 import type { ExamInfo } from "../naming";
+import {
+  clearSimilar,
+  markProposalAdded,
+  markSimilarSeen,
+  type Proposal,
+  similarProblem,
+  startSimilar,
+  useSimilar,
+} from "../similar";
 import type { ExerciseStatus, SectionStatus } from "../status";
 import {
   closeReview,
@@ -37,6 +53,7 @@ import { AiRequestDialog } from "./AiRequestDialog";
 import { CodeEditor } from "./CodeEditor";
 import { FixDialog } from "./FixDialog";
 import { GenerateDialog } from "./GenerateDialog";
+import { SimilarDialog } from "./SimilarDialog";
 import { HtmlEditor } from "./HtmlEditor";
 import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
@@ -61,6 +78,10 @@ interface Props {
   copySources: CopySource[];
   onCopyFrom: (source: CopySource) => void;
   onOpenSettings: () => void;
+  /** Identificativo della traccia aperta: gli esempi di stile si prendono dalle altre. */
+  trackId: string;
+  /** Crea nella traccia un esercizio da una proposta e restituisce il suo nome. */
+  onAddSimilar: (proposal: Proposal) => Promise<string>;
 }
 
 type SectionKey = "text" | "solution" | "studentCode" | "tests";
@@ -221,6 +242,43 @@ export function QuestionEditor(props: Props) {
     clearGeneration(item.id);
   }
 
+  const similar = useSimilar(item.id);
+  const [similarShown, setSimilarShown] = useState(false);
+  const [similarBlocked, setSimilarBlocked] = useState<string | null>(null);
+
+  function handleSimilar() {
+    setSimilarBlocked(null);
+    const problem = similarProblem(question);
+    if (problem) {
+      setSimilarBlocked(problem);
+      return;
+    }
+    const source = { ...question, testcases: [] };
+    // Le proposte si provano sugli input dei test comuni, che anche i nuovi esercizi useranno
+    const testInputs = (common.length > 0 ? common : exerciseTests(item, common)).map((row) => row.stdin);
+    const context = { kind: exam.kind, excludeTrack: props.trackId, testInputs };
+    prepareAiRequest({
+      action: "Esercizi simili",
+      notesKey: `${item.id}:simili`,
+      loadPreview: () => previewSimilar(source, exam.kind, props.trackId, ""),
+      send: (notes) => startSimilar(item.id, () => window.desktop.ai.similar(source, context, notes)),
+    });
+  }
+
+  // Le proposte si aprono da sole quando arrivano, una volta
+  useEffect(() => {
+    if (similar?.state === "done" && !similar.seen) {
+      markSimilarSeen(item.id);
+      setSimilarShown(true);
+    }
+  }, [similar]);
+
+  async function addProposal(index: number) {
+    if (similar?.state !== "done") return;
+    const name = await props.onAddSimilar(similar.result.proposals[index]);
+    markProposalAdded(item.id, index, name);
+  }
+
   function handleFix(index: number) {
     if (review?.state !== "done") return;
     const finding = review.review.findings[index];
@@ -336,7 +394,35 @@ export function QuestionEditor(props: Props) {
           onDuplicate={props.onDuplicate}
           copySources={props.copySources}
           onCopyFrom={props.onCopyFrom}
+          onSimilar={props.canDuplicate ? handleSimilar : undefined}
+          similarPending={similar?.state === "pending" || checkingKey}
         />
+        {similarBlocked && <p className="inline-notice exercise-head-notice">{similarBlocked}</p>}
+        {similar?.state === "error" && (
+          <div className="review-blocked exercise-head-notice" role="alert">
+            <p className="inline-notice">Esercizi simili non riusciti: {similar.message}.</p>
+            <button type="button" className="ghost small" onClick={() => clearSimilar(item.id)}>
+              Chiudi
+            </button>
+          </div>
+        )}
+        {similar?.state === "done" && !similarShown && (
+          <div className="review-blocked exercise-head-notice">
+            <p className="small-text muted">Le proposte di esercizi simili sono pronte.</p>
+            <button type="button" className="secondary small" onClick={() => setSimilarShown(true)}>
+              Vedi le proposte
+            </button>
+          </div>
+        )}
+        {similarShown && similar?.state === "done" && (
+          <SimilarDialog
+            result={similar.result}
+            added={similar.added}
+            onAdd={addProposal}
+            onDiscard={() => clearSimilar(item.id)}
+            onClose={() => setSimilarShown(false)}
+          />
+        )}
         <nav className="section-index" aria-label="Sezioni dell'esercizio">
           {SECTIONS.map(({ key, title }) => (
             <button

@@ -2321,3 +2321,64 @@ button.ghost.active {
   color: var(--ink-2);
   white-space: pre-wrap;
 }
+
+/* ------------------------------------------------------------------ esercizi simili */
+
+.exercise-head-notice {
+  margin: 8px 0 0;
+}
+
+.similar-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.similar-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.similar-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.similar-head h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.similar-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.similar-item summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.similar-code {
+  max-height: 240px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-size: var(--text-xs);
+  background: var(--ground);
+  border-radius: var(--radius);
+}
+
+.similar-samples {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}

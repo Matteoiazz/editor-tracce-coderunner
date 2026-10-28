@@ -240,3 +240,39 @@ def test_generate(tmp_path: Path) -> None:
     assert body["attempts"] == 1
     assert body["problems"] == []
     assert body["tests"][0]["passed"] is True
+
+
+def test_anteprima_degli_esercizi_simili(tmp_path: Path) -> None:
+    response = client(tmp_path).post(
+        "/api/ai/similar/preview",
+        json={"question": QUESTION, "kind": "Esame", "exclude_track": "t1"},
+    )
+    assert response.status_code == 200
+    assert "ESERCIZIO DI PARTENZA" in response.json()["user"]
+
+
+def test_similar(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    FakeModel.reply = json.dumps(
+        {
+            "esercizi": [
+                {
+                    "titolo": "Due",
+                    "testo": "Stampa 2.",
+                    "soluzione": "def f():\n    return 2\nx = input()\nprint(f())\n",
+                }
+            ]
+        }
+    )
+    try:
+        response = c.post(
+            "/api/ai/similar",
+            json={"model": "fornitore/modello", "question": QUESTION, "test_inputs": ["a"]},
+            headers={"X-OpenRouter-Key": KEY},
+        )
+    finally:
+        FakeModel.reply = '{"stato": "pronto", "somma": 5}'
+    assert response.status_code == 200
+    body = response.json()
+    assert [p["title"] for p in body["proposals"]] == ["Due"]
+    assert body["proposals"][0]["samples"] == [{"stdin": "a", "output": "a\n2\n"}]

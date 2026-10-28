@@ -98,6 +98,15 @@ export function previewGenerate(question: Question, notes: string): Promise<Requ
   return request("/api/ai/generate/preview", jsonBody({ question, notes }));
 }
 
+export function previewSimilar(
+  question: Question,
+  kind: string | null,
+  excludeTrack: string,
+  notes: string,
+): Promise<RequestPreview> {
+  return request("/api/ai/similar/preview", jsonBody({ question, kind, exclude_track: excludeTrack, notes }));
+}
+
 export function previewFix(question: Question, finding: Finding, notes: string): Promise<RequestPreview> {
   return request("/api/ai/fix/preview", jsonBody({ question, finding, notes }));
 }

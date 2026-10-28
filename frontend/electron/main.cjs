@@ -472,6 +472,7 @@ handleWithResult("ai:check", () => ai.check());
 handleWithResult("ai:review", (question, notes) => ai.review(question, notes));
 handleWithResult("ai:fix", (question, finding, extraInputs, notes) => ai.fix(question, finding, extraInputs, notes));
 handleWithResult("ai:generate", (question, notes) => ai.generate(question, notes));
+handleWithResult("ai:similar", (question, context, notes) => ai.similar(question, context, notes));
 
 ipcMain.handle("app:version", () => app.getVersion());
 
