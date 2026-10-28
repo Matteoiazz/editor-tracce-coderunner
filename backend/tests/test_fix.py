@@ -83,6 +83,18 @@ def test_correzione_confrontata_sui_test() -> None:
     assert "ZeroDivisionError" in zero.before_error
     assert zero.after == "0\n0\n"
     assert zero.after_error == ""
+    assert fix.not_compared == 0
+
+
+def test_confronto_fermato_quando_la_correzione_si_interrompe() -> None:
+    loops = FIXED.replace("    if not lst:\n        return 0\n", "    while True:\n        pass\n")
+    model = ScriptedModel({"soluzione": loops, "spiegazione": "Ciclo."})
+    fix = fix_solution(question(), FINDING, model, LocalPythonRunner(timeout_s=0.5), ["0"])
+
+    # Sugli altri input si fermerebbe allo stesso modo: non si eseguono
+    assert [t.stdin for t in fix.tests] == ["3"]
+    assert fix.tests[0].after_error.startswith("tempo limite superato")
+    assert fix.not_compared == 2
 
 
 def test_toglie_il_blocco_di_codice_e_aggiunge_l_a_capo_finale() -> None:

@@ -144,6 +144,39 @@ def test_import_e_commenti_in_piu_non_contano_come_main_diverso() -> None:
     assert problems == []
 
 
+def test_costanti_aggiunte_per_la_funzione_non_contano_come_main_diverso() -> None:
+    with_constant = GOOD.replace("import math\n", "import math\n\nDIVISORE = 2\n").replace(
+        "x % 2 == 0", "x % DIVISORE == 0"
+    )
+    problems, _ = check_solution(with_constant, question(), runner)
+    assert problems == []
+
+
+def test_main_senza_blocco_if_name() -> None:
+    student = "def somma_pari(lst):\n    pass\n\n\nn = int(input())\nprint(somma_pari(range(n)))\n"
+    solution = student.replace("    pass", "    return sum(x for x in lst if x % 2 == 0)")
+    problems, _ = check_solution(solution, question(student_code=student), runner)
+    assert problems == []
+
+    other = solution.replace("print(somma_pari", "print('risultato', somma_pari")
+    problems, _ = check_solution(other, question(student_code=student, testcases=[]), runner)
+    assert problems == ["Il main è diverso da quello del codice di partenza: deve essere identico."]
+
+
+def test_dopo_un_test_interrotto_i_successivi_non_si_eseguono() -> None:
+    loops = GOOD.replace("return sum(x for x in lst if x % 2 == 0)", "while True:\n        pass")
+    fast = LocalPythonRunner(timeout_s=0.5)
+
+    problems, runs = check_solution(loops, question(), fast)
+    assert [t.stdin for t in runs] == ["5"]
+    assert problems[0].startswith("Sul test 1 (input 5) va in errore: tempo limite superato")
+    assert problems[1] == "Il test successivo non è stato eseguito."
+
+    result = generate_solution(question(), ScriptedModel(*[loops] * MAX_ATTEMPTS), fast)
+    assert len(result.tests) == 1
+    assert result.not_run == 1
+
+
 def test_manca_la_funzione() -> None:
     renamed = GOOD.replace("def somma_pari", "def somma").replace(
         "    return sum", "    return sum"

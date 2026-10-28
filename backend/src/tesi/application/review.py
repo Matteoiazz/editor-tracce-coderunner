@@ -7,12 +7,11 @@ reale, o l'errore, e non quello immaginato dal modello.
 """
 
 from dataclasses import dataclass
-from html.parser import HTMLParser
-from typing import ClassVar, Literal
+from typing import Literal
 
 from tesi.application.ai import ask_json, with_notes
 from tesi.application.verification import run_error
-from tesi.domain import Question, TestCase
+from tesi.domain import Question, TestCase, plain_text
 from tesi.ports import CodeRunner, LanguageModel, Message
 
 FindingKind = Literal["errore", "caso_limite", "testo", "test_mancante"]
@@ -248,52 +247,3 @@ def _input_key(stdin: str) -> tuple[str, ...]:
     while lines and not lines[-1]:
         lines.pop()
     return tuple(lines)
-
-
-class _TextExtractor(HTMLParser):
-    BLOCKS: ClassVar[set[str]] = {
-        "p",
-        "div",
-        "br",
-        "li",
-        "tr",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "pre",
-        "table",
-        "ul",
-        "ol",
-    }
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.parts: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list) -> None:
-        if tag in self.BLOCKS:
-            self.parts.append("\n")
-        if tag == "li":
-            self.parts.append("- ")
-        if tag == "img":
-            self.parts.append("[immagine]")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in self.BLOCKS:
-            self.parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        self.parts.append(data)
-
-
-def plain_text(html: str) -> str:
-    """Il testo dell'esercizio senza HTML, con un a capo per paragrafo e voce di elenco."""
-    parser = _TextExtractor()
-    parser.feed(html)
-    parser.close()
-    lines = [" ".join(line.split()) for line in "".join(parser.parts).splitlines()]
-    text = "\n".join(lines)
-    while "\n\n\n" in text:
-        text = text.replace("\n\n\n", "\n\n")
-    return text.strip()

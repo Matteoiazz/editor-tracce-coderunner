@@ -11,9 +11,10 @@ from dataclasses import dataclass
 
 from tesi.application.ai import ask_json, with_notes
 from tesi.application.fix import solution_from, syntax_error
-from tesi.application.review import MAX_EXISTING_TESTS, NothingToReview, plain_text, test_line
-from tesi.application.verification import outputs_match, run_error
-from tesi.domain import Question
+from tesi.application.review import MAX_EXISTING_TESTS, NothingToReview, test_line
+from tesi.application.student_code import is_main_block
+from tesi.application.verification import interrupted, outputs_match, run_error
+from tesi.domain import Question, plain_text
 from tesi.ports import CodeRunner, LanguageModel, Message
 
 MAX_ATTEMPTS = 3
@@ -44,6 +45,9 @@ class GeneratedSolution:
     tests: list[TestRun]
     # Problemi rimasti dopo l'ultimo tentativo; vuoto se la soluzione supera tutti i controlli
     problems: list[str]
+    # Test non eseguiti perché un test precedente è stato interrotto (tempo limite o output
+    # eccessivo): `tests` contiene solo quelli eseguiti
+    not_run: int = 0
 
 
 SYSTEM_PROMPT = """\
@@ -125,6 +129,8 @@ def generate_solution(
         problems, runs = check_solution(solution, question, runner)
         if not problems:
             return GeneratedSolution(solution, explanation, attempt, runs, [])
+        if attempt == MAX_ATTEMPTS:
+            break
         messages = [
             *messages,
             Message("assistant", solution),
@@ -133,7 +139,14 @@ def generate_solution(
                 RETRY_MESSAGE.format(problems="\n".join(f"- {p}" for p in problems[:MAX_PROBLEMS])),
             ),
         ]
-    return GeneratedSolution(solution, explanation, MAX_ATTEMPTS, runs, problems)
+    return GeneratedSolution(
+        solution,
+        explanation,
+        MAX_ATTEMPTS,
+        runs,
+        problems,
+        not_run=len(question.testcases) - len(runs) if runs else 0,
+    )
 
 
 def check_solution(
@@ -171,6 +184,16 @@ def check_solution(
         else:
             passed = True
         runs.append(TestRun(tc.stdin, output, error, tc.expected, passed))
+        # Come nella verifica: i test successivi si interromperebbero quasi certamente allo
+        # stesso modo, e ogni tentativo durerebbe tempo limite × numero di test
+        if interrupted(result) and i < len(question.testcases):
+            rest = len(question.testcases) - i
+            problems.append(
+                "Il test successivo non è stato eseguito."
+                if rest == 1
+                else f"I {rest} test successivi non sono stati eseguiti."
+            )
+            break
     return problems, runs
 
 
@@ -183,19 +206,26 @@ def _functions(code: str) -> set[str]:
 
 
 def _main_lines(code: str) -> list[str]:
-    """Il codice senza le funzioni e senza gli import di primo livello: il main. Gli import si
-    escludono perché la soluzione può aggiungerne per la funzione."""
+    """Il main del codice, senza righe vuote e commenti: il blocco if __name__ == "__main__".
+    Le costanti e gli import che la soluzione aggiunge per la funzione stanno fuori dal blocco
+    e non contano. Se il blocco manca, il main è il codice di primo livello senza funzioni,
+    classi e import."""
     tree = ast.parse(code)
     lines = code.splitlines()
-    skip: set[int] = set()
-    for node in tree.body:
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom)
-        ):
-            start = min([node.lineno, *(d.lineno for d in getattr(node, "decorator_list", []))])
-            skip.update(range(start, (node.end_lineno or node.lineno) + 1))
-    kept = [line.rstrip() for n, line in enumerate(lines, 1) if n not in skip]
-    return [line for line in kept if line.strip() and not line.lstrip().startswith("#")]
+    main = next((node for node in tree.body if is_main_block(node)), None)
+    if main is not None:
+        kept = lines[main.lineno - 1 : main.end_lineno]
+    else:
+        skip: set[int] = set()
+        for node in tree.body:
+            if isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom),
+            ):
+                start = min([node.lineno, *(d.lineno for d in getattr(node, "decorator_list", []))])
+                skip.update(range(start, (node.end_lineno or node.lineno) + 1))
+        kept = [line for n, line in enumerate(lines, 1) if n not in skip]
+    return [line.rstrip() for line in kept if line.strip() and not line.lstrip().startswith("#")]
 
 
 def _short(text: str) -> str:

@@ -16,9 +16,9 @@ from dataclasses import dataclass
 
 from tesi.application.ai import ask_json, with_notes
 from tesi.application.fix import solution_from, syntax_error
-from tesi.application.review import NothingToReview, plain_text
-from tesi.application.verification import outputs_match, run_error
-from tesi.domain import ExamKind, Question
+from tesi.application.review import NothingToReview
+from tesi.application.verification import NOT_RUN, interrupted, outputs_match, run_error
+from tesi.domain import ExamKind, Question, plain_text
 from tesi.ports import CodeRunner, LanguageModel, Message, ModelError, TrackArchive
 
 PROPOSALS = 3
@@ -57,6 +57,9 @@ class SimilarExercises:
     proposals: list[Proposal]
     # Proposte scartate perché non superavano i controlli anche dopo la seconda richiesta
     discarded: int
+    # Input su cui sono state eseguite le proposte: zero se non c'erano test, e allora si sono
+    # controllati solo il codice e la lettura dell'input
+    checked_inputs: int = 0
 
 
 SYSTEM_PROMPT = f"""\
@@ -143,9 +146,10 @@ def similar_exercises(
     notes: str = "",
 ) -> SimilarExercises:
     """``test_inputs``: gli input dei test comuni dell'esame, su cui si provano le proposte."""
-    inputs = list(dict.fromkeys(test_inputs))[:MAX_CHECKED_INPUTS]
-    original = [_output(runner, question.solution, stdin) for stdin in inputs]
+    # Prima la richiesta, che si rifiuta senza testo o soluzione: solo dopo si esegue il codice
     messages = similar_request(question, examples, notes)
+    inputs = list(dict.fromkeys(test_inputs))[:MAX_CHECKED_INPUTS]
+    original = _outputs(runner, question.solution, inputs)
     reply = ask_json(model, messages)
     raw = _raw_proposals(reply)
     if not raw:
@@ -184,7 +188,9 @@ def similar_exercises(
     for proposal in accepted:
         if not any(_same_samples(proposal, other) for other in unique):
             unique.append(proposal)
-    return SimilarExercises(proposals=unique[:PROPOSALS], discarded=max(discarded, 0))
+    return SimilarExercises(
+        proposals=unique[:PROPOSALS], discarded=max(discarded, 0), checked_inputs=len(inputs)
+    )
 
 
 def _raw_proposals(reply: dict) -> list[dict]:
@@ -250,6 +256,20 @@ def _output(runner: CodeRunner, solution: str, stdin: str) -> tuple[str, str]:
     result = runner.run(solution, stdin)
     error = run_error(result)
     return ("" if error else result.stdout), error
+
+
+def _outputs(runner: CodeRunner, solution: str, inputs: list[str]) -> list[tuple[str, str]]:
+    """Output o errore della soluzione di partenza su ogni input. Dopo un'interruzione (tempo
+    limite o output eccessivo) gli input successivi non si eseguono, come nella verifica."""
+    outputs: list[tuple[str, str]] = []
+    for stdin in inputs:
+        result = runner.run(solution, stdin)
+        error = run_error(result)
+        outputs.append(("" if error else result.stdout, error))
+        if interrupted(result):
+            outputs.extend([("", NOT_RUN)] * (len(inputs) - len(outputs)))
+            break
+    return outputs
 
 
 def _same_samples(a: Proposal, b: Proposal) -> bool:

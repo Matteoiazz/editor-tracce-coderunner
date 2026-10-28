@@ -10,14 +10,9 @@ nulla.
 from dataclasses import dataclass
 
 from tesi.application.ai import ask_json, with_notes
-from tesi.application.review import (
-    FINDING_KINDS,
-    Finding,
-    NothingToReview,
-    plain_text,
-)
-from tesi.application.verification import outputs_match, run_error
-from tesi.domain import Question
+from tesi.application.review import FINDING_KINDS, Finding, NothingToReview
+from tesi.application.verification import interrupted, outputs_match, run_error
+from tesi.domain import Question, plain_text
 from tesi.ports import CodeRunner, LanguageModel, Message, ModelError
 
 # Oltre questa lunghezza la risposta non è una soluzione d'esame
@@ -46,6 +41,9 @@ class Fix:
     solution: str
     explanation: str
     tests: list[TestComparison]
+    # Input non confrontati: oltre il numero massimo, o dopo che la soluzione corretta si è
+    # interrotta (tempo limite o output eccessivo)
+    not_compared: int = 0
 
 
 SYSTEM_PROMPT = """\
@@ -122,10 +120,12 @@ def fix_solution(
             "response",
             "Il modello non ha cambiato la soluzione" + (f": {explanation}" if explanation else ""),
         )
+    tests, not_compared = _compare(question, solution, runner, extra_inputs or [])
     return Fix(
         solution=solution,
         explanation=_text(reply.get("spiegazione")),
-        tests=_compare(question, solution, runner, extra_inputs or []),
+        tests=tests,
+        not_compared=not_compared,
     )
 
 
@@ -175,7 +175,8 @@ def _text(value: object) -> str:
 
 def _compare(
     question: Question, solution: str, runner: CodeRunner, extra_inputs: list[str]
-) -> list[TestComparison]:
+) -> tuple[list[TestComparison], int]:
+    """I confronti e quanti input sono rimasti senza confronto."""
     inputs: list[str] = []
     for stdin in [tc.stdin for tc in question.testcases] + extra_inputs:
         if stdin not in inputs:
@@ -201,4 +202,8 @@ def _compare(
                 same=same,
             )
         )
-    return comparisons
+        # Come nella verifica: sugli altri input la soluzione corretta si interromperebbe quasi
+        # certamente allo stesso modo, e il confronto durerebbe tempo limite × numero di input
+        if interrupted(after):
+            break
+    return comparisons, len(inputs) - len(comparisons)

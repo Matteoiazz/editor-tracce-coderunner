@@ -94,6 +94,31 @@ def test_proposte_valide_con_esempi_di_output() -> None:
         ("3", "3\nInput: [0, 1, 2] - Risultato: 2\n"),
     ]
     assert len(model.calls) == 1
+    assert result.checked_inputs == 3
+
+
+def test_senza_input_dei_test_le_proposte_non_si_eseguono() -> None:
+    model = ScriptedModel({"esercizi": [exercise("primo", CRASHES)]})
+    result = similar_exercises(question(), [], [], model, runner)
+
+    # Va in errore con qualsiasi input, ma senza test non si può saperlo: la finestra lo dice
+    assert [p.title for p in result.proposals] == ["primo"]
+    assert result.checked_inputs == 0
+
+
+def test_richiesta_rifiutata_prima_di_eseguire_il_codice() -> None:
+    class CountingRunner(LocalPythonRunner):
+        runs = 0
+
+        def run(self, code: str, stdin: str):
+            CountingRunner.runs += 1
+            return super().run(code, stdin)
+
+    q = question()
+    q.text_html = "<p> </p>"
+    with pytest.raises(NothingToReview):
+        similar_exercises(q, [], INPUTS, ScriptedModel(), CountingRunner())
+    assert CountingRunner.runs == 0
 
 
 def test_proposte_sbagliate_tornano_al_modello_una_volta() -> None:

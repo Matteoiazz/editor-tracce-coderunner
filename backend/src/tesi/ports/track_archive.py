@@ -52,11 +52,11 @@ class TrackArchive(Protocol):
         ...
 
     def search_exercises(
-        self, query: str = "", *, exclude_track: str | None = None, limit: int = 100
+        self, query: str = "", *, exclude_track: str | None = None
     ) -> list[ExerciseMatch]:
         """Esercizi delle tracce in archivio (non nel cestino) che contengono tutte le parole
-        di ``query`` nel nome, nel testo o nei tag; senza parole, tutti. Dalla traccia
-        modificata più di recente."""
+        di ``query`` nel nome, nel testo o nei tag; senza parole, tutti, senza limite di
+        numero. Dalla traccia modificata più di recente."""
         ...
 
     def empty_trash(self) -> int:

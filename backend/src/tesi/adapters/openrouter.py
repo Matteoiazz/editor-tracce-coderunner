@@ -5,6 +5,7 @@ HTTPS sono quelli di certifi: il Python incluso nell'app su macOS e Linux non tr
 del sistema.
 """
 
+import http.client
 import json
 import ssl
 import urllib.error
@@ -62,7 +63,7 @@ class OpenRouterModel:
             with urllib.request.urlopen(request, timeout=self.timeout_s, context=self._ssl) as resp:
                 raw = resp.read()
         except urllib.error.HTTPError as exc:
-            raise _http_error(exc.code, _error_message(exc.read())) from exc
+            raise _http_error(exc.code, _error_message(_body_of(exc))) from exc
         except TimeoutError as exc:
             raise _timeout() from exc
         except urllib.error.URLError as exc:
@@ -70,6 +71,12 @@ class OpenRouterModel:
                 raise _timeout() from exc
             raise ModelError(
                 "unreachable", "OpenRouter non è raggiungibile, controlla la connessione"
+            ) from exc
+        except (http.client.HTTPException, OSError) as exc:
+            # Connessione chiusa o interrotta mentre arriva la risposta: urllib non la converte
+            # in URLError (es. RemoteDisconnected, IncompleteRead, ConnectionResetError)
+            raise ModelError(
+                "unreachable", "La connessione con OpenRouter si è interrotta: riprova"
             ) from exc
         return _content_of(raw)
 
@@ -79,6 +86,14 @@ def _timeout() -> ModelError:
         "timeout",
         "Il modello non ha risposto in tempo: riprova, oppure scegli un modello più veloce",
     )
+
+
+def _body_of(exc: urllib.error.HTTPError) -> bytes:
+    """Il corpo della risposta d'errore; vuoto se la connessione si interrompe mentre si legge."""
+    try:
+        return exc.read()
+    except (http.client.HTTPException, OSError):
+        return b""
 
 
 def _error_message(raw: bytes) -> str:

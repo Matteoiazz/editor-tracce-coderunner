@@ -35,6 +35,46 @@ def test_toglie_le_funzioni_di_supporto_e_svuota_quella_chiamata_dal_main() -> N
     )
 
 
+def test_svuota_anche_le_funzioni_async() -> None:
+    solution = (
+        "async def risolvi(lst):\n    return sorted(lst)\n\n"
+        "if __name__ == '__main__':\n    print(risolvi([3, 1]))\n"
+    )
+
+    assert generate_student_code(solution) == (
+        "async def risolvi(lst):\n"
+        "    # Inserisci qui la tua implementazione\n"
+        "    return None\n\n"
+        "if __name__ == '__main__':\n    print(risolvi([3, 1]))\n"
+    )
+
+
+def test_le_classi_usate_dal_main_restano_con_i_metodi_svuotati() -> None:
+    solution = (
+        "class Aiuto:\n    pass\n\n"
+        "class Pila(list):\n"
+        "    \"\"\"Pila di numeri.\"\"\"\n"
+        "    LIMITE = 10\n\n"
+        "    def __init__(self):\n        super().__init__()\n\n"
+        "    @staticmethod\n    def vuota() -> 'Pila':\n        return Pila()\n\n"
+        "if __name__ == '__main__':\n    print(Pila.vuota())\n"
+    )
+
+    assert generate_student_code(solution) == (
+        "class Pila(list):\n"
+        "    \"\"\"Pila di numeri.\"\"\"\n\n"
+        "    LIMITE = 10\n\n"
+        "    def __init__(self):\n"
+        "        # Inserisci qui la tua implementazione\n"
+        "        return None\n\n"
+        "    @staticmethod\n"
+        "    def vuota() -> 'Pila':\n"
+        "        # Inserisci qui la tua implementazione\n"
+        "        return None\n\n"
+        "if __name__ == '__main__':\n    print(Pila.vuota())\n"
+    )
+
+
 def test_senza_main_svuota_tutte_le_funzioni() -> None:
     generated = generate_student_code("def f(a):\n    return a\n\ndef g():\n    return 1\n")
 

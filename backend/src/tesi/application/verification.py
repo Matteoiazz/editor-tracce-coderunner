@@ -41,13 +41,13 @@ def verify_solution(question: Question, runner: CodeRunner) -> list[TestOutcome]
     durerebbe tempo limite × numero di test.
     """
     outcomes = []
-    interrupted = False
+    stopped = False
     for i, tc in enumerate(question.testcases):
-        if interrupted:
+        if stopped:
             outcomes.append(TestOutcome(i, False, tc.expected, "", NOT_RUN))
             continue
         result = runner.run(question.solution, tc.stdin)
-        interrupted = result.timed_out or result.output_limit_exceeded
+        stopped = interrupted(result)
         error = run_error(result)
         outcomes.append(TestOutcome(
             index=i,
@@ -85,6 +85,11 @@ def _normalize(text: str) -> str:
     while lines and not lines[-1]:
         lines.pop()
     return "\n".join(lines)
+
+
+def interrupted(result: RunResult) -> bool:
+    """L'esecuzione è stata fermata dall'esecutore (tempo limite o output eccessivo)."""
+    return result.timed_out or result.output_limit_exceeded
 
 
 def run_error(result: RunResult) -> str:

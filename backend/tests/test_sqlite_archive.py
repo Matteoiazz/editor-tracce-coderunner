@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tesi.adapters.sqlite_archive import SqliteTrackArchive, plain_text
+from tesi.adapters.sqlite_archive import SqliteTrackArchive
 from tesi.application.archive import duplicate_track
 from tesi.domain import EmbeddedFile, ExamKind, ExamTrack, Question, TestCase, TrackExercise
 from tesi.ports import InvalidBackup, TrackNotFound, TrackNotInTrash
@@ -223,9 +223,16 @@ def test_archivio_di_una_versione_piu_recente(tmp_path: Path) -> None:
         SqliteTrackArchive(path).list()
 
 
-def test_testo_senza_formattazione() -> None:
-    html = "<p>Calcola la <strong>somma</strong></p><ul><li>pari &amp; dispari</li></ul>a<br>b"
-    assert plain_text(html) == "Calcola la somma\npari & dispari\na\nb"
+def test_testo_della_ricerca_senza_righe_vuote(archive: SqliteTrackArchive) -> None:
+    html = (
+        "<p>Calcola la <strong>somma</strong></p><ul><li>pari &amp; dispari</li></ul>"
+        "<table><tr><td>1</td><td>2</td></tr></table>a<br>b"
+    )
+    archive.save(with_text("a", [(html, [])]))
+
+    [match] = archive.search_exercises()
+
+    assert match.text == "Calcola la somma\n- pari & dispari\n1 | 2\na\nb"
 
 
 def with_text(track_id: str, texts: list[tuple[str, list[str]]]) -> ExamTrack:
@@ -261,6 +268,14 @@ def test_ricerca_senza_parole_dalla_traccia_piu_recente(archive: SqliteTrackArch
     assert matches[0].track_kind is ExamKind.ESAME
     assert matches[0].track_day == date(2026, 7, 3)
     assert matches[0].name == "Esame-2026-07-03-Traccia1-Esercizio1"
+
+
+def test_ricerca_senza_limite_di_risultati(archive: SqliteTrackArchive) -> None:
+    for t in range(30):
+        archive.save(make_track(f"t{t}", exercises=5))
+
+    assert len(archive.search_exercises()) == 150
+    assert len(archive.search_exercises("testo")) == 150
 
 
 def test_ricerca_esclude_cestino_e_traccia_aperta(archive: SqliteTrackArchive) -> None:

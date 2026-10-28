@@ -7,9 +7,7 @@ anche colonne proprie, per le ricerche.
 
 from __future__ import annotations
 
-import html
 import json
-import re
 import sqlite3
 import tempfile
 from collections.abc import Callable, Iterator
@@ -27,6 +25,7 @@ from tesi.domain import (
     TestCase,
     TrackExercise,
     TrackSummary,
+    plain_text,
 )
 from tesi.ports import InvalidBackup, TrackNotFound, TrackNotInTrash
 
@@ -105,7 +104,7 @@ class SqliteTrackArchive:
             return self._read(db, track_id)
 
     def search_exercises(
-        self, query: str = "", *, exclude_track: str | None = None, limit: int = 100
+        self, query: str = "", *, exclude_track: str | None = None
     ) -> list[ExerciseMatch]:
         with self._connect() as db:
             rows = db.execute(
@@ -121,7 +120,7 @@ class SqliteTrackArchive:
         words = query.casefold().split()
         matches = []
         for track_id, position, kind, day, track_number, number, name, tags, text_html in rows:
-            text = plain_text(text_html)
+            text = _compact_text(text_html)
             haystack = f"{name}\n{tags}\n{text}".casefold()
             if all(word in haystack for word in words):
                 matches.append(
@@ -137,8 +136,6 @@ class SqliteTrackArchive:
                         text=text,
                     )
                 )
-                if len(matches) == limit:
-                    break
         return matches
 
     # ---------------------------------------------------------------- scrittura
@@ -353,15 +350,10 @@ def _check_backup(path: Path) -> int:
         raise InvalidBackup("Il file scelto non è un backup dell'archivio delle tracce") from exc
 
 
-_BLOCK_END = re.compile(r"</(p|div|li|h[1-6]|tr|pre)>|<br\s*/?>", re.IGNORECASE)
-_TAG = re.compile(r"<[^>]+>")
-
-
-def plain_text(text_html: str) -> str:
-    """Testo leggibile di un frammento HTML: un a capo per ogni paragrafo o riga."""
-    text = html.unescape(_TAG.sub("", _BLOCK_END.sub("\n", text_html)))
-    lines = (" ".join(line.split()) for line in text.splitlines())
-    return "\n".join(line for line in lines if line)
+def _compact_text(text_html: str) -> str:
+    """Testo dell'esercizio per la ricerca e l'anteprima: senza righe vuote, così le prime righe
+    dell'anteprima mostrano già il contenuto."""
+    return "\n".join(line for line in plain_text(text_html).splitlines() if line)
 
 
 def _exercise(data: dict) -> TrackExercise:

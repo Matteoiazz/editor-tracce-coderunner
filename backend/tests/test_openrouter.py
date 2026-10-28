@@ -20,6 +20,9 @@ class FakeApi:
         self.status = 200
         self.body: object = reply("ciao")
         self.delay_s = 0.0
+        # "senza risposta": chiude la connessione senza rispondere; "a metà": manda solo parte
+        # del corpo annunciato
+        self.drop: str | None = None
         self.request: dict | None = None
         self.headers: dict[str, str] = {}
 
@@ -38,15 +41,21 @@ def api() -> Iterator[tuple[FakeApi, str]]:
             state.request = {"path": self.path, "body": json.loads(self.rfile.read(length))}
             state.headers = dict(self.headers)
             time.sleep(state.delay_s)
+            if state.drop == "senza risposta":
+                self.close_connection = True
+                return
             data = state.body if isinstance(state.body, bytes) else json.dumps(state.body).encode()
+            announced = len(data) + (100 if state.drop == "a metà" else 0)
             try:
                 self.send_response(state.status)
                 self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Content-Length", str(announced))
                 self.end_headers()
                 self.wfile.write(data)
             except OSError:
                 pass  # il client ha già chiuso per il tempo scaduto
+            if state.drop == "a metà":
+                self.close_connection = True
 
         def log_message(self, *args: object) -> None:
             pass
@@ -149,6 +158,16 @@ def test_tempo_scaduto(api) -> None:
     with pytest.raises(ModelError) as exc:
         model(url, timeout_s=0.2).complete(MESSAGES)
     assert exc.value.kind == "timeout"
+
+
+@pytest.mark.parametrize("drop", ["senza risposta", "a metà"])
+def test_connessione_interrotta_durante_la_risposta(api, drop: str) -> None:
+    state, url = api
+    state.drop = drop
+    with pytest.raises(ModelError) as exc:
+        model(url).complete(MESSAGES)
+    assert exc.value.kind == "unreachable"
+    assert "interrotta" in exc.value.message
 
 
 def test_server_irraggiungibile() -> None:
