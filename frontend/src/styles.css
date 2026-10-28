@@ -2308,3 +2308,16 @@ button.ghost.active {
 .finding-done .finding-text {
   color: var(--muted);
 }
+
+.review-progress {
+  margin: 12px 0 0;
+}
+
+.generate-problems {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}

@@ -64,6 +64,18 @@ describe("richieste AI al backend", () => {
     });
   });
 
+  it("soluzione generata: esercizio e indicazioni", async () => {
+    const { ai, requests } = client(() => json({ solution: "", explanation: "", attempts: 1, tests: [], problems: [] }));
+
+    await ai.generate({ name: "q" }, "usa un ciclo");
+    expect(requests[0].url).toBe("http://127.0.0.1:8123/api/ai/generate");
+    expect(JSON.parse(requests[0].init.body as string)).toEqual({
+      question: { name: "q" },
+      notes: "usa un ciclo",
+      model: "fornitore/modello",
+    });
+  });
+
   it("senza chiave utilizzabile non contatta il backend", async () => {
     const { ai, requests } = client(() => json({}), {
       key: async () => {

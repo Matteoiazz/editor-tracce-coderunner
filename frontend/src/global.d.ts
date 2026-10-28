@@ -158,6 +158,8 @@ interface Window {
         extraInputs: string[],
         notes: string,
       ): Promise<import("./review").Fix>;
+      /** Soluzione generata dal testo, controllata sui test fino a tre tentativi. */
+      generate(question: import("./types").Question, notes: string): Promise<import("./generation").GeneratedSolution>;
     };
     updates: {
       status(): Promise<UpdateStatus>;

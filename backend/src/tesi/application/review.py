@@ -133,7 +133,7 @@ def review_messages(question: Question) -> list[Message]:
         f"{i:>3} | {line}" for i, line in enumerate(question.solution.splitlines(), start=1)
     )
     existing = question.testcases[:MAX_EXISTING_TESTS]
-    tests = "\n".join(_test_line(i, tc) for i, tc in enumerate(existing, 1))
+    tests = "\n".join(test_line(i, tc) for i, tc in enumerate(existing, 1))
     if len(question.testcases) > len(existing):
         tests += f"\n- … e altri {len(question.testcases) - len(existing)} test"
     parts = [
@@ -149,7 +149,8 @@ def review_messages(question: Question) -> list[Message]:
     return [Message("system", SYSTEM_PROMPT), Message("user", "\n\n".join(parts))]
 
 
-def _test_line(number: int, test: TestCase) -> str:
+def test_line(number: int, test: TestCase) -> str:
+    """Un test per il modello: input su una riga e, se calcolato, output accorciato."""
     line = f"- test {number}: input " + " | ".join(test.stdin.splitlines())
     output = _output_summary(test)
     return f"{line} → output {output}" if output else line

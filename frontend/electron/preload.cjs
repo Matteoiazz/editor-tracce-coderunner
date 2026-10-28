@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld("desktop", {
     review: (question, notes) => invokeResult("ai:review", question, notes ?? ""),
     fix: (question, finding, extraInputs, notes) =>
       invokeResult("ai:fix", question, finding, extraInputs ?? [], notes ?? ""),
+    generate: (question, notes) => invokeResult("ai:generate", question, notes ?? ""),
   },
   updates: {
     status: () => ipcRenderer.invoke("update:status"),

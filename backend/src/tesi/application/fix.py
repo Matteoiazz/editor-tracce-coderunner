@@ -103,20 +103,20 @@ def fix_solution(
     suggeriti dalla revisione non ancora aggiunti."""
     messages = fix_request(question, finding, notes)
     reply = ask_json(model, messages)
-    solution = _solution(reply)
-    if (error := _syntax_error(solution)) is not None:
+    solution = solution_from(reply)
+    if (error := syntax_error(solution)) is not None:
         retry = [
             *messages,
             Message("assistant", solution),
             Message("user", SYNTAX_REMINDER.format(error=error)),
         ]
-        solution = _solution(ask_json(model, retry))
-        if (error := _syntax_error(solution)) is not None:
+        solution = solution_from(ask_json(model, retry))
+        if (error := syntax_error(solution)) is not None:
             raise ModelError(
                 "response",
                 f"Il modello ha proposto codice Python non valido ({error}): riprova",
             )
-    if _same_code(solution, question.solution):
+    if same_code(solution, question.solution):
         explanation = _text(reply.get("spiegazione"))
         raise ModelError(
             "response",
@@ -129,7 +129,8 @@ def fix_solution(
     )
 
 
-def _solution(reply: dict) -> str:
+def solution_from(reply: dict) -> str:
+    """Il codice nella risposta del modello, senza blocco di codice attorno e con l'a capo finale."""
     code = reply.get("soluzione")
     if not isinstance(code, str) or not code.strip():
         raise ModelError("response", "Il modello non ha restituito la soluzione corretta: riprova")
@@ -147,7 +148,8 @@ def _strip_fence(code: str) -> str:
     return "\n".join(lines)
 
 
-def _syntax_error(code: str) -> str | None:
+def syntax_error(code: str) -> str | None:
+    """L'errore di sintassi del codice, oppure None se è Python valido."""
     try:
         compile(code, "soluzione", "exec")
     except SyntaxError as exc:
@@ -157,7 +159,7 @@ def _syntax_error(code: str) -> str | None:
     return None
 
 
-def _same_code(a: str, b: str) -> bool:
+def same_code(a: str, b: str) -> bool:
     def normalize(code: str) -> list[str]:
         lines = [line.rstrip() for line in code.splitlines()]
         while lines and not lines[-1]:

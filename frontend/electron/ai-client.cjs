@@ -49,19 +49,23 @@ function createAiClient({ connection, key, model, fetch, timeoutMs = TIMEOUT_MS 
     return body;
   }
 
+  const notesOf = (notes) => (typeof notes === "string" ? notes : "");
+
   return {
     /** Prova chiave e modello: { correct, seconds }. */
     check: () => post("check", {}),
     /** Revisione della soluzione dell'esercizio: { findings, tests }. */
-    review: (question, notes) => post("review", { question, notes: typeof notes === "string" ? notes : "" }),
+    review: (question, notes) => post("review", { question, notes: notesOf(notes) }),
     /** Correzione di una segnalazione: { solution, explanation, tests }. */
     fix: (question, finding, extraInputs, notes) =>
       post("fix", {
         question,
         finding,
         extra_inputs: Array.isArray(extraInputs) ? extraInputs : [],
-        notes: typeof notes === "string" ? notes : "",
+        notes: notesOf(notes),
       }),
+    /** Soluzione generata e controllata sui test: { solution, explanation, attempts, tests, problems }. */
+    generate: (question, notes) => post("generate", { question, notes: notesOf(notes) }),
   };
 }
 

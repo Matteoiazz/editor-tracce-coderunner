@@ -1,6 +1,15 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
-import { generateStudentCode, previewFix, previewReview, type RequestPreview } from "../api";
+import { generateStudentCode, previewFix, previewGenerate, previewReview, type RequestPreview } from "../api";
 import { type CopySource, type EditableQuestion, exerciseTests, questionName } from "../exam";
+import { isSkeletonSolution } from "../export";
+import {
+  clearGeneration,
+  generationProblem,
+  markGenerationSeen,
+  replacesSolution,
+  startGeneration,
+  useGeneration,
+} from "../generation";
 import type { ExamInfo } from "../naming";
 import type { ExerciseStatus, SectionStatus } from "../status";
 import {
@@ -27,6 +36,7 @@ import type { Question, TestOutcome } from "../types";
 import { AiRequestDialog } from "./AiRequestDialog";
 import { CodeEditor } from "./CodeEditor";
 import { FixDialog } from "./FixDialog";
+import { GenerateDialog } from "./GenerateDialog";
 import { HtmlEditor } from "./HtmlEditor";
 import { IconExpand, IconGenerate, IconReview, IconSettings } from "./icons";
 import { QuestionHeader } from "./QuestionHeader";
@@ -168,6 +178,47 @@ export function QuestionEditor(props: Props) {
   /** L'esercizio da rivedere: il modello vede tutti i suoi test, comuni compresi. */
   function questionForReview(): Question {
     return { ...question, testcases: exerciseTests(item, common).map(toTestCase) };
+  }
+
+  const generation = useGeneration(item.id);
+  const [generationShown, setGenerationShown] = useState(false);
+
+  function handleGenerate() {
+    const problem = generationProblem(question);
+    if (problem) {
+      setReviewBlocked({ message: problem, settings: false });
+      return;
+    }
+    if (
+      replacesSolution(question) &&
+      !window.confirm(
+        "C'è già una soluzione: quella generata la sostituirà solo se la applichi, dopo averla vista. Continuare?",
+      )
+    ) {
+      return;
+    }
+    const withTests = questionForReview();
+    prepareAiRequest({
+      action: "Soluzione generata",
+      notesKey: `${item.id}:soluzione`,
+      loadPreview: () => previewGenerate(withTests, ""),
+      send: (notes) =>
+        startGeneration(item.id, withTests.solution, () => window.desktop.ai.generate(withTests, notes)),
+    });
+  }
+
+  // La soluzione generata si apre da sola quando arriva, una volta
+  useEffect(() => {
+    if (generation?.state === "done" && !generation.seen) {
+      markGenerationSeen(item.id);
+      setGenerationShown(true);
+    }
+  }, [generation]);
+
+  function applyGenerated() {
+    if (generation?.state !== "done") return;
+    update({ solution: generation.result.solution });
+    clearGeneration(item.id);
   }
 
   function handleFix(index: number) {
@@ -315,6 +366,15 @@ export function QuestionEditor(props: Props) {
               <button
                 type="button"
                 className="secondary"
+                onClick={handleGenerate}
+                disabled={generation?.state === "pending" || checkingKey}
+                title="Il modello scrive la soluzione dal testo; l'app la controlla sui test"
+              >
+                <IconGenerate /> {generation?.state === "pending" ? "Generazione in corso…" : "Genera con l'AI"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 onClick={handleReview}
                 disabled={review?.state === "pending" || checkingKey}
                 title="Il modello cerca errori, casi limite, punti ambigui del testo e test mancanti"
@@ -341,6 +401,39 @@ export function QuestionEditor(props: Props) {
             onSend={(notes) => sendAiRequest(aiRequest, notes)}
             onHideNextTime={hideRequestNextTime}
             onClose={() => setAiRequest(null)}
+          />
+        )}
+        {generation?.state === "pending" && (
+          <p className="muted small-text review-progress" role="status">
+            Generazione della soluzione in corso: l'app la controllerà sui test, anche più volte. Con i
+            modelli gratuiti può volerci qualche minuto.
+          </p>
+        )}
+        {generation?.state === "error" && (
+          <div className="review-blocked" role="alert">
+            <p className="inline-notice">Generazione non riuscita: {generation.message}.</p>
+            <button type="button" className="ghost small" onClick={() => clearGeneration(item.id)}>
+              Chiudi
+            </button>
+          </div>
+        )}
+        {generation?.state === "done" && !generationShown && (
+          <div className="review-blocked">
+            <p className="inline-notice">La soluzione generata è pronta e non è ancora stata applicata.</p>
+            <button type="button" className="secondary small" onClick={() => setGenerationShown(true)}>
+              Vedi la soluzione generata
+            </button>
+          </div>
+        )}
+        {generationShown && generation?.state === "done" && (
+          <GenerateDialog
+            result={generation.result}
+            original={generation.solution}
+            showDiff={generation.solution.trim() !== "" && !isSkeletonSolution(generation.solution)}
+            outdated={generation.solution !== question.solution}
+            onApply={applyGenerated}
+            onDiscard={() => clearGeneration(item.id)}
+            onClose={() => setGenerationShown(false)}
           />
         )}
         {fixShown !== null && review?.state === "done" && shownFix?.state === "done" && (

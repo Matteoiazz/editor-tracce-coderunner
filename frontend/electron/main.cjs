@@ -471,6 +471,7 @@ const ai = createAiClient({
 handleWithResult("ai:check", () => ai.check());
 handleWithResult("ai:review", (question, notes) => ai.review(question, notes));
 handleWithResult("ai:fix", (question, finding, extraInputs, notes) => ai.fix(question, finding, extraInputs, notes));
+handleWithResult("ai:generate", (question, notes) => ai.generate(question, notes));
 
 ipcMain.handle("app:version", () => app.getVersion());
 

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from tesi.api.questions import runner
 from tesi.application.ai import ModelCheck, RequestPreview, check_model, preview_of
 from tesi.application.fix import Fix, fix_request, fix_solution
+from tesi.application.generate import GeneratedSolution, generate_request, generate_solution
 from tesi.application.review import Finding, Review, review_request, review_solution
 from tesi.domain import Question
 from tesi.ports import LanguageModel, ModelError
@@ -129,6 +130,43 @@ def fix(
         return fix_solution(
             body.question, body.finding, model, runner, body.extra_inputs[:20], body.notes
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ModelError as exc:
+        raise model_failed(exc) from exc
+
+
+@dataclass
+class GeneratePreviewRequest:
+    # L'esercizio con tutti i suoi test, comuni compresi
+    question: Question
+    notes: str = ""
+
+
+@dataclass
+class GenerateRequest(GeneratePreviewRequest):
+    model: str = ""
+
+
+@router.post("/generate/preview")
+def generate_preview(body: GeneratePreviewRequest) -> RequestPreview:
+    """La richiesta di generazione che verrà inviata al modello, da mostrare al docente."""
+    try:
+        return preview_of(generate_request(body.question, body.notes))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/generate")
+def generate(
+    body: GenerateRequest,
+    request: Request,
+    key: str | None = Header(default=None, alias=KEY_HEADER),
+) -> GeneratedSolution:
+    """Soluzione generata dal modello e controllata sui test, fino a tre tentativi."""
+    model = language_model(request, key, body.model)
+    try:
+        return generate_solution(body.question, model, runner, body.notes)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ModelError as exc:

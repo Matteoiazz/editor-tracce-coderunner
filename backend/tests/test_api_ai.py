@@ -216,3 +216,27 @@ def test_fix(tmp_path: Path) -> None:
         ("a", "a\n1\n", "a\n2\n", False),
         ("b", "b\n1\n", "b\n2\n", False),
     ]
+
+
+def test_anteprima_della_generazione(tmp_path: Path) -> None:
+    response = client(tmp_path).post("/api/ai/generate/preview", json={"question": QUESTION})
+    assert response.status_code == 200
+    assert "Stampa 1" in response.json()["user"]
+
+
+def test_generate(tmp_path: Path) -> None:
+    c = client(tmp_path)
+    FakeModel.reply = json.dumps({"soluzione": "x = input()\nprint(1)\n", "spiegazione": "ok"})
+    try:
+        response = c.post(
+            "/api/ai/generate",
+            json={"model": "fornitore/modello", "question": QUESTION},
+            headers={"X-OpenRouter-Key": KEY},
+        )
+    finally:
+        FakeModel.reply = '{"stato": "pronto", "somma": 5}'
+    assert response.status_code == 200
+    body = response.json()
+    assert body["attempts"] == 1
+    assert body["problems"] == []
+    assert body["tests"][0]["passed"] is True

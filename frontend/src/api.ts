@@ -94,6 +94,10 @@ export function previewReview(question: Question, notes: string): Promise<Reques
   return request("/api/ai/review/preview", jsonBody({ question, notes }));
 }
 
+export function previewGenerate(question: Question, notes: string): Promise<RequestPreview> {
+  return request("/api/ai/generate/preview", jsonBody({ question, notes }));
+}
+
 export function previewFix(question: Question, finding: Finding, notes: string): Promise<RequestPreview> {
   return request("/api/ai/fix/preview", jsonBody({ question, finding, notes }));
 }
