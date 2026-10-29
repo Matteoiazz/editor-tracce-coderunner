@@ -61,7 +61,6 @@ import {
   IconCopy,
   IconExpand,
   IconGenerate,
-  IconMore,
   IconSettings,
   IconTrash,
 } from "./icons";
@@ -167,6 +166,11 @@ export function QuestionEditor(props: Props) {
   const [fixShown, setFixShown] = useState<number | null>(null);
   // Il messaggio riguarda il testo e la soluzione di quel momento
   useEffect(() => setAiBlocked(null), [question.text_html, question.solution]);
+  // Quando compare, l'avviso si porta in vista: il pulsante può essere nell'intestazione fissa
+  const blockedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (aiBlocked) blockedRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [aiBlocked]);
 
   /** Controlla la chiave, poi mostra la richiesta oppure la invia subito, secondo le Impostazioni. */
   async function prepareAiRequest(request: AiRequest) {
@@ -384,7 +388,11 @@ export function QuestionEditor(props: Props) {
   // Avviso di una funzione AI che non è partita, nel punto da cui è stata chiesta
   const blockedNotice = (place: AiPlace) =>
     aiBlocked?.place === place && (
-      <div className={place === "head" ? "review-blocked exercise-head-notice" : "review-blocked"} role="alert">
+      <div
+        ref={blockedRef}
+        className={place === "head" ? "review-blocked exercise-head-notice" : "review-blocked solution-notice"}
+        role="alert"
+      >
         <p className="inline-notice">{aiBlocked.message}</p>
         {aiBlocked.settings && (
           <button type="button" className="secondary small" onClick={props.onOpenSettings}>
@@ -452,8 +460,12 @@ export function QuestionEditor(props: Props) {
           ))}
         </nav>
         <Menu
-          label={<IconMore />}
-          className="icon exercise-menu"
+          label={
+            <>
+              Azioni <IconCaret />
+            </>
+          }
+          className="secondary exercise-menu"
           ariaLabel="Azioni dell'esercizio"
           title="Duplica, esercizi simili, copia da un altro esercizio, rimuovi"
           align="end"
@@ -561,6 +573,8 @@ export function QuestionEditor(props: Props) {
             </div>
           </>
         ))}
+        {/* Sotto il pulsante AI, sopra l'editor: sotto l'editor resterebbe fuori dallo schermo */}
+        {blockedNotice("solution")}
         <CodeEditor
           value={question.solution}
           onChange={(solution) => update({ solution })}
@@ -623,7 +637,6 @@ export function QuestionEditor(props: Props) {
             onClose={() => setFixShown(null)}
           />
         )}
-        {blockedNotice("solution")}
         {review && (
           <ReviewPanel
             entry={review}

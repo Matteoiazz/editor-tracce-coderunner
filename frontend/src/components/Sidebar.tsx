@@ -107,7 +107,7 @@ export function Sidebar(props: Props) {
             </button>
             <Menu
               label={<IconMore />}
-              className="icon"
+              className="icon track-menu"
               ariaLabel="Azioni della traccia"
               title="Nuova traccia, duplica, cestino"
               align="end"

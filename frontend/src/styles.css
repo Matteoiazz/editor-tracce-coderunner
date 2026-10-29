@@ -815,6 +815,19 @@ input[type="checkbox"] {
   margin-left: auto;
 }
 
+/* Menu della traccia: icona sola per lo spazio, ma con il bordo dei pulsanti */
+button.track-menu {
+  flex: none;
+  min-height: 30px;
+  padding: 4px;
+  background: var(--surface);
+  border-color: var(--rule-strong);
+}
+
+button.track-menu:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
 .exercise-intro {
   padding-top: 16px;
 }
@@ -2300,6 +2313,13 @@ button.ghost.active {
   gap: 8px 12px;
   align-items: center;
   margin-top: 12px;
+  /* Portato in vista, non finisce sotto l'intestazione fissa dell'esercizio */
+  scroll-margin: calc(var(--head-height, 52px) + 12px) 0 16px;
+}
+
+/* Tra il titolo della sezione e l'editor della soluzione */
+.solution-notice {
+  margin: 0 0 12px;
 }
 
 .review-blocked .inline-notice {
